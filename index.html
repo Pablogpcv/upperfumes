@@ -6,7 +6,7 @@
 <title>Upperfumes · Fragancias que te elevan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=4">
+<link rel="stylesheet" href="css/styles.css?v=5">
 </head>
 <body>
 <div class="app">
@@ -28,14 +28,17 @@
 </header>
 
 <section class="view active" id="v-tienda">
-  <div class="hero" id="hero"><div class="hero-img" id="heroImg" aria-hidden="true"></div><div class="hero-copy">
-    <h1>Fragancias que te elevan</h1>
-    <p>Perfumes de diseñador y árabes, 100% originales. Envíos a todo Colombia.</p>
-    <div class="hero-btns">
-      <button class="btn-gold" onclick="toCat()">Comprar perfumes</button>
-      <button class="btn-line" onclick="go('mayor')">Comprar por mayor</button>
+  <section class="vban" id="vban" aria-label="Vitrina de Upperfumes">
+    <h1 class="sr">Upperfumes · Fragancias que te elevan</h1>
+    <div class="vamb" aria-hidden="true"></div>
+    <div class="vit" id="vit">
+      <img class="vph" src="assets/img/tienda/vitrina.webp" alt="Estantería iluminada de Upperfumes con perfumes de diseñador" width="806" height="890">
+      <div class="vdim"></div><div class="vglow"></div>
+      <div id="vspots"></div>
+      <div class="vtip" id="vtip"></div>
     </div>
-  </div></div>
+    <span class="vhint"><i></i>Pasa el cursor o toca un perfume</span>
+  </section>
   <div class="stats" id="stats"></div>
 
   <div class="pad">
@@ -108,6 +111,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>
