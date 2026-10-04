@@ -10,15 +10,18 @@
 </head>
 <body>
 <div class="app">
+<div class="annc" aria-label="Avisos"><div class="annc-track" id="annc"></div></div>
 <header class="top">
   <div class="brandmark"><span class="mono"><span class="u">U</span><span class="p">P</span></span><b>UPPERFUMES</b></div>
   <nav class="dnav" aria-label="Secciones">
-    <button data-tab="tienda" aria-current="page" onclick="go('tienda')">Tienda</button>
+    <div class="dd"><button aria-haspopup="true" onclick="setF({cat:'Árabes'})">Árabes<svg viewBox="0 0 12 12" width="10" height="10"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><div class="mega" id="mega-arabes"></div></div>
+    <div class="dd"><button aria-haspopup="true" onclick="setF({cat:'Diseñador'})">Diseñador<svg viewBox="0 0 12 12" width="10" height="10"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><div class="mega" id="mega-disenador"></div></div>
+    <button data-tab="tienda" aria-current="page" onclick="setF({})">Catálogo</button>
     <button data-tab="mayor" onclick="go('mayor')">Por mayor</button>
     <button data-tab="promos" onclick="go('promos')">Promos</button>
-    <button data-tab="cuenta" onclick="go('cuenta')">Cuenta</button>
   </nav>
   <div class="icons">
+    <button class="ib mmenu" aria-label="Menú de categorías y marcas" onclick="openMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <button class="ib" aria-label="Mi cuenta" onclick="go('cuenta')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
     <button class="ib" aria-label="Carrito" onclick="openCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span class="badge" id="badge" hidden>0</span></button>
   </div>
@@ -27,14 +30,49 @@
 <section class="view active" id="v-tienda">
   <div class="hero"><div class="hero-copy">
     <h1>Fragancias que te elevan</h1>
-    <p>Diseñador y árabes originales. Envíos a todo Colombia.</p>
-    <button class="btn-gold" onclick="document.getElementById('cat').scrollIntoView({behavior:'smooth'})">Ver catálogo</button>
+    <p>Perfumes de diseñador y árabes, 100% originales. Envíos a todo Colombia.</p>
+    <div class="hero-btns">
+      <button class="btn-gold" onclick="toCat()">Comprar perfumes</button>
+      <button class="btn-line" onclick="go('mayor')">Comprar por mayor</button>
+    </div>
   </div></div>
+  <div class="stats" id="stats"></div>
+
   <div class="pad">
+    <div class="proms">
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg><h3>Originales</h3><p>Cada frasco es auténtico, con su caja y sellos de fábrica.</p></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg><h3>Envíos a todo Colombia</h3><p>Empacamos con cuidado y te compartimos la guía de tu pedido.</p></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l9-4 9 4-9 4-9-4Z"/><path d="M3 8v8l9 4 9-4V8M12 12v8"/></svg><h3>Precio por mayor</h3><p>Desde 6 unidades, mezclando las referencias que quieras.</p></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19l-4 1Z"/></svg><h3>Asesoría por WhatsApp</h3><p>Te ayudamos a encontrar tu aroma antes de comprar.</p></div>
+    </div>
+  </div>
+
+  <div class="brands" aria-label="Marcas disponibles"><div class="brands-track" id="brands"></div></div>
+
+  <div class="pad">
+    <div class="sh"><h2>Elige tu estilo</h2><p>Cada categoría tiene su propio carácter.</p><div class="rule"></div></div>
+    <div class="cats" id="cats"></div>
+
+    <div class="railhead"><div class="sh"><h2>Recién llegados</h2><p>Lo último que entró a la tienda.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rNew',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rNew',1)">›</button></div></div>
+    <div class="rail" id="rNew"></div>
+
+    <div class="railhead"><div class="sh"><h2>Los más pedidos</h2><p>Los favoritos de nuestros clientes.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rFav',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rFav',1)">›</button></div></div>
+    <div class="rail" id="rFav"></div>
+
     <div class="sh" id="cat"><h2>Catálogo</h2><p>Precio por unidad</p><div class="rule"></div></div>
     <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gold)"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Buscar perfume o marca" oninput="renderShop()" aria-label="Buscar"></div>
     <div class="chips" id="chips"></div>
+    <div class="fl" id="fl"></div>
     <div class="grid" id="grid"></div>
+
+    <div id="testi"></div>
+    <div id="tt"></div>
+
+    <div class="asesor">
+      <h2>¿No sabes cuál elegir?</h2>
+      <p>Cuéntanos qué aromas te gustan, para qué ocasión lo buscas o qué perfume usas hoy, y te recomendamos opciones. Sin costo y sin compromiso.</p>
+      <a class="btn-gold" id="asesorBtn" target="_blank" rel="noopener">Pedir asesoría por WhatsApp</a>
+    </div>
   </div>
 </section>
 
@@ -54,7 +92,7 @@
 
 <section class="view pad" id="v-cuenta"><div id="acc"></div></section>
 
-<footer><span class="mono"><span class="u">U</span><span class="p">P</span></span><div class="serif" style="color:var(--gold);letter-spacing:.14em;margin-top:6px">UPPERFUMES</div><div>fragancias que te elevan</div></footer>
+<footer class="ft" id="ft"></footer>
 </div>
 
 <nav class="tabs" aria-label="Secciones">
