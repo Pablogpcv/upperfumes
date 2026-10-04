@@ -15,8 +15,6 @@ button{cursor:pointer;border:0;background:none}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
 .serif{font-family:Cinzel,"Trajan Pro",Georgia,serif}
 .app{max-width:440px;margin:0 auto;min-height:100vh;padding-bottom:90px;position:relative;background:var(--bg)}
-@media (min-width:600px){body{background:#000}.app{box-shadow:0 0 0 1px var(--line)}.desk{display:block!important}}
-.desk{display:none;position:fixed;left:24px;bottom:24px;color:#8a8470;font-size:13px;max-width:210px}
 
 /* logo */
 .mono{font-family:Cinzel,Georgia,serif;color:var(--gold);display:inline-flex;align-items:flex-start;line-height:1}
@@ -26,6 +24,9 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .brandmark .mono{font-size:26px;height:34px}
 .brandmark b{font-family:Cinzel,Georgia,serif;font-weight:500;color:var(--gold);letter-spacing:.14em;font-size:15px}
 .icons{display:flex;gap:6px}
+.dnav{display:none}
+.badge[hidden]{display:none}
+.xclose{display:none}
 .ib{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--gold);position:relative}
 .ib svg{width:19px;height:19px}
 .badge{position:absolute;top:-3px;right:-3px;background:var(--gold);color:var(--onGold);font-size:11px;font-weight:600;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;padding:0 5px}
@@ -246,3 +247,86 @@ body.has-cart .app{padding-bottom:156px}
 .chk input{margin-top:3px;accent-color:var(--gold)}
 .ficha-sheet{margin:0 -18px 6px;background:#000}
 .ficha-sheet img{width:100%;display:block}
+
+/* ================= Tablet y computador ================= */
+@media (min-width:600px){
+  .app{max-width:760px}
+  .pad{padding:0 28px}
+  .chips{margin:0 -28px;padding:0 28px 4px}
+  .atabs{margin:14px -28px 0;padding:0 28px}
+  .grid{grid-template-columns:repeat(3,1fr);gap:16px}
+  .hero{height:480px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  nav.tabs{max-width:760px}
+  .cartbar{max-width:520px}
+  .sheet{max-width:600px;padding-left:28px;padding-right:28px}
+  .ficha-ph,.ficha-sheet,.sumbar{margin-left:-28px;margin-right:-28px}
+  .sumbar{padding-left:28px;padding-right:28px}
+}
+
+@media (min-width:960px){
+  body{font-size:16px}
+  .app{max-width:1240px;padding-bottom:40px}
+  body.has-cart .app{padding-bottom:110px}
+  .pad{padding:0 40px}
+  .chips{margin:0;padding:0 0 4px;flex-wrap:wrap;overflow:visible}
+  .atabs{margin:18px 0 0;padding:0}
+
+  /* encabezado con menú horizontal */
+  header.top{padding:16px 40px}
+  .brandmark .mono{font-size:30px;height:40px}
+  .brandmark b{font-size:17px}
+  .dnav{display:flex;gap:6px;margin:0 auto}
+  .dnav button{padding:8px 16px;color:var(--muted);font-size:15px;letter-spacing:.03em;border-bottom:1px solid transparent}
+  .dnav button:hover{color:var(--ink)}
+  .dnav button[aria-current="page"]{color:var(--gold);border-color:var(--gold)}
+  nav.tabs{display:none}
+
+  /* portada en dos columnas: texto a la izquierda, vitrina a la derecha */
+  .hero{height:auto;display:grid;grid-template-columns:1fr minmax(0,620px);align-items:center;gap:56px;padding:56px 40px;background:var(--bg)}
+  .hero::before{content:"";grid-column:2;grid-row:1;aspect-ratio:720/597;background:url("../assets/img/tienda/fondo-tienda.jpg") center/cover no-repeat;border:1px solid var(--line)}
+  .hero::after{display:none}
+  .hero-copy{position:static;grid-column:1;grid-row:1;text-align:left;padding:0;color:var(--ink)}
+  .hero-copy h1{font-size:clamp(38px,4vw,56px);line-height:1.1}
+  .hero-copy p{font-size:18px;margin-top:14px;color:var(--muted);max-width:34ch}
+  .btn-gold{margin-top:28px;padding:15px 30px;font-size:15px}
+  .btn-gold:hover,.primary:hover,.wa:hover{background:var(--gold2)}
+
+  /* catálogo */
+  .sh{margin:44px 0 18px}
+  .sh h2{font-size:30px}
+  .search{max-width:520px}
+  .grid{grid-template-columns:repeat(4,1fr);gap:24px;margin-top:20px}
+  .card{transition:border-color .2s}
+  .card:hover{border-color:var(--line)}
+  .card .br{font-size:12px}
+  .card .nm{font-size:15px}
+  .add:hover{background:var(--gold);color:var(--onGold)}
+  .chip:hover{border-color:var(--gold);color:var(--ink)}
+
+  /* promociones */
+  #combos{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  #combos .promo{margin-top:0}
+  .cd{max-width:520px}
+
+  /* paneles: de hoja inferior a ventana centrada */
+  .sheet{left:50%;top:50%;bottom:auto;width:calc(100% - 48px);max-width:620px;max-height:88vh;border:1px solid var(--gold);transform:translate(-50%,-48%);opacity:0;pointer-events:none;transition:transform .25s,opacity .25s;padding-bottom:28px}
+  .sheet.open{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+  .grab{display:none}
+  .xclose{display:grid;place-items:center;position:sticky;top:0;margin:-2px -14px 0 auto;width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid var(--line);color:var(--gold);font-size:22px;line-height:1;z-index:2}
+  .xclose+div{margin-top:-36px}
+  .sumbar{bottom:-28px}
+
+  /* barra del carrito en la esquina */
+  .cartbar{left:auto;right:32px;bottom:28px;width:400px;transform:none}
+  .cartbar[hidden]{transform:translateY(20px)}
+  @keyframes bump{40%{transform:translateY(-6px)}}
+  .toast{bottom:36px}
+  .wbar{bottom:20px}
+
+  footer{padding:56px 40px 24px}
+}
+
+@media (min-width:1280px){
+  .grid{grid-template-columns:repeat(5,1fr)}
+}
