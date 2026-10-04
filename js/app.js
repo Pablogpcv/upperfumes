@@ -150,7 +150,7 @@ function go(t){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("v-"+t).classList.add("active");
   document.querySelectorAll("[data-tab]").forEach(b=>b.dataset.tab===t?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   window.scrollTo(0,0);cartBar();
-  ({mayor:renderW,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop()}})[t]();
+  ({mayor:renderW,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop();window.heroLightStart&&heroLightStart()}})[t]();
 }
 
 /* ---------- tienda ---------- */
@@ -735,5 +735,28 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
 function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open")}
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open")}
 renderMenu();renderHome();renderShop();badge();
+
+/* ---------- banner interactivo: luz que sigue el cursor ---------- */
+(function heroLight(){
+  const H=$("heroImg"),hero=$("hero");if(!H)return;
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){H.classList.add("still");return}
+  let tx=50,ty=40,cx=50,cy=40,last=-1e9,run=false,vis=true;
+  const aim=(x,y)=>{const r=H.getBoundingClientRect();if(!r.width)return;
+    tx=Math.max(0,Math.min(100,(x-r.left)/r.width*100));ty=Math.max(0,Math.min(100,(y-r.top)/r.height*100));last=performance.now();start()};
+  hero.addEventListener("pointermove",e=>aim(e.clientX,e.clientY));
+  hero.addEventListener("touchstart",e=>{const t=e.touches[0];aim(t.clientX,t.clientY)},{passive:true});
+  hero.addEventListener("touchmove",e=>{const t=e.touches[0];aim(t.clientX,t.clientY)},{passive:true});
+  function frame(now){
+    if(!vis||document.hidden||!$("v-tienda").classList.contains("active")){run=false;return}
+    if(now-last>2500){tx=50+32*Math.sin(now/3400);ty=42+18*Math.sin(now/2600)}  // sin interacción: la luz recorre la vitrina sola
+    cx+=(tx-cx)*.09;cy+=(ty-cy)*.09;
+    H.style.setProperty("--x",cx.toFixed(2)+"%");H.style.setProperty("--y",cy.toFixed(2)+"%");
+    requestAnimationFrame(frame);
+  }
+  function start(){if(!run){run=true;requestAnimationFrame(frame)}}
+  new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(vis)start()}).observe(H);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)start()});
+  window.heroLightStart=start;
+})();
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
 
