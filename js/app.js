@@ -136,7 +136,7 @@ const visual=(p,w)=>p.img&&IMG[p.img]?`<img src="${IMG[p.img]}" alt="${esc(p.bra
 
 function go(t){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("v-"+t).classList.add("active");
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.dataset.tab===t?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  document.querySelectorAll("[data-tab]").forEach(b=>b.dataset.tab===t?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   window.scrollTo(0,0);cartBar();
   ({mayor:renderW,promos:renderPromos,cuenta:renderAcc,tienda:renderShop})[t]();
 }
@@ -667,3 +667,4 @@ function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open")}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
 renderShop();badge();
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
