@@ -16,7 +16,8 @@ upperfumes/
 └── assets/
     └── img/
         ├── tienda/         # Fondo e imágenes generales de la tienda
-        └── perfumes/       # Foto de cada perfume del catálogo
+        ├── perfumes/       # Foto cuadrada de cada perfume (tarjetas del catálogo)
+        └── fichas/         # Ficha completa de cada perfume (precio, notas, descripción)
 ```
 
 ## Cómo editar
@@ -27,6 +28,7 @@ upperfumes/
 | Colores, tamaños, fuentes                | `css/styles.css`                |
 | Perfumes, precios, WhatsApp, funciones   | `js/app.js`                     |
 | La foto de un perfume                    | `assets/img/perfumes/`          |
+| La ficha completa de un perfume          | `assets/img/fichas/`            |
 
 Para cambiar una foto, sube una nueva imagen con **el mismo nombre** en `assets/img/perfumes/`.
 
@@ -34,7 +36,6 @@ Cada cambio que se guarde (commit) en la rama `main` se publica solo en GitHub P
 
 ## Catálogo
 
-21 perfumes: Valentino Uomo Born in Roma, Born in Roma Donna, Good Girl, Very Good Girl,
-212 VIP Men, 212 VIP Rosé, Bad Boy, Le Male, Scandal, Classique, Khamrah, Asad, Yara,
-Bade'e Al Oud, Club de Nuit Intense, Yum Yum, Mandarin Sky, Bharara King, 9PM,
-Royal Amber y Amber Noir.
+57 perfumes entre diseñador, nicho y árabes. Los precios de cada perfume están en `js/app.js`
+(campo `pub`). Si cambias precios del catálogo base, sube en 1 el número `CAT_VER` para que
+se actualicen también en los navegadores que ya abrieron la página.
