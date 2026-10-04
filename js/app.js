@@ -1,6 +1,18 @@
 const WHATSAPP="573005598061";   // número de la tienda (se puede cambiar en Admin > Empresa)
 const ADMIN_CODE="UP2026";       // código para registrar administradores
 const MIN_MAYOR=6;
+
+/* ===== Contenido de la portada (edítalo aquí) ===== */
+const ANUNCIOS=["100% originales","Envíos a todo Colombia","Precio por mayor desde 6 unidades","Asesoría gratis por WhatsApp"];
+const DESTACADOS=[49,10,18,15,2,12,24,5,47,53];   // ids de "Los más pedidos"
+const NUEVOS=10;                                 // cuántos mostrar en "Recién llegados" (los últimos agregados)
+// Testimonios: sube capturas a assets/img/testimonios/ y escribe aquí sus rutas.
+// Ej: "assets/img/testimonios/1.jpg". Si la lista está vacía, la sección no aparece.
+const TESTIMONIOS=[];
+// Videos de TikTok: pega los enlaces de los videos. Si está vacía, la sección no aparece.
+// Ej: "https://www.tiktok.com/@upperfumes/video/7300000000000000000"
+const TIKTOK_VIDEOS=[];
+const REDES={instagram:"",tiktok:""};            // usuarios sin @, ej: instagram:"upperfumes"
 const IMG={valentino:"assets/img/perfumes/valentino-uomo-born-in-roma.jpg",verygood:"assets/img/perfumes/very-good-girl.jpg",goodgirl:"assets/img/perfumes/good-girl.jpg",vip_rose:"assets/img/perfumes/212-vip-rose.jpg",lemale:"assets/img/perfumes/le-male.jpg",scandal:"assets/img/perfumes/scandal.jpg",classique:"assets/img/perfumes/classique.jpg",amber_royal:"assets/img/perfumes/royal-amber.jpg",amber_noir:"assets/img/perfumes/amber-noir.jpg",khamrah:"assets/img/perfumes/khamrah.jpg",asad:"assets/img/perfumes/asad.jpg",yara:"assets/img/perfumes/yara.jpg",yumyum:"assets/img/perfumes/yum-yum.jpg",mandarin:"assets/img/perfumes/mandarin-sky.jpg",cdn:"assets/img/perfumes/club-de-nuit-intense.jpg",bharara:"assets/img/perfumes/bharara-king.jpg",vip_men:"assets/img/perfumes/212-vip-men.jpg",ninepm:"assets/img/perfumes/9pm.jpg",bad_boy:"assets/img/perfumes/bad-boy.jpg",badee:"assets/img/perfumes/badee-al-oud.jpg",born_donna:"assets/img/perfumes/born-in-roma-donna.jpg",nyc212:"assets/img/perfumes/212-nyc-men.jpg",ninepm_no:"assets/img/perfumes/9pm-night-out.jpg",acqua:"assets/img/perfumes/acqua-di-gio.jpg",amber_rouge:"assets/img/perfumes/amber-rouge.jpg",amethyst:"assets/img/perfumes/amethyst.jpg",cdn_oud:"assets/img/perfumes/club-de-nuit-oud.jpg",atheeri:"assets/img/perfumes/atheeri.jpg",cloud:"assets/img/perfumes/cloud.jpg",silver_mw:"assets/img/perfumes/silver-mountain-water.jpg",erba_pura:"assets/img/perfumes/erba-pura.jpg",sorbetto:"assets/img/perfumes/sorbetto-rosso.jpg",honor_glory:"assets/img/perfumes/honor-and-glory.jpg",invictus:"assets/img/perfumes/invictus.jpg",issey:"assets/img/perfumes/leau-dissey-pour-homme.jpg",lemale_elixir:"assets/img/perfumes/le-male-elixir.jpg",lacoste_rouge:"assets/img/perfumes/l1212-rouge.jpg",art_universe:"assets/img/perfumes/art-of-universe.jpg",sublime:"assets/img/perfumes/sublime.jpg",yara_elixir:"assets/img/perfumes/yara-elixir.jpg",khamrah_dukhan:"assets/img/perfumes/khamrah-dukhan.jpg",arabians_tonka:"assets/img/perfumes/arabians-tonka.jpg",starry_nights:"assets/img/perfumes/starry-nights.jpg",toy2_bubble:"assets/img/perfumes/toy-2-bubble-gum.jpg",nautica:"assets/img/perfumes/nautica-voyage.jpg",oud_saffron:"assets/img/perfumes/oud-saffron.jpg",one_million:"assets/img/perfumes/1-million.jpg",santal33:"assets/img/perfumes/santal-33.jpg",sauvage:"assets/img/perfumes/sauvage.jpg",shaheen_gold:"assets/img/perfumes/shaheen-gold.jpg",sweet_candy:"assets/img/perfumes/sweet-like-candy.jpg",thank_u_next:"assets/img/perfumes/thank-u-next.jpg",eros:"assets/img/perfumes/versace-eros.jpg",victorinox:"assets/img/perfumes/swiss-army-classic.jpg",yara_candy:"assets/img/perfumes/yara-candy.jpg",yara_rosa:"assets/img/perfumes/yara-rosa.jpg",yara_tous:"assets/img/perfumes/yara-tous.jpg"};
 
 /* fichas completas (imagen con precio, notas y descripción) */
@@ -84,7 +96,7 @@ let lastAdded=null;
 S.company=S.company||{nombre:"Upperfumes",nit:"",telefono:"300 559 8061",email:"",direccion:"",ciudad:"",instagram:"",pie:"Gracias por tu compra. Fragancias que te elevan."};
 S.providers=S.providers||[...new Set(S.products.map(p=>p.proveedor).filter(x=>x&&x!=="Por definir"))];
 const waNum=()=>{const d=String(S.company.telefono||"").replace(/\D/g,"");return d?(d.startsWith("57")?d:"57"+d):WHATSAPP};
-let session=load("upperfumes_session",null), cart=load("upperfumes_cart",{}), wcart={}, filter="Todos", atab="resumen";
+let session=load("upperfumes_session",null), cart=load("upperfumes_cart",{}), wcart={}, F={}, atab="resumen";
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem("upperfumes_session",JSON.stringify(session));localStorage.setItem("upperfumes_cart",JSON.stringify(cart))}catch(e){}}
 const $=id=>document.getElementById(id);
@@ -138,7 +150,7 @@ function go(t){
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("v-"+t).classList.add("active");
   document.querySelectorAll("[data-tab]").forEach(b=>b.dataset.tab===t?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   window.scrollTo(0,0);cartBar();
-  ({mayor:renderW,promos:renderPromos,cuenta:renderAcc,tienda:renderShop})[t]();
+  ({mayor:renderW,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop()}})[t]();
 }
 
 /* ---------- tienda ---------- */
@@ -148,12 +160,69 @@ function card(p){
   <span class="pbox">${cop(price(p))}${p.promo?`<s>${cop(p.publico)}</s>`:""}</span>
   <button class="add" onclick="addCart(${p.id})" ${p.stock<=0?"disabled":""}>${p.stock<=0?"Agotado":"Agregar"}</button></div></div>`;
 }
+const CHIPS={"Todos":{},"Femenino":{g:"Femenino"},"Masculino":{g:"Masculino"},"Unisex":{g:"Unisex"},"Árabes":{cat:"Árabes"},"Diseñador":{cat:"Diseñador"}};
+const GEN={Masculino:"Hombre",Femenino:"Mujer",Unisex:"Unisex"};
+const sameF=(a,b)=>a.cat==b.cat&&a.g==b.g&&a.brand==b.brand;
+const matchF=p=>(!F.cat||p.cat===F.cat)&&(!F.brand||p.brand===F.brand)&&(!F.g||p.g===F.g||(F.g!=="Unisex"&&p.g==="Unisex"));
 function renderShop(){
-  const cats=["Todos","Femenino","Masculino","Árabes","Diseñador"];
-  $("chips").innerHTML=cats.map(c=>`<button class="chip" aria-pressed="${c===filter}" onclick="filter='${c}';renderShop()">${c}</button>`).join("");
+  $("chips").innerHTML=Object.keys(CHIPS).map(c=>`<button class="chip" aria-pressed="${sameF(F,CHIPS[c])}" onclick="setF(CHIPS['${c}'],true)">${c}</button>`).join("");
+  const lbl=[F.cat,F.g&&GEN[F.g],F.brand].filter(Boolean);
+  $("fl").innerHTML=lbl.length>1||F.brand?`<span>Mostrando: <b>${esc(lbl.join(" · "))}</b></span><button onclick="setF({},true)">Quitar filtro ✕</button>`:"";
   const q=$("q").value.trim().toLowerCase();
-  const l=S.products.filter(p=>(filter==="Todos"||p.cat===filter||p.g===filter||(p.g==="Unisex"&&["Femenino","Masculino"].includes(filter)))&&(!q||(p.brand+" "+p.name).toLowerCase().includes(q)));
+  const l=S.products.filter(p=>matchF(p)&&(!q||(p.brand+" "+p.name).toLowerCase().includes(q)));
   $("grid").innerHTML=l.length?l.map(card).join(""):`<p class="empty" style="grid-column:1/-1">No encontramos ese perfume. Prueba con otra marca.</p>`;
+}
+function toCat(){$("cat").scrollIntoView({behavior:"smooth"})}
+function setF(o,stay){
+  F={...o};$("q").value="";closeSheet();
+  document.querySelectorAll(".dd").forEach(d=>{if(!d.matches(":hover"))return;d.classList.add("shut");d.addEventListener("mouseleave",()=>d.classList.remove("shut"),{once:true})});
+  if(document.activeElement)document.activeElement.blur();
+  if(!$("v-tienda").classList.contains("active"))go("tienda");else renderShop();
+  if(!stay)setTimeout(toCat,60);
+}
+
+/* ---------- portada ---------- */
+const brandsOf=cat=>[...new Set(S.products.filter(p=>!cat||p.cat===cat).map(p=>p.brand))].sort((a,b)=>a.localeCompare(b,"es"));
+function menuBlock(cat){
+  const gl=["Masculino","Femenino","Unisex"].map(g=>`<button onclick="setF({cat:'${cat}',g:'${g}'})">${GEN[g]}</button>`).join("");
+  const bl=brandsOf(cat).map(b=>`<button onclick='setF(${JSON.stringify({cat,brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
+  return `<div class="mcol"><small>${cat}</small><button onclick="setF({cat:'${cat}'})"><b>Ver todos</b></button>${gl}</div><div class="mcol mbrands"><small>Marcas</small><div>${bl}</div></div>`;
+}
+function renderMenu(){$("mega-arabes").innerHTML=menuBlock("Árabes");$("mega-disenador").innerHTML=menuBlock("Diseñador")}
+function openMenu(){
+  openSheet(`<h3 class="t">Explorar</h3><div class="mmob">${["Árabes","Diseñador"].map(c=>`<div class="mm">${menuBlock(c)}</div>`).join("")}
+  <div class="mm mlinks"><button onclick="setF({})">Todo el catálogo</button><button onclick="closeSheet();go('mayor')">Por mayor</button><button onclick="closeSheet();go('promos')">Promociones</button></div></div>`);
+}
+function renderHome(){
+  const loop=a=>a.concat(a);
+  $("annc").innerHTML=loop(ANUNCIOS).map(t=>`<span>${esc(t)}</span>`).join("");
+  $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
+  $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>100%</b><span>originales</span></div><div><b>${MIN_MAYOR}+</b><span>unidades para precio por mayor</span></div>`;
+  const pic=(cat,pref)=>{const p=P(pref)&&P(pref).img?P(pref):S.products.find(x=>x.cat===cat&&x.img&&IMG[x.img]);return p&&IMG[p.img]?IMG[p.img]:""};
+  const cats=[
+    {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:pic("Árabes",10),fn:"setF({cat:'Árabes'})"},
+    {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:pic("Diseñador",49),fn:"setF({cat:'Diseñador'})"},
+    {t:"Por mayor",d:"Arma tu pedido desde 6 unidades y accede al precio mayorista.",img:pic("Árabes",15),fn:"go('mayor')"}];
+  $("cats").innerHTML=cats.map(c=>`<button class="catc" onclick="${c.fn}"><span class="catimg" style="background-image:url('${c.img}')"></span><span class="cattx"><b>${c.t}</b><small>${c.d}</small><em>Descubrir</em></span></button>`).join("");
+  $("rNew").innerHTML=[...S.products].sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(card).join("");
+  $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map(card).join("");
+  $("testi").innerHTML=TESTIMONIOS.length?`<div class="railhead"><div class="sh"><h2>Lo que dicen nuestros clientes</h2><p>Mensajes reales de personas que ya compraron.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rTes',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rTes',1)">›</button></div></div><div class="rail tes" id="rTes">${TESTIMONIOS.map((s,i)=>`<img src="${esc(s)}" alt="Testimonio de cliente ${i+1}" loading="lazy">`).join("")}</div>`:"";
+  const vids=TIKTOK_VIDEOS.map(u=>(String(u).match(/(\d{15,})/)||[])[1]).filter(Boolean);
+  $("tt").innerHTML=vids.length?`<div class="sh"><h2>Síguenos en TikTok</h2><p>Reseñas, llegadas y recomendaciones.</p><div class="rule"></div></div><div class="rail tt">${vids.map(v=>`<iframe src="https://www.tiktok.com/player/v1/${v}?controls=1&loop=1&rel=0" title="Video de TikTok" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`).join("")}</div>`:"";
+  $("asesorBtn").href=`https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}`;
+  renderFooter();
+}
+function rail(id,d){const r=$(id);r.scrollBy({left:d*r.clientWidth*.9,behavior:"smooth"})}
+function renderFooter(){
+  const C=S.company,ig=(C.instagram||REDES.instagram||"").replace(/^@/,""),tk=(REDES.tiktok||"").replace(/^@/,""),tel=C.telefono||"300 559 8061";
+  const wa=`https://wa.me/${waNum()}`;
+  $("ft").innerHTML=`<div class="ft-grid">
+    <div class="ft-brand"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div class="serif ft-name">UPPERFUMES</div><p>Perfumes de diseñador y árabes originales, con envíos a todo Colombia.</p>
+      <div class="ft-social"><a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>${ig?`<a href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener">Instagram</a>`:""}${tk?`<a href="https://www.tiktok.com/@${esc(tk)}" target="_blank" rel="noopener">TikTok</a>`:""}</div></div>
+    <div><h4>Comprar</h4><button onclick="setF({cat:'Árabes'})">Árabes</button><button onclick="setF({cat:'Diseñador'})">Diseñador</button><button onclick="setF({})">Todo el catálogo</button><button onclick="go('promos')">Promociones</button></div>
+    <div><h4>Ayuda</h4><a href="${wa}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}" target="_blank" rel="noopener">Asesoría para elegir</a><button onclick="go('mayor')">Ventas al por mayor</button><button onclick="go('cuenta')">Mi cuenta y pedidos</button></div>
+    <div><h4>Contacto</h4><a href="${wa}" target="_blank" rel="noopener">WhatsApp ${esc(tel)}</a>${C.email?`<a href="mailto:${esc(C.email)}">${esc(C.email)}</a>`:""}${C.ciudad?`<span>${esc(C.ciudad)}</span>`:""}<span>Envíos a todo Colombia</span></div>
+  </div><div class="ft-bottom">© ${new Date().getFullYear()} Upperfumes · Fragancias que te elevan</div>`;
 }
 function ficha(id){
   const p=P(id);const lv=["Notas de salida","Notas de corazón","Notas de fondo"];
@@ -665,6 +734,6 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
 
 function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open")}
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open")}
+renderMenu();renderHome();renderShop();badge();
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
-renderShop();badge();
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+
