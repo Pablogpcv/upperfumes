@@ -1,5 +1,4 @@
 const WHATSAPP="573005598061";   // número de la tienda (se puede cambiar en Admin > Empresa)
-const ADMIN_CODE="UP2026";       // código para registrar administradores
 const MIN_MAYOR=6;
 const DESC_MIN=6;          // desde cuántos perfumes en el carrito aplica el descuento
 const DESC_VOL=10;         // porcentaje de descuento por volumen (cámbialo aquí)
@@ -207,7 +206,80 @@ S.providers=S.providers||[...new Set(S.products.map(p=>p.proveedor).filter(x=>x&
 const waNum=()=>{const d=String(S.company.telefono||"").replace(/\D/g,"");return d?(d.startsWith("57")?d:"57"+d):WHATSAPP};
 let session=load("upperfumes_session",null), cart=load("upperfumes_cart",{}), wcart={}, F={}, atab="resumen";
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem("upperfumes_session",JSON.stringify(session));localStorage.setItem("upperfumes_cart",JSON.stringify(cart))}catch(e){}}
+function save(){try{if(!CLOUD){localStorage.setItem(KEY,JSON.stringify(S));localStorage.setItem("upperfumes_session",JSON.stringify(session))}localStorage.setItem("upperfumes_cart",JSON.stringify(cart))}catch(e){}
+  if(CLOUD&&isAdmin()&&SNAP){clearTimeout(syncT);syncT=setTimeout(sync,500)}}
+/* ===================== NUBE (Supabase) =====================
+   Datos compartidos entre todos los dispositivos. La seguridad la pone la base de datos:
+   los clientes solo pueden ver el catálogo y sus propios pedidos; lo de administración solo lo ve un admin. */
+const SB_URL="https://pyxmrttbjynccwviotef.supabase.co", SB_KEY="sb_publishable_QDeX1szmmx4wxQ4enVhuyQ_SdKFxxGM";
+const sb=(window.supabase&&/^https:/.test(SB_URL))?window.supabase.createClient(SB_URL,SB_KEY):null;
+const CLOUD=!!sb;
+let SNAP=null,syncT=null,syncing=false,syncAgain=false,PERFILES=[],cloudReady=!CLOUD,CLOUD_EMPTY=false,MIS=null;
+const ADM_KEYS=["purchases","expenses","providers","invLog","leads"];
+const pubOf=p=>{const o={...p};delete o.compra;delete o.proveedor;delete o.stock;return o};
+const privOf=p=>({compra:p.compra||0,proveedor:p.proveedor||"Por definir"});
+function snapshot(){const n={p:{},st:{},pv:{},f:{},a:{},emp:JSON.stringify(S.company)};
+  S.products.forEach(p=>{n.p[p.id]=JSON.stringify(pubOf(p));n.st[p.id]=p.stock;n.pv[p.id]=JSON.stringify(privOf(p))});
+  S.invoices.forEach(i=>n.f[i.id]=JSON.stringify(i));ADM_KEYS.forEach(k=>n.a[k]=JSON.stringify(S[k]||[]));return n}
+const sbErr=e=>{const m=String(e&&(e.message||e.error_description||e)||"");
+  return /Invalid login/i.test(m)?"Correo o contraseña incorrectos.":/not confirmed/i.test(m)?"Primero confirma tu correo: te enviamos un enlace.":/already registered|already been registered/i.test(m)?"Ese correo ya tiene cuenta. Inicia sesión.":/rate limit|too many/i.test(m)?"Demasiados intentos. Espera unos minutos.":/password/i.test(m)&&/6/.test(m)?"La contraseña debe tener al menos 6 caracteres.":/fetch|network/i.test(m)?"Sin conexión. Revisa tu internet.":m||"Ocurrió un error."};
+async function cloudBoot(){if(!CLOUD)return;
+  // copia de seguridad de lo que había guardado solo en este navegador (versión anterior)
+  try{if(!localStorage.getItem("upperfumes_local_backup")&&localStorage.getItem(KEY))localStorage.setItem("upperfumes_local_backup",localStorage.getItem(KEY))}catch(e){}
+  session=null;S.users=[];S.invoices=[];ADM_KEYS.forEach(k=>S[k]=[]);
+  try{const [r1,r2]=await Promise.all([sb.from("productos").select("id,data,stock"),sb.from("ajustes").select("clave,data")]);
+    if(r1.error)throw r1.error;
+    CLOUD_EMPTY=!r1.data.length;
+    if(!CLOUD_EMPTY)S.products=r1.data.sort((a,b)=>a.id-b.id).map(r=>({...r.data,id:r.id,stock:r.stock,compra:0,proveedor:""}));
+    (r2.data||[]).forEach(r=>{if(r.clave==="empresa")S.company={...S.company,...r.data}});
+  }catch(e){console.warn("nube",e);toast("Sin conexión con la base de datos")}
+  try{const {data}=await sb.auth.getSession();if(data.session)await cargarPerfil(data.session.user)}catch(e){console.warn(e)}
+  sb.auth.onAuthStateChange((ev,ss)=>{if(ev==="SIGNED_OUT"){session=null;SNAP=null;rerender()}if(ev==="PASSWORD_RECOVERY")setTimeout(formNuevaClave,300)});
+  cloudReady=true;rerender()}
+async function cargarPerfil(user){const {data:pf,error}=await sb.from("perfiles").select("*").eq("id",user.id).single();
+  if(error||!pf){session=null;return}
+  session={id:pf.id,name:pf.nombre||pf.email,email:pf.email,phone:pf.telefono||"",role:pf.rol==="admin"?"admin":"cliente"};
+  if(session.role==="admin")await cargarAdmin()}
+async function cargarAdmin(){
+  const [pv,fa,ad,pe]=await Promise.all([sb.from("productos_privado").select("id,data"),sb.from("facturas").select("data").order("creado",{ascending:false}),sb.from("admin_datos").select("clave,data"),sb.from("perfiles").select("*").order("creado")]);
+  if(fa.error)throw fa.error;
+  (pv.data||[]).forEach(r=>{const p=P(r.id);if(p)Object.assign(p,r.data)});
+  S.invoices=(fa.data||[]).map(r=>r.data).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+  (ad.data||[]).forEach(r=>{if(ADM_KEYS.includes(r.clave))S[r.clave]=r.data});
+  PERFILES=pe.data||[];
+  S.users=PERFILES.map(u=>({id:u.id,name:u.nombre||u.email,email:u.email,phone:u.telefono,role:u.rol,fecha:String(u.creado).slice(0,10)}));
+  if(CLOUD_EMPTY){SNAP={p:{},st:{},pv:{},f:{},a:{},emp:""};await sync();CLOUD_EMPTY=false;toast("Catálogo subido a la nube")}
+  else SNAP=snapshot();
+  if(!(await sb.from("ajustes").select("clave").eq("clave","empresa")).data.length)await sb.from("ajustes").upsert({clave:"empresa",data:S.company})}
+async function sync(){if(!CLOUD||!isAdmin()||!SNAP)return;if(syncing){syncAgain=true;return}syncing=true;
+  try{const N=snapshot(),O=SNAP;
+    const nuevos=S.products.filter(p=>O.p[p.id]===undefined),cambian=S.products.filter(p=>O.p[p.id]!==undefined&&N.p[p.id]!==O.p[p.id]);
+    if(nuevos.length){const r=await sb.from("productos").insert(nuevos.map(p=>({id:p.id,data:pubOf(p),stock:p.stock})));if(r.error)throw r.error}
+    if(cambian.length){const r=await sb.from("productos").upsert(cambian.map(p=>({id:p.id,data:pubOf(p)})));if(r.error)throw r.error}
+    for(const p of S.products){if(O.st[p.id]!==undefined&&N.st[p.id]!==O.st[p.id]){const r=await sb.rpc("sumar_stock",{p_id:p.id,p_delta:N.st[p.id]-O.st[p.id]});if(r.error)throw r.error;if(r.data!=null){p.stock=r.data;N.st[p.id]=r.data}}}
+    const pv=S.products.filter(p=>N.pv[p.id]!==O.pv[p.id]);if(pv.length){const r=await sb.from("productos_privado").upsert(pv.map(p=>({id:p.id,data:privOf(p)})));if(r.error)throw r.error}
+    const delP=Object.keys(O.p).filter(id=>N.p[id]===undefined);if(delP.length){const r=await sb.from("productos").delete().in("id",delP.map(Number));if(r.error)throw r.error}
+    const fac=S.invoices.filter(i=>N.f[i.id]!==O.f[i.id]);if(fac.length){const r=await sb.from("facturas").upsert(fac.map(i=>({id:i.id,usuario:i.usuario||null,data:i,actualizado:new Date().toISOString()})));if(r.error)throw r.error}
+    const delF=Object.keys(O.f).filter(id=>N.f[id]===undefined);if(delF.length){const r=await sb.from("facturas").delete().in("id",delF);if(r.error)throw r.error}
+    const ak=ADM_KEYS.filter(k=>N.a[k]!==O.a[k]);if(ak.length){const r=await sb.from("admin_datos").upsert(ak.map(k=>({clave:k,data:S[k]||[],actualizado:new Date().toISOString()})));if(r.error)throw r.error}
+    if(N.emp!==O.emp){const r=await sb.from("ajustes").upsert({clave:"empresa",data:S.company});if(r.error)throw r.error}
+    SNAP=N;
+  }catch(e){console.warn("sync",e);toast("⚠️ No se pudo guardar en la nube. Reintentando…");clearTimeout(syncT);syncT=setTimeout(sync,6000)}
+  syncing=false;if(syncAgain){syncAgain=false;sync()}}
+async function nuevoIdFactura(){if(!CLOUD){return "FV-"+String(S.seq++).padStart(4,"0")}
+  const {data,error}=await sb.rpc("siguiente_factura");if(error)throw error;return data}
+async function refrescarStock(){if(!CLOUD)return;const {data}=await sb.from("productos").select("id,stock");(data||[]).forEach(r=>{const p=P(r.id);if(p)p.stock=r.stock});if(SNAP)(data||[]).forEach(r=>SNAP.st[r.id]=r.stock)}
+function rerender(){try{renderHome();renderShop();badge();const v=document.querySelector(".view.active");if(v&&v.id==="v-cuenta")renderAcc();if(v&&v.id==="v-mayor"&&window.renderW)renderW()}catch(e){console.warn(e)}}
+async function migrarLocal(){let L;try{L=JSON.parse(localStorage.getItem("upperfumes_local_backup")||"null")}catch(e){}
+  if(!L)return toast("No hay datos locales para subir");
+  const ids=new Set(S.invoices.map(i=>i.id));const inv=(L.invoices||[]).filter(i=>!ids.has(i.id));
+  if(!confirm(`Se subirán ${inv.length} facturas, ${(L.purchases||[]).length} compras, ${(L.expenses||[]).length} gastos y ${(L.leads||[]).length} clientes potenciales que estaban guardados solo en este navegador. ¿Continuar?`))return;
+  S.invoices=[...S.invoices,...inv].sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+  ["purchases","expenses","leads","invLog"].forEach(k=>{const cur=S[k]||[],add=(L[k]||[]).filter(x=>!cur.some(y=>JSON.stringify(y)===JSON.stringify(x)));S[k]=[...cur,...add]});
+  S.providers=[...new Set([...(S.providers||[]),...(L.providers||[])])];
+  const max=Math.max(0,...S.invoices.map(i=>parseInt(String(i.id).replace(/\D/g,""))||0));
+  await sync();if(max)await sb.rpc("ajustar_contador",{n:max});
+  localStorage.setItem("upperfumes_local_backup_subido","1");renderAdmin();toast("Datos locales subidos a la nube")}
 const $=id=>document.getElementById(id);
 const cop=n=>"$"+Math.round(n||0).toLocaleString("es-CO");
 const P=id=>S.products.find(p=>p.id==id);
@@ -429,8 +501,8 @@ function openCart(){
     <div class="total"><span>Total</span><b>${cop(tot)}</b></div><button class="primary" onclick="checkout('detal')">Pedir por WhatsApp</button>`);
 }
 function chg(id,d){const p=P(id);cart[id]=Math.min(p.stock,Math.max(0,(cart[id]||0)+d));if(!cart[id])delete cart[id];save();badge();openCart()}
-function makeInvoice({cliente,tel,tipo,items,estado,metodo,origen}){
-  const inv={id:"FV-"+String(S.seq++).padStart(4,"0"),fecha:today(),cliente,tel:tel||"",tipo,metodo:metodo||"Por definir",estado,origen:origen||"admin",
+function makeInvoice({id,cliente,tel,tipo,items,estado,metodo,origen}){
+  const inv={id:id||("FV-"+String(S.seq++).padStart(4,"0")),fecha:today(),cliente,tel:tel||"",tipo,metodo:metodo||"Por definir",estado,origen:origen||"admin",
     items:items.map(i=>{const p=P(i.pid);return{pid:i.pid,name:p.brand+" "+p.name,qty:i.qty,price:i.price,cost:p.compra}})};
   inv.total=inv.items.reduce((a,i)=>a+i.qty*i.price,0);
   inv.items.forEach(i=>{const p=P(i.pid);p.stock=Math.max(0,p.stock-i.qty)});
@@ -438,6 +510,7 @@ function makeInvoice({cliente,tel,tipo,items,estado,metodo,origen}){
 }
 function checkout(tipo){
   if(!session){closeSheet();go("cuenta");toast("Inicia sesión para hacer tu pedido");return}
+  if(CLOUD)return checkoutNube(tipo);
   const desc=volOn();
   const items=Object.keys(cart).filter(k=>cart[k]>0&&P(k)).map(k=>({pid:+k,qty:cart[k],price:lineP(P(k))}));
   if(!items.length)return;
@@ -451,6 +524,19 @@ function checkout(tipo){
   toast("Pedido "+inv.id+" enviado");
 }
 
+async function checkoutNube(tipo){
+  const src=tipo==="mayor"?wcart:cart,items=Object.keys(src).filter(k=>src[k]>0&&P(k)).map(k=>({pid:+k,qty:src[k]}));
+  if(!items.length)return;
+  const w=window.open("","_blank");
+  try{const {data:inv,error}=await sb.rpc("crear_pedido",{p_tipo:tipo,p_items:items});if(error)throw error;
+    let m=`Hola Upperfumes, soy ${session.name}. Pedido ${inv.id}${tipo==="mayor"?" (por mayor)":""}:\n`;
+    inv.items.forEach(i=>m+=`• ${i.qty} x ${i.name} — ${cop(i.price)}\n`);
+    if(inv.descVol)m+=`Descuento por volumen: ${DESC_VOL}% (ya incluido en los precios)\n`;
+    m+=`Total: ${cop(inv.total)}`;
+    if(tipo==="mayor")wcart={};else cart={};save();badge();closeSheet();MIS=null;
+    const url=`https://wa.me/${waNum()}?text=${encodeURIComponent(m)}`;if(w)w.location.href=url;else location.href=url;
+    toast("Pedido "+inv.id+" registrado");refrescarStock().then(()=>{renderShop();if(tipo==="mayor")renderW()});
+  }catch(e){if(w)w.close();toast(sbErr(e))}}
 /* ---------- mayor ---------- */
 function renderW(){
   $("wLock").innerHTML=session?"":`<div class="note">Para enviar un pedido mayorista necesitas una cuenta.<br><button class="btn-line" onclick="go('cuenta')">Iniciar sesión</button></div>`;
@@ -477,29 +563,41 @@ function tick(){const n=new Date(),e=new Date(n);e.setDate(n.getDate()+((7-n.get
 setInterval(()=>{if($("v-promos").classList.contains("active"))tick()},30000);
 
 /* ---------- cuenta ---------- */
-let mode="login",role="cliente";
+let mode="login";
 function renderAcc(){
+  if(!cloudReady){$("acc").innerHTML=`<p class="empty">Cargando…</p>`;return}
   if(session)return isAdmin()?renderAdmin():renderProfile();
-  $("acc").innerHTML=`<div class="sh"><h2>${mode==="login"?"Inicia sesión":"Crea tu cuenta"}</h2><div class="rule"></div></div><div class="panel">
-  <div class="seg"><button aria-pressed="${mode==="login"}" onclick="mode='login';renderAcc()">Ingresar</button><button aria-pressed="${mode==="reg"}" onclick="mode='reg';renderAcc()">Registrarme</button></div>
-  ${mode==="reg"?`<label>Tipo de cuenta</label><div class="role"><button aria-pressed="${role==="cliente"}" onclick="role='cliente';renderAcc()"><b>Cliente</b>Compra y sigue tus pedidos</button><button aria-pressed="${role==="admin"}" onclick="role='admin';renderAcc()"><b>Administrador</b>Inventario y contabilidad</button></div>
-  <label for="fN">Nombre</label><input class="f" id="fN" autocomplete="name"><label for="fT">Celular</label><input class="f" id="fT" inputmode="tel" autocomplete="tel">`:""}
+  $("acc").innerHTML=`<div class="sh"><h2>${mode==="login"?"Inicia sesión":mode==="reg"?"Crea tu cuenta":"Recupera tu contraseña"}</h2><div class="rule"></div></div><div class="panel">
+  ${mode!=="reset"?`<div class="seg"><button aria-pressed="${mode==="login"}" onclick="mode='login';renderAcc()">Ingresar</button><button aria-pressed="${mode==="reg"}" onclick="mode='reg';renderAcc()">Registrarme</button></div>`:""}
+  ${mode==="reg"?`<label for="fN">Nombre</label><input class="f" id="fN" autocomplete="name"><label for="fT">Celular</label><input class="f" id="fT" inputmode="tel" autocomplete="tel">`:""}
   <label for="fE">Correo</label><input class="f" id="fE" type="email" autocomplete="email">
-  <label for="fP">Contraseña</label><input class="f" id="fP" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}">
-  ${mode==="reg"&&role==="admin"?`<label for="fC">Código de administrador</label><input class="f" id="fC"><p class="hint">Lo entrega el dueño de la tienda.</p>`:""}
-  <p class="err" id="err"></p><button class="primary" onclick="${mode==="login"?"login()":"reg()"}">${mode==="login"?"Ingresar":"Crear cuenta"}</button></div>`;
+  ${mode!=="reset"?`<label for="fP">Contraseña</label><input class="f" id="fP" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}">`:""}
+  <p class="err" id="err"></p><p class="hint" id="ok" style="color:var(--ok)"></p>
+  <button class="primary" id="accBtn" onclick="${mode==="login"?"login()":mode==="reg"?"reg()":"resetClave()"}">${mode==="login"?"Ingresar":mode==="reg"?"Crear cuenta":"Enviarme el enlace"}</button>
+  ${CLOUD&&mode==="login"?`<button class="ghost" onclick="mode='reset';renderAcc()">¿Olvidaste tu contraseña?</button>`:""}${mode==="reset"?`<button class="ghost" onclick="mode='login';renderAcc()">Volver</button>`:""}</div>`;
 }
-function login(){const e=$("fE").value.trim().toLowerCase(),p=$("fP").value,u=S.users.find(x=>x.email===e&&x.pass===p);
-  if(!u){$("err").textContent="Correo o contraseña incorrectos.";return}session={name:u.name,email:u.email,role:u.role,phone:u.phone||""};save();toast("Bienvenido, "+u.name.split(" ")[0]);renderAcc()}
-function reg(){const n=$("fN").value.trim(),t=$("fT").value.trim(),e=$("fE").value.trim().toLowerCase(),p=$("fP").value;
+const busy=(on)=>{const b=$("accBtn");if(b){b.disabled=on;b.style.opacity=on?.6:1}};
+async function login(){const e=$("fE").value.trim().toLowerCase(),p=$("fP").value;
+  if(!CLOUD){const u=S.users.find(x=>x.email===e&&x.pass===p);if(!u){$("err").textContent="Correo o contraseña incorrectos.";return}session={name:u.name,email:u.email,role:u.role,phone:u.phone||""};save();toast("Bienvenido, "+u.name.split(" ")[0]);return renderAcc()}
+  if(!e||!p)return $("err").textContent="Escribe tu correo y contraseña.";
+  busy(true);try{const {data,error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)throw error;await cargarPerfil(data.user);
+    if(!session)throw new Error("No encontramos tu perfil");toast("Bienvenido, "+session.name.split(" ")[0]);rerender()}catch(err){$("err").textContent=sbErr(err)}busy(false)}
+async function reg(){const n=$("fN").value.trim(),t=$("fT").value.trim(),e=$("fE").value.trim().toLowerCase(),p=$("fP").value;
   if(!n||!e||!p)return $("err").textContent="Completa nombre, correo y contraseña.";
   if(p.length<6)return $("err").textContent="La contraseña debe tener al menos 6 caracteres.";
-  if(S.users.some(x=>x.email===e))return $("err").textContent="Ese correo ya tiene cuenta.";
-  if(role==="admin"&&$("fC").value.trim()!==ADMIN_CODE)return $("err").textContent="El código de administrador no es válido.";
-  S.users.push({name:n,email:e,pass:p,phone:t,role,fecha:today()});session={name:n,email:e,role,phone:t};save();toast("Cuenta creada");renderAcc()}
-function logout(){session=null;save();mode="login";renderAcc()}
+  if(!CLOUD){if(S.users.some(x=>x.email===e))return $("err").textContent="Ese correo ya tiene cuenta.";S.users.push({name:n,email:e,pass:p,phone:t,role:"cliente",fecha:today()});session={name:n,email:e,role:"cliente",phone:t};save();toast("Cuenta creada");return renderAcc()}
+  busy(true);try{const {data,error}=await sb.auth.signUp({email:e,password:p,options:{data:{nombre:n,telefono:t},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
+    if(data.session){await cargarPerfil(data.user);toast("Cuenta creada");rerender()}
+    else{$("ok").textContent="¡Listo! Te enviamos un correo a "+e+". Abre el enlace para activar tu cuenta y luego inicia sesión.";$("err").textContent=""}}catch(err){$("err").textContent=sbErr(err)}busy(false)}
+async function resetClave(){const e=$("fE").value.trim().toLowerCase();if(!e)return $("err").textContent="Escribe tu correo.";
+  busy(true);const {error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});busy(false);
+  if(error)return $("err").textContent=sbErr(error);$("ok").textContent="Si ese correo tiene cuenta, te llegó un enlace para crear una contraseña nueva."}
+function formNuevaClave(){openSheet(`<h3 class="t">Nueva contraseña</h3><label for="nP">Escribe tu nueva contraseña</label><input class="f" id="nP" type="password" autocomplete="new-password"><p class="err" id="err"></p><button class="primary" onclick="guardarClave()">Guardar</button>`)}
+async function guardarClave(){const p=$("nP").value;if(p.length<6)return $("err").textContent="Mínimo 6 caracteres.";const {error}=await sb.auth.updateUser({password:p});if(error)return $("err").textContent=sbErr(error);closeSheet();toast("Contraseña actualizada");const {data}=await sb.auth.getUser();if(data.user)await cargarPerfil(data.user);rerender()}
+async function logout(){if(CLOUD)await sb.auth.signOut();session=null;SNAP=null;MIS=null;S.invoices=[];ADM_KEYS.forEach(k=>S[k]=[]);PERFILES=[];S.users=[];save();mode="login";rerender()}
 function renderProfile(){
-  const mine=S.invoices.filter(i=>i.cliente===session.name&&i.origen==="web");
+  if(CLOUD&&MIS===null){MIS=[];sb.rpc("mis_pedidos").then(({data})=>{MIS=data||[];if(session&&!isAdmin())renderProfile()})}
+  const mine=CLOUD?(MIS||[]):S.invoices.filter(i=>i.cliente===session.name&&i.origen==="web");
   $("acc").innerHTML=`<div class="sh"><h2>Tu cuenta</h2><div class="rule"></div></div><div class="panel"><div class="who"><div class="av">${esc(session.name[0])}</div><div><b>${esc(session.name)}</b><br><small style="color:var(--muted)">${esc(session.email)}</small><br><span class="pill g">Cliente</span></div></div></div>
   <div class="sh"><h2 style="font-size:19px">Mis pedidos</h2></div>${mine.length?mine.map(i=>`<div class="row"><div class="grow"><b>${i.id} · ${cop(i.total)}</b><small>${i.fecha} · ${i.items.length} referencias${i.guia?` · Guía ${esc(i.transp||"")} ${esc(i.guia)}`:""}</small></div><div style="text-align:right">${statePill(i.estado)}<br>${i.estado!=="anulada"?envPill(envOf(i)):""}</div></div>`).join(""):`<p class="empty">Aún no tienes pedidos.</p>`}
   <button class="ghost" onclick="logout()">Cerrar sesión</button>`;
@@ -535,6 +633,7 @@ function aResumen(){
    <div class="kpi"><span>Ventas del mes</span><b class="g">${cop(t.ventas)}</b></div><div class="kpi"><span>Utilidad neta del mes</span><b class="${t.neta<0?"neg":""}">${cop(t.neta)}</b></div>
    <div class="kpi"><span>Por cobrar</span><b>${cop(t.cxc)}</b></div><div class="kpi"><span>Inventario a costo</span><b>${cop(valInv)}</b></div></div>
    <div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="formCompra()">Registrar compra</button></div>
+   ${CLOUD&&(()=>{try{return localStorage.getItem("upperfumes_local_backup")&&!localStorage.getItem("upperfumes_local_backup_subido")}catch(e){return false}})()?`<div class="panel" style="margin-top:12px;padding:12px"><b>Datos guardados en este navegador</b><p class="hint" style="margin:4px 0 8px">Antes las facturas y compras se guardaban solo en este dispositivo. Súbelas a la base de datos para que no se pierdan.</p><button class="btn-gold" style="margin:0" onclick="migrarLocal()">Subir datos de este navegador a la nube</button> <button class="ghost" style="margin:0" onclick="localStorage.setItem('upperfumes_local_backup_subido','1');renderAdmin()">No, ignorar</button></div>`:""}
    <div class="sh"><h2 style="font-size:19px">Stock bajo</h2><p>3 unidades o menos</p></div>
    ${low.length?low.map(p=>`<div class="row"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.name)}</b><small>${esc(p.proveedor)}</small></div><b class="${p.stock?"stock-low":"stock-out"}">${p.stock} uds</b></div>`).join(""):`<p class="empty">Todo el inventario tiene buen stock.</p>`}
    <div class="sh"><h2 style="font-size:19px">Últimos pedidos</h2></div>${S.invoices.slice(0,4).map(invRow).join("")||`<p class="empty">Aún no hay facturas.</p>`}
@@ -728,7 +827,8 @@ async function saveFactura(){
   if(!lines.length)return $("err").textContent="Agrega al menos un producto.";
   const need={};lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
   for(const k in need){if(P(k).stock<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`}
-  const inv=makeInvoice({cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.m,estado:v.e,items:lines.map(l=>({pid:l.pid,qty:l.qty,price:v.tipo==="mayor"?P(l.pid).mayor:price(P(l.pid))}))});
+  let nid;try{nid=await nuevoIdFactura()}catch(e){return $("err").textContent="No se pudo crear el número de factura: "+sbErr(e)}
+  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.m,estado:v.e,items:lines.map(l=>({pid:l.pid,qty:l.qty,price:v.tipo==="mayor"?P(l.pid).mayor:price(P(l.pid))}))});
   if(FV.blob){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
   atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada");verFactura(inv.id);
@@ -948,8 +1048,13 @@ function aConta(){
 function formGasto(){openSheet(`<h3 class="t">Registrar gasto</h3><label>Concepto</label><input class="f" id="gC" placeholder="Ej: envío Servientrega"><div class="two"><div><label>Categoría</label><select class="f" id="gK">${["Envíos","Publicidad","Empaques","Arriendo","Servicios","Comisiones","Otros"].map(o=>`<option>${o}</option>`).join("")}</select></div><div><label>Monto</label><input class="f" id="gM" inputmode="numeric"></div></div><label>Fecha</label><input class="f" type="date" id="gF" value="${today()}"><p class="err" id="err"></p><button class="primary" onclick="saveGasto()">Guardar gasto</button>`)}
 function saveGasto(){const c=$("gC").value.trim(),m=num($("gM").value);if(!c||!m)return $("err").textContent="Escribe concepto y monto.";S.expenses.unshift({id:Date.now(),concepto:c,cat:$("gK").value,monto:m,fecha:$("gF").value||today()});save();closeSheet();aConta();toast("Gasto registrado")}
 /* usuarios */
+async function setRol(id,rol){const u=S.users.find(x=>x.id===id);if(!u)return;
+  if(!confirm(rol==="admin"?`¿Dar acceso de ADMINISTRADOR a ${u.name} (${u.email})? Podrá ver y editar facturas, costos y todo el panel.`:`¿Quitarle el acceso de administrador a ${u.name}?`))return;
+  const {error}=await sb.rpc("cambiar_rol",{p_id:id,p_rol:rol});if(error)return toast(sbErr(error));u.role=rol;
+  if(id===session.id&&rol!=="admin"){location.reload();return}aUsers();toast("Rol actualizado")}
 function aUsers(){$("ab").innerHTML=`<div class="kpis"><div class="kpi"><span>Clientes</span><b>${S.users.filter(u=>u.role==="cliente").length}</b></div><div class="kpi"><span>Administradores</span><b>${S.users.filter(u=>u.role==="admin").length}</b></div></div>
-  ${S.users.map(u=>`<div class="row"><div class="av" style="width:38px;height:38px;font-size:16px">${esc(u.name[0])}</div><div class="grow"><b>${esc(u.name)}</b><small>${esc(u.email)}${u.phone?" · "+esc(u.phone):""}</small></div><span class="pill ${u.role==="admin"?"g":""}">${u.role==="admin"?"Admin":"Cliente"}</span></div>`).join("")}`}
+  ${S.users.map(u=>`<div class="row"><div class="av" style="width:38px;height:38px;font-size:16px">${esc(u.name[0])}</div><div class="grow"><b>${esc(u.name)}</b><small>${esc(u.email)}${u.phone?" · "+esc(u.phone):""}</small></div><span class="pill ${u.role==="admin"?"g":""}">${u.role==="admin"?"Admin":"Cliente"}</span>${CLOUD&&u.id?`<button class="ghost" style="margin:0 0 0 8px;padding:4px 8px;width:auto;font-size:12px" onclick="setRol('${u.id}','${u.role==="admin"?"cliente":"admin"}')">${u.role==="admin"?"Quitar admin":"Hacer admin"}</button>`:""}</div>`).join("")}
+  ${CLOUD?`<p class="hint" style="margin-top:12px">Las cuentas nuevas siempre se crean como <b>Cliente</b>. Solo un administrador puede dar acceso de administrador desde aquí.</p>`:""}`}
 
 /* ---------- CLIENTES ---------- */
 let ctab="compradores",leadConv=null,LF=null;
@@ -1048,7 +1153,7 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
 
 function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open")}
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open")}
-renderMenu();renderHome();renderShop();badge();loadClientes();route();
+renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
 (function vitrina(){
