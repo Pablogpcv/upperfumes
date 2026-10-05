@@ -586,7 +586,7 @@ body.has-cart .app{padding-bottom:156px}
 }
 
 /* ===== Recién llegados: franja clara, tipo vitrina de novedades ===== */
-.band-new{--ink2:#1d1a14;background:linear-gradient(180deg,#f3ecdc,#e9dfc9);color:var(--ink2);margin:40px -18px 0;padding:6px 18px 26px;border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);position:relative}
+.band-new{--ink2:#1d1a14;background:linear-gradient(180deg,#f3ecdc,#e9dfc9);color:var(--ink2);width:100vw;margin:40px 0 0 calc(50% - 50vw);padding:6px calc((100vw - min(100vw,440px))/2 + 18px) 26px;border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);position:relative}
 .band-new .sh h2{color:#7a5a12}
 .band-new .sh p{color:#5e5444}
 .band-new .rule{background:#9a7b1f}
@@ -606,12 +606,14 @@ body.has-cart .app{padding-bottom:156px}
 .topi .card{position:relative;z-index:1}
 .topi:nth-child(-n+3) .rank{color:rgba(212,175,55,.16)}
 @media (min-width:600px){
-  .band-new{margin:48px -28px 0;padding:8px 28px 30px}
+  .band-new{margin:48px 0 0 calc(50% - 50vw);padding:8px calc((100vw - min(100vw,760px))/2 + 28px) 30px}
   .rail.top{grid-auto-columns:40%}
 }
 @media (min-width:960px){
-  .band-new{margin:64px -40px 0;padding:14px 40px 40px}
+  .band-new{margin:64px 0 0 calc(50% - 50vw);padding:14px calc((100vw - min(100vw,1240px))/2 + 40px) 40px}
   .rail.top{grid-auto-columns:calc((100% - 72px)/4);gap:24px}
   .rank{font-size:150px;margin-right:-26px;padding-bottom:90px}
 }
 @media (min-width:1280px){.rail.top{grid-auto-columns:calc((100% - 72px)/4)}}
+
+html,body{overflow-x:clip}
