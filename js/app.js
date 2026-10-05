@@ -685,17 +685,19 @@ function psBox(key,ph,cb,tipo){PSCB[key]={cb,tipo:tipo||"detal",ph,sel:0};return
 function pickBtn(pid,key,cb,tipo){const p=P(pid);PSCB[key]={cb,tipo:tipo||"detal",ph:"Cambiar por…",sel:0};
   return `<div class="ps"><button type="button" class="f pick-btn" aria-label="Cambiar producto" onclick="psSwap(this,'${key}')">${p?`<span class="pb-th">${visual(p,20)}</span><span class="pb-nm">${esc(p.brand+" "+p.name)}</span><small>${p.ml} ml</small>`:`<span>Elegir producto</span>`}</button></div>`}
 function psSwap(btn,key){const w=btn.parentNode;w.innerHTML=psInner(key,PSCB[key].ph);const i=$("ps_"+key);i.focus();i.addEventListener("blur",()=>setTimeout(()=>{if(PSCB[key]&&!PSCB[key].done&&document.activeElement!==i){if(EF&&$("eC"))drawEdit(1);else if($("vC"))drawFactura(fv())}},200),{once:true})}
-function psRes(key){const q=norm(($("ps_"+key)||{}).value).split(/\s+/).filter(Boolean);if(!q.length)return[];
+function psRes(key){const q=norm(($("ps_"+key)||{}).value).split(/\s+/).filter(Boolean);if(!q.length)return S.products.slice().sort((a,b)=>(b.stock>0)-(a.stock>0));
   return S.products.filter(p=>{const h=norm(p.brand+" "+p.name+" "+(p.cat||"")+" "+(p.g||""));return q.every(w=>h.includes(w))}).sort((a,b)=>(b.stock>0)-(a.stock>0))}
-function psList(key){const d=$("psd_"+key),c=PSCB[key];if(!d||!c)return;const l=psRes(key),q=$("ps_"+key).value.trim();
-  if(!q){d.hidden=true;return}c.sel=Math.min(c.sel,Math.max(0,Math.min(l.length,PSN)-1));d.hidden=false;
-  d.innerHTML=l.length?l.slice(0,PSN).map((p,k)=>`<button type="button" class="${k===c.sel?"on ":""}${p.stock<=0?"out":""}" onmousedown="event.preventDefault()" onclick="psPick('${key}',${p.id})"><span class="pb-th">${visual(p,20)}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml${p.stock<=0?" · Agotado":""}</small></span><span class="ps-pr">${cop(c.tipo==="mayor"?p.mayor:price(p))}</span></button>`).join("")+(l.length>PSN?`<p class="ps-more">${l.length-PSN} más · sigue escribiendo</p>`:""):`<p class="ps-more">Sin resultados para "${esc(q)}"</p>`}
-function psKey(e,key){const c=PSCB[key],l=psRes(key).slice(0,PSN);
-  if(e.key==="ArrowDown"){e.preventDefault();c.sel=Math.min(l.length-1,c.sel+1);psList(key)}
-  else if(e.key==="ArrowUp"){e.preventDefault();c.sel=Math.max(0,c.sel-1);psList(key)}
+const psLim=key=>($("ps_"+key)||{}).value.trim()?PSN:1e9;
+function psList(key){const d=$("psd_"+key),c=PSCB[key];if(!d||!c)return;const l=psRes(key),q=$("ps_"+key).value.trim(),n=psLim(key);
+  c.sel=Math.min(c.sel,Math.max(0,Math.min(l.length,n)-1));d.hidden=false;d.classList.toggle("all",!q);
+  d.innerHTML=l.length?l.slice(0,n).map((p,k)=>`<button type="button" class="${k===c.sel?"on ":""}${p.stock<=0?"out":""}" onmousedown="event.preventDefault()" onclick="psPick('${key}',${p.id})"><span class="pb-th">${visual(p,20)}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml${p.stock<=0?" · Agotado":""}</small></span><span class="ps-pr">${cop(c.tipo==="mayor"?p.mayor:price(p))}</span></button>`).join("")+(q&&l.length>PSN?`<p class="ps-more">${l.length-PSN} más · sigue escribiendo</p>`:""):`<p class="ps-more">Sin resultados para "${esc(q)}"</p>`}
+function psKey(e,key){const c=PSCB[key],l=psRes(key).slice(0,psLim(key));
+  if(e.key==="ArrowDown"){e.preventDefault();c.sel=Math.min(l.length-1,c.sel+1);psList(key);psSee(key)}
+  else if(e.key==="ArrowUp"){e.preventDefault();c.sel=Math.max(0,c.sel-1);psList(key);psSee(key)}
   else if(e.key==="Enter"){e.preventDefault();if(l[c.sel])psPick(key,l[c.sel].id)}
   else if(e.key==="Escape"){$("ps_"+key).value="";psClose(key);$("ps_"+key).blur()}
   else c.sel=0}
+function psSee(key){const b=document.querySelector(`#psd_${key} button.on`);if(b)b.scrollIntoView({block:"nearest"})}
 function psClose(key){const d=$("psd_"+key);if(d)d.hidden=true}
 function psPick(key,id){const c=PSCB[key];c.done=true;c.cb(id)}
 const psFocus=k=>setTimeout(()=>{const i=$("ps_"+k);if(i)i.focus()},40);
