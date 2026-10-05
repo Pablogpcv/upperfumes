@@ -6,7 +6,7 @@
 <title>Upperfumes · Fragancias que te elevan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=5">
+<link rel="stylesheet" href="css/styles.css?v=10">
 </head>
 <body>
 <div class="app">
@@ -31,13 +31,15 @@
   <section class="vban" id="vban" aria-label="Vitrina de Upperfumes">
     <h1 class="sr">Upperfumes · Fragancias que te elevan</h1>
     <div class="vamb" aria-hidden="true"></div>
-    <div class="vit" id="vit">
-      <img class="vph" src="assets/img/tienda/vitrina.webp" alt="Estantería iluminada de Upperfumes con perfumes de diseñador" width="806" height="890">
-      <div class="vdim"></div><div class="vglow"></div>
-      <div id="vspots"></div>
-      <div class="vtip" id="vtip"></div>
+    <div class="vscroll" id="vscroll">
+      <div class="vit" id="vit">
+        <img class="vph" id="vph" src="assets/img/tienda/vitrina-estanteria.webp" alt="Estantería iluminada de Upperfumes con perfumes de diseñador y árabes" width="1600" height="893">
+        <div class="vdim"></div><div class="vglow"></div>
+        <div id="vspots"></div>
+        <div class="vtip" id="vtip"></div>
+      </div>
     </div>
-    <span class="vhint"><i></i>Pasa el cursor o toca un perfume</span>
+    <span class="vhint"><i></i><span class="vh-d">Pasa el cursor y elige un perfume</span><span class="vh-m">Desliza la vitrina y toca un perfume</span></span>
   </section>
   <div class="stats" id="stats"></div>
 
@@ -111,6 +113,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/app.js?v=5"></script>
+<script src="js/app.js?v=10"></script>
 </body>
 </html>
