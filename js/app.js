@@ -14,30 +14,47 @@ const TESTIMONIOS=[];
 const TIKTOK_VIDEOS=[];
 const REDES={instagram:"",tiktok:""};
 /* ===== Vitrina del banner principal =====
-   Cada caja de la foto (assets/img/tienda/vitrina.webp) es una zona: z=[izquierda, arriba, ancho, alto] en % de la foto.
-   - Si tiene id: abre la ficha de ese perfume del catálogo (con precio y carrito).
-   - Si no: muestra la caja y un botón para consultar por WhatsApp. Para venderla, cámbiale marca/nombre por id:XX. */
+   Foto: assets/img/tienda/vitrina-estanteria.webp (1600 x 893 de referencia para las zonas).
+   Cada perfume de la foto es una zona z=[x1, y1, x2, y2] en píxeles y su id del catálogo.
+   Si cambias la foto, actualiza estas zonas. Una zona sin id (con marca y nombre) abre una consulta por WhatsApp. */
+const VFOTO={src:"assets/img/tienda/vitrina-estanteria.webp",w:1600,h:893};
 const VITRINA=[
-  {z:[2.1, 31.1, 13.4, 12.5],marca:"",nombre:""},
-  {z:[15.3, 33.7, 5.0, 8.8],id:49},
-  {z:[0.0, 54.5, 10.2, 13.8],marca:"",nombre:""},
-  {z:[10.2, 55.6, 10.5, 12.9],id:49},
-  {z:[20.7, 55.1, 10.0, 13.7],marca:"Chanel",nombre:"Bleu de Chanel"},
-  {z:[30.8, 53.6, 11.0, 15.2],id:47},
-  {z:[41.8, 52.6, 12.5, 16.5],id:24},
-  {z:[54.3, 53.9, 11.4, 15.4],marca:"Yves Saint Laurent",nombre:"Y"},
-  {z:[65.8, 51.7, 13.2, 17.8],marca:"Chanel",nombre:"Allure Homme Sport"},
-  {z:[80.6, 53.7, 8.7, 15.7],id:49},
-  {z:[93.1, 50.2, 6.9, 19.4],marca:"Viktor&Rolf",nombre:"Spicebomb"},
-  {z:[0.4, 75.8, 10.4, 13.8],id:1},
-  {z:[11.2, 76.2, 6.7, 13.9],marca:"",nombre:""},
-  {z:[17.9, 77.5, 6.5, 13.5],marca:"",nombre:""},
-  {z:[24.3, 76.2, 11.5, 16.0],marca:"Dior",nombre:"J'adore"},
-  {z:[36.4, 78.7, 11.8, 14.8],id:22},
-  {z:[50.9, 78.1, 11.2, 16.9],id:6},
-  {z:[63.5, 78.9, 13.3, 17.8],id:34},
-  {z:[78.2, 78.7, 12.7, 19.7],marca:"",nombre:""},
-  {z:[95.3, 78.9, 4.7, 20.0],id:53}
+  {z:[125,241,259,356],id:49},
+  {z:[267,242,400,356],id:24},
+  {z:[415,242,529,356],id:47},
+  {z:[536,244,688,356],id:34},
+  {z:[694,246,834,356],id:53},
+  {z:[855,233,979,356],id:5},
+  {z:[1011,236,1138,356],id:36},
+  {z:[1165,241,1309,356],id:1},
+  {z:[1321,239,1471,356],id:48},
+  {z:[110,384,252,502],id:2},
+  {z:[254,381,400,502],id:4},
+  {z:[407,381,517,502],id:3},
+  {z:[517,389,665,502],id:6},
+  {z:[677,390,836,502],id:21},
+  {z:[861,394,1030,502],id:29},
+  {z:[1030,392,1184,502],id:52},
+  {z:[1199,391,1326,502],id:44},
+  {z:[1335,381,1462,502],id:22},
+  {z:[112,526,252,646],marca:"Yves Saint Laurent",nombre:"Libre"},
+  {z:[271,527,405,646],id:11},
+  {z:[436,526,574,646],id:12},
+  {z:[587,529,676,646],marca:"Lattafa",nombre:"Éclaire"},
+  {z:[692,527,838,646],id:10},
+  {z:[866,527,1011,646],id:15},
+  {z:[1031,526,1165,646],id:18},
+  {z:[1192,527,1329,646],id:11},
+  {z:[1340,526,1472,646],marca:"Maison Alhambra",nombre:"The Tux"},
+  {z:[111,681,255,810],marca:"Dolce & Gabbana",nombre:"Q"},
+  {z:[261,674,391,810],id:19},
+  {z:[399,697,470,810],id:9},
+  {z:[484,677,576,810],id:20},
+  {z:[585,677,721,810],id:26},
+  {z:[740,677,872,810],id:17},
+  {z:[896,682,1066,810],id:45},
+  {z:[1087,677,1236,810],id:35},
+  {z:[1264,672,1479,810],id:14}
 ];
             // usuarios sin @, ej: instagram:"upperfumes"
 const IMG={valentino:"assets/img/perfumes/valentino-uomo-born-in-roma.jpg",verygood:"assets/img/perfumes/very-good-girl.jpg",goodgirl:"assets/img/perfumes/good-girl.jpg",vip_rose:"assets/img/perfumes/212-vip-rose.jpg",lemale:"assets/img/perfumes/le-male.jpg",scandal:"assets/img/perfumes/scandal.jpg",classique:"assets/img/perfumes/classique.jpg",amber_royal:"assets/img/perfumes/royal-amber.jpg",amber_noir:"assets/img/perfumes/amber-noir.jpg",khamrah:"assets/img/perfumes/khamrah.jpg",asad:"assets/img/perfumes/asad.jpg",yara:"assets/img/perfumes/yara.jpg",yumyum:"assets/img/perfumes/yum-yum.jpg",mandarin:"assets/img/perfumes/mandarin-sky.jpg",cdn:"assets/img/perfumes/club-de-nuit-intense.jpg",bharara:"assets/img/perfumes/bharara-king.jpg",vip_men:"assets/img/perfumes/212-vip-men.jpg",ninepm:"assets/img/perfumes/9pm.jpg",bad_boy:"assets/img/perfumes/bad-boy.jpg",badee:"assets/img/perfumes/badee-al-oud.jpg",born_donna:"assets/img/perfumes/born-in-roma-donna.jpg",nyc212:"assets/img/perfumes/212-nyc-men.jpg",ninepm_no:"assets/img/perfumes/9pm-night-out.jpg",acqua:"assets/img/perfumes/acqua-di-gio.jpg",amber_rouge:"assets/img/perfumes/amber-rouge.jpg",amethyst:"assets/img/perfumes/amethyst.jpg",cdn_oud:"assets/img/perfumes/club-de-nuit-oud.jpg",atheeri:"assets/img/perfumes/atheeri.jpg",cloud:"assets/img/perfumes/cloud.jpg",silver_mw:"assets/img/perfumes/silver-mountain-water.jpg",erba_pura:"assets/img/perfumes/erba-pura.jpg",sorbetto:"assets/img/perfumes/sorbetto-rosso.jpg",honor_glory:"assets/img/perfumes/honor-and-glory.jpg",invictus:"assets/img/perfumes/invictus.jpg",issey:"assets/img/perfumes/leau-dissey-pour-homme.jpg",lemale_elixir:"assets/img/perfumes/le-male-elixir.jpg",lacoste_rouge:"assets/img/perfumes/l1212-rouge.jpg",art_universe:"assets/img/perfumes/art-of-universe.jpg",sublime:"assets/img/perfumes/sublime.jpg",yara_elixir:"assets/img/perfumes/yara-elixir.jpg",khamrah_dukhan:"assets/img/perfumes/khamrah-dukhan.jpg",arabians_tonka:"assets/img/perfumes/arabians-tonka.jpg",starry_nights:"assets/img/perfumes/starry-nights.jpg",toy2_bubble:"assets/img/perfumes/toy-2-bubble-gum.jpg",nautica:"assets/img/perfumes/nautica-voyage.jpg",oud_saffron:"assets/img/perfumes/oud-saffron.jpg",one_million:"assets/img/perfumes/1-million.jpg",santal33:"assets/img/perfumes/santal-33.jpg",sauvage:"assets/img/perfumes/sauvage.jpg",shaheen_gold:"assets/img/perfumes/shaheen-gold.jpg",sweet_candy:"assets/img/perfumes/sweet-like-candy.jpg",thank_u_next:"assets/img/perfumes/thank-u-next.jpg",eros:"assets/img/perfumes/versace-eros.jpg",victorinox:"assets/img/perfumes/swiss-army-classic.jpg",yara_candy:"assets/img/perfumes/yara-candy.jpg",yara_rosa:"assets/img/perfumes/yara-rosa.jpg",yara_tous:"assets/img/perfumes/yara-tous.jpg"};
@@ -765,25 +782,32 @@ renderMenu();renderHome();renderShop();badge();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
 (function vitrina(){
-  const V=$("vit"),B=$("vban"),tip=$("vtip");if(!V)return;
+  const V=$("vit"),B=$("vban"),tip=$("vtip"),img=$("vph");if(!V)return;
   const RMv=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let C=null,Z=[];
   const inf=v=>{const p=v.id&&P(v.id);return p?{p,brand:p.brand,name:p.name}:{brand:v.marca||"Upperfumes",name:v.nombre||"Fragancia de la vitrina"}};
-  $("vspots").innerHTML=VITRINA.map((v,i)=>{const o=inf(v),[x,y,w,h]=v.z;
-    return `<button class="vhs" data-i="${i}" style="left:${x}%;top:${y}%;width:${w}%;height:${h}%" aria-label="${esc(o.brand+" "+o.name)}${o.p?", "+cop(price(o.p)):""}"></button>`}).join("");
-  function show(i){const v=VITRINA[i],o=inf(v),[x,y,w,h]=v.z;
+  function build(){
+    C={x:0,y:0,w:VFOTO.w,h:VFOTO.h};
+    Z=VITRINA.map((v,i)=>{const [x1,y1,x2,y2]=v.z;return {i,v,x:x1/C.w*100,y:y1/C.h*100,w:(x2-x1)/C.w*100,h:(y2-y1)/C.h*100}});
+    $("vspots").innerHTML=Z.map((z,k)=>{const o=inf(z.v);
+      return `<button class="vhs" data-k="${k}" style="left:${z.x.toFixed(2)}%;top:${z.y.toFixed(2)}%;width:${z.w.toFixed(2)}%;height:${z.h.toFixed(2)}%" aria-label="${esc(o.brand+" "+o.name)}${o.p?", "+cop(price(o.p)):""}"></button>`}).join("");
+    V.querySelectorAll(".vhs").forEach(b=>{const k=+b.dataset.k;
+      b.addEventListener("pointerenter",()=>show(k));b.addEventListener("pointerleave",hide);b.addEventListener("focus",()=>show(k));b.addEventListener("blur",hide);
+      b.addEventListener("click",()=>open(k))});
+    const sc=$("vscroll");if(sc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=(sc.scrollWidth-sc.clientWidth)*0.5;
+  }
+  function show(k){const z=Z[k],o=inf(z.v);
     tip.innerHTML=`<small>${esc(o.brand)}</small><b>${esc(o.name)}</b>${o.p?`<span>${cop(price(o.p))}${o.p.promo?`<s>${cop(o.p.publico)}</s>`:""}</span><em>Clic para ver detalles</em>`:`<em>Consulta precio y disponibilidad</em>`}`;
-    tip.classList.toggle("below",y<14);tip.style.left=Math.max(14,Math.min(86,x+w/2))+"%";tip.style.top=(y<14?y+h:y)+"%";tip.classList.add("show");lock={x:x+w/2,y:y+h/2};start()}
+    const up=z.y<22;tip.classList.toggle("below",up);tip.style.left=Math.max(12,Math.min(88,z.x+z.w/2))+"%";tip.style.top=(up?z.y+z.h:z.y)+"%";tip.classList.add("show");lock={x:z.x+z.w/2,y:z.y+z.h/2};start()}
   function hide(){tip.classList.remove("show");lock=null}
-  V.querySelectorAll(".vhs").forEach(b=>{const i=+b.dataset.i;
-    b.addEventListener("pointerenter",()=>show(i));b.addEventListener("pointerleave",hide);b.addEventListener("focus",()=>show(i));b.addEventListener("blur",hide);
-    b.addEventListener("click",()=>{hide();const v=VITRINA[i],o=inf(v);if(o.p)return ficha(o.p.id);
-      const [x,y,w,h]=v.z,s=100/Math.max(w,h*806/890)*0.9;
-      const nm=v.nombre?`${o.brand} ${o.name}`:"una fragancia que vi en la vitrina de la página";
-      openSheet(`<div class="vbox"><span style="background-size:${(100/w*100).toFixed(1)}% auto;background-position:${(x/(100-w)*100).toFixed(1)}% ${(y/(100-h)*100).toFixed(1)}%;aspect-ratio:${(w*806/(h*890)).toFixed(3)}"></span></div>
-        <h3 class="t">${esc(o.name)}</h3><p class="hint">${esc(o.brand)}</p>
-        <p style="margin-top:10px;opacity:.85">Esta fragancia está en nuestra vitrina. Escríbenos y te contamos su precio, presentación y disponibilidad.</p>
-        <a class="wa" href="https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero saber el precio y la disponibilidad de "+nm+".")}" target="_blank" rel="noopener">Consultar por WhatsApp</a>`)})});
-  let tx=55,ty=60,cx=55,cy=60,last=-1e9,lock=null,run=false,vis=true;
+  function open(k){hide();const v=Z[k].v,o=inf(v);if(o.p)return ficha(o.p.id);
+    const [x1,y1,x2,y2]=v.z,pad=10,bx=Math.max(0,x1-pad),by=Math.max(0,y1-pad),bw=Math.min(VFOTO.w,x2+pad)-bx,bh=Math.min(VFOTO.h,y2+pad)-by;
+    const nm=v.nombre?`${o.brand} ${o.name}`:"una fragancia que vi en la vitrina de la página";
+    openSheet(`<div class="vbox"><span style="aspect-ratio:${(bw/bh).toFixed(3)};background-image:url('${VFOTO.src}');background-size:${(VFOTO.w/bw*100).toFixed(1)}% auto;background-position:${(bx/(VFOTO.w-bw)*100).toFixed(2)}% ${(by/(VFOTO.h-bh)*100).toFixed(2)}%"></span></div>
+      <h3 class="t">${esc(o.name)}</h3><p class="hint">${esc(o.brand)}</p>
+      <p style="margin-top:10px;opacity:.85">Esta fragancia está en nuestra vitrina. Escríbenos y te contamos su precio, presentación y disponibilidad.</p>
+      <a class="wa" href="https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero saber el precio y la disponibilidad de "+nm+".")}" target="_blank" rel="noopener">Consultar por WhatsApp</a>`)}
+  let tx=50,ty=55,cx=50,cy=55,last=-1e9,lock=null,run=false,vis=true;
   function aim(x,y){const r=V.getBoundingClientRect();tx=(x-r.left)/r.width*100;ty=(y-r.top)/r.height*100;last=performance.now();V.classList.add("exploring");B.classList.add("used");start()}
   B.addEventListener("pointermove",e=>aim(e.clientX,e.clientY));
   B.addEventListener("pointerleave",()=>V.classList.remove("exploring"));
@@ -793,11 +817,12 @@ renderMenu();renderHome();renderShop();badge();
     if(!vis||document.hidden||!$("v-tienda").classList.contains("active")){run=false;return}
     let gx=tx,gy=ty;
     if(lock){gx=lock.x;gy=lock.y}
-    else if(now-last>2600){V.classList.remove("exploring");if(!RMv){gx=55+30*Math.sin(now/3800);gy=68+14*Math.sin(now/2600)}}  // sin interacción: la luz recorre las repisas sola
+    else if(now-last>2600){V.classList.remove("exploring");if(!RMv){gx=50+34*Math.sin(now/3800);gy=60+20*Math.sin(now/2600)}}  // sin interacción: la luz recorre las repisas sola
     cx+=(gx-cx)*.08;cy+=(gy-cy)*.08;
     V.style.setProperty("--x",cx.toFixed(2)+"%");V.style.setProperty("--y",cy.toFixed(2)+"%");
     requestAnimationFrame(frame)}
   function start(){if(!run){run=true;requestAnimationFrame(frame)}}
+  build();addEventListener("load",()=>{const sc=$("vscroll");if(sc&&sc.scrollWidth>sc.clientWidth)sc.scrollLeft=(sc.scrollWidth-sc.clientWidth)*0.5});
   new IntersectionObserver(es=>{vis=es[0].isIntersecting;if(vis)start()}).observe(V);
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)start()});
   window.vitrinaStart=start;start();
