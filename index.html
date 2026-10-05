@@ -6,7 +6,7 @@
 <title>Upperfumes · Fragancias que te elevan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=10">
+<link rel="stylesheet" href="css/styles.css?v=12">
 </head>
 <body>
 <div class="app">
@@ -17,7 +17,6 @@
     <div class="dd"><button aria-haspopup="true" onclick="setF({cat:'Árabes'})">Árabes<svg viewBox="0 0 12 12" width="10" height="10"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><div class="mega" id="mega-arabes"></div></div>
     <div class="dd"><button aria-haspopup="true" onclick="setF({cat:'Diseñador'})">Diseñador<svg viewBox="0 0 12 12" width="10" height="10"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button><div class="mega" id="mega-disenador"></div></div>
     <button data-tab="tienda" aria-current="page" onclick="setF({})">Catálogo</button>
-    <button data-tab="mayor" onclick="go('mayor')">Por mayor</button>
     <button data-tab="promos" onclick="go('promos')">Promos</button>
   </nav>
   <div class="icons">
@@ -47,7 +46,7 @@
     <div class="proms">
       <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3Z"/><path d="M9 12l2 2 4-4"/></svg><h3>Originales</h3><p>Cada frasco es auténtico, con su caja y sellos de fábrica.</p></div>
       <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg><h3>Envíos a todo Colombia</h3><p>Empacamos con cuidado y te compartimos la guía de tu pedido.</p></div>
-      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l9-4 9 4-9 4-9-4Z"/><path d="M3 8v8l9 4 9-4V8M12 12v8"/></svg><h3>Precio por mayor</h3><p>Desde 6 unidades, mezclando las referencias que quieras.</p></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l9-4 9 4-9 4-9-4Z"/><path d="M3 8v8l9 4 9-4V8M12 12v8"/></svg><h3 id="volT">Descuento por volumen</h3><p id="volP">Lleva 6 o más perfumes y obtén un descuento en tu pedido.</p></div>
       <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19l-4 1Z"/></svg><h3>Asesoría por WhatsApp</h3><p>Te ayudamos a encontrar tu aroma antes de comprar.</p></div>
     </div>
   </div>
@@ -61,7 +60,7 @@
     <div class="railhead"><div class="sh"><h2>Recién llegados</h2><p>Lo último que entró a la tienda.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rNew',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rNew',1)">›</button></div></div>
     <div class="rail" id="rNew"></div>
 
-    <div class="railhead"><div class="sh"><h2>Los más pedidos</h2><p>Los favoritos de nuestros clientes.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rFav',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rFav',1)">›</button></div></div>
+    <div class="railhead"><div class="sh"><h2>Los más vendidos</h2><p>Los favoritos de nuestros clientes.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rFav',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rFav',1)">›</button></div></div>
     <div class="rail" id="rFav"></div>
 
     <div class="sh" id="cat"><h2>Catálogo</h2><p>Precio por unidad</p><div class="rule"></div></div>
@@ -73,6 +72,13 @@
     <div id="testi"></div>
     <div id="tt"></div>
 
+    <div class="sh"><h2>Cómo comprar</h2><p>Tu perfume en tres pasos.</p><div class="rule"></div></div>
+    <ol class="steps">
+      <li><b>Elige tus perfumes</b><span>Explora la vitrina o el catálogo y agrégalos al carrito.</span></li>
+      <li><b>Haz tu pedido por WhatsApp</b><span>Te llega el resumen listo y confirmamos contigo el pago y la entrega.</span></li>
+      <li><b>Recíbelo en casa</b><span>Despachamos a todo Colombia y te compartimos la guía de tu envío.</span></li>
+    </ol>
+
     <div class="asesor">
       <h2>¿No sabes cuál elegir?</h2>
       <p>Cuéntanos qué aromas te gustan, para qué ocasión lo buscas o qué perfume usas hoy, y te recomendamos opciones. Sin costo y sin compromiso.</p>
@@ -81,11 +87,8 @@
   </div>
 </section>
 
-<section class="view pad" id="v-mayor">
-  <div class="sh"><h2>Ventas al por mayor</h2><p>Desde 6 unidades accedes al precio mayorista. Puedes mezclar referencias.</p><div class="rule"></div></div>
-  <div id="wLock"></div><div id="wList"></div>
-  <div class="wbar" id="wBar" hidden></div>
-</section>
+
+<section class="view pad" id="v-producto"><div id="pd"></div></section>
 
 <section class="view pad" id="v-promos">
   <div class="sh"><h2>Promociones</h2><p>Las promos de la semana terminan en</p><div class="rule"></div></div>
@@ -102,7 +105,6 @@
 
 <nav class="tabs" aria-label="Secciones">
   <button data-tab="tienda" aria-current="page" onclick="go('tienda')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="9" width="10" height="12" rx="1.5"/><path d="M10 9V6h4v3M9 3h6"/></svg>Tienda</button>
-  <button data-tab="mayor" onclick="go('mayor')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8l9-4 9 4-9 4-9-4Z"/><path d="M3 8v8l9 4 9-4V8M12 12v8"/></svg>Por mayor</button>
   <button data-tab="promos" onclick="go('promos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 12l-8 8-9-9V3h8l9 9Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Promos</button>
   <button data-tab="cuenta" onclick="go('cuenta')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Cuenta</button>
 </nav>
@@ -113,6 +115,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/app.js?v=12"></script>
 </body>
 </html>
