@@ -271,6 +271,40 @@ async function nuevoIdFactura(){if(!CLOUD){return "FV-"+String(S.seq++).padStart
   const {data,error}=await sb.rpc("siguiente_factura");if(error)throw error;return data}
 async function refrescarStock(){if(!CLOUD)return;const {data}=await sb.from("productos").select("id,stock");(data||[]).forEach(r=>{const p=P(r.id);if(p)p.stock=r.stock});if(SNAP)(data||[]).forEach(r=>SNAP.st[r.id]=r.stock)}
 function rerender(){try{renderHome();renderShop();badge();const v=document.querySelector(".view.active");if(v&&v.id==="v-cuenta")renderAcc();if(v&&v.id==="v-mayor"&&window.renderW)renderW()}catch(e){console.warn(e)}}
+/* actualización automática: al cambiar de sección, al volver a la pestaña y cada 20 s */
+let refBusy=false,refHash="",refLast=0;
+async function refrescar(){
+  if(!CLOUD||!cloudReady||refBusy||syncing)return;
+  if(isAdmin()&&SNAP&&JSON.stringify(snapshot())!==JSON.stringify(SNAP)){sync();return} // primero guardar lo pendiente
+  refBusy=true;refLast=Date.now();
+  try{
+    const adm=isAdmin();
+    const qs=[sb.from("productos").select("id,data,stock"),sb.from("ajustes").select("clave,data")];
+    if(adm)qs.push(sb.from("productos_privado").select("id,data"),sb.from("facturas").select("data").order("creado",{ascending:false}),sb.from("admin_datos").select("clave,data"),sb.from("perfiles").select("*").order("creado"));
+    else if(session)qs.push(sb.rpc("mis_pedidos"));
+    const r=await Promise.all(qs);if(r.some(x=>x.error))throw r.find(x=>x.error).error;
+    if(syncing||(adm&&SNAP&&JSON.stringify(snapshot())!==JSON.stringify(SNAP)))return; // hubo un cambio local mientras se descargaba
+    const h=JSON.stringify(r.map(x=>x.data));if(h===refHash)return;const first=!refHash;refHash=h;if(first&&!adm&&!session)return;
+    const [pr,aj]=r;
+    if(pr.data.length){const priv={};if(adm)(r[2].data||[]).forEach(x=>priv[x.id]=x.data);
+      S.products=pr.data.sort((a,b)=>a.id-b.id).map(x=>({...x.data,id:x.id,stock:x.stock,compra:0,proveedor:"",...(priv[x.id]||{})}))}
+    (aj.data||[]).forEach(x=>{if(x.clave==="empresa")S.company={...S.company,...x.data}});
+    if(adm){S.invoices=(r[3].data||[]).map(x=>x.data).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+      (r[4].data||[]).forEach(x=>{if(ADM_KEYS.includes(x.clave))S[x.clave]=x.data});
+      PERFILES=r[5].data||[];S.users=PERFILES.map(u=>({id:u.id,name:u.nombre||u.email,email:u.email,phone:u.telefono,role:u.rol,fecha:String(u.creado).slice(0,10)}));
+      SNAP=snapshot()}
+    else if(session)MIS=r[2].data||[];
+    redibujar();
+  }catch(e){console.warn("refrescar",e)}finally{refBusy=false}}
+function redibujar(){
+  const a=document.activeElement,escribiendo=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!$("sheet").contains(a);
+  if(escribiendo)return; // no interrumpir mientras se escribe en la página
+  const y=window.scrollY;rerender();
+  const v=document.querySelector(".view.active");if(v&&v.id==="v-producto"&&window.renderProducto)try{renderProducto()}catch(e){}
+  window.scrollTo(0,y)}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refrescar()});
+window.addEventListener("focus",()=>{if(Date.now()-refLast>3000)refrescar()});
+setInterval(()=>{if(document.visibilityState==="visible")refrescar()},20000);
 async function migrarLocal(){let L;try{L=JSON.parse(localStorage.getItem("upperfumes_local_backup")||"null")}catch(e){}
   if(!L)return toast("No hay datos locales para subir");
   const ids=new Set(S.invoices.map(i=>i.id));const inv=(L.invoices||[]).filter(i=>!ids.has(i.id));
@@ -335,6 +369,7 @@ function go(t){
   window.scrollTo(0,0);cartBar();
   if(t!=="producto")document.title="Upperfumes · Fragancias que te elevan";
   ({producto:renderProducto,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop();window.vitrinaStart&&vitrinaStart()}})[t]();
+  if(typeof refrescar==="function")setTimeout(refrescar,50);
 }
 
 /* ---------- tienda ---------- */
@@ -616,7 +651,7 @@ const envPill=k=>`<span class="pill ${k==="entregado"?"ok":k==="enviado"?"g":k==
 function renderAdmin(){
   const tabs=[["resumen","Resumen"],["inventario","Inventario"],["compras","Compras"],["facturas","Facturas"],["clientes","Clientes"],["contabilidad","Contabilidad"],["usuarios","Usuarios"],["empresa","Empresa"]];
   $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>
-  <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin()">${l}</button>`).join("")}</div><div id="ab"></div>`;
+  <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin();refrescar()">${l}</button>`).join("")}</div><div id="ab"></div>`;
   ({resumen:aResumen,inventario:aInv,compras:aCompras,facturas:aFact,clientes:aClientes,contabilidad:aConta,usuarios:aUsers,empresa:aEmpresa})[atab]();
 }
 const month=d=>d.slice(0,7);
