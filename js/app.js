@@ -250,7 +250,8 @@ async function cargarAdmin(){
   S.users=PERFILES.map(u=>({id:u.id,name:u.nombre||u.email,email:u.email,phone:u.telefono,role:u.rol,fecha:String(u.creado).slice(0,10)}));
   if(CLOUD_EMPTY){SNAP={p:{},st:{},pv:{},f:{},a:{},emp:""};await sync();CLOUD_EMPTY=false;toast("Catálogo subido a la nube")}
   else SNAP=snapshot();
-  if(!(await sb.from("ajustes").select("clave").eq("clave","empresa")).data.length)await sb.from("ajustes").upsert({clave:"empresa",data:S.company})}
+  if(!(await sb.from("ajustes").select("clave").eq("clave","empresa")).data.length)await sb.from("ajustes").upsert({clave:"empresa",data:S.company});
+  setTimeout(subirFotosPendientes,1500)}
 async function sync(){if(!CLOUD||!isAdmin()||!SNAP)return;if(syncing){syncAgain=true;return}syncing=true;
   try{const N=snapshot(),O=SNAP;
     const nuevos=S.products.filter(p=>O.p[p.id]===undefined),cambian=S.products.filter(p=>O.p[p.id]!==undefined&&N.p[p.id]!==O.p[p.id]);
@@ -671,12 +672,26 @@ function saveProducto(id){
 }
 /* fotos: se guardan en este dispositivo (IndexedDB) */
 let _idb;function idb(){return _idb||(_idb=new Promise((res,rej)=>{const r=indexedDB.open("upperfumes_fotos",1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
-async function fotoPut(id,blob){try{const d=await idb();await new Promise((res,rej)=>{const tx=d.transaction("f","readwrite");tx.objectStore("f").put(blob,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});return true}catch(e){return false}}
-async function fotoGet(id){try{const d=await idb();return await new Promise(res=>{const r=d.transaction("f").objectStore("f").get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)})}catch(e){return null}}
+async function fotoLocal(id,blob){try{const d=await idb();await new Promise((res,rej)=>{const tx=d.transaction("f","readwrite");tx.objectStore("f").put(blob,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});return true}catch(e){return false}}
+async function fotoNube(id,blob){if(!CLOUD||!isAdmin())return false;
+  try{const {error}=await sb.storage.from("comprobantes").upload(id+".jpg",blob,{upsert:true,contentType:blob.type||"image/jpeg"});if(error)throw error;return true}catch(e){console.warn("foto nube",e);return false}}
+async function fotoPut(id,blob){const local=await fotoLocal(id,blob);
+  if(CLOUD&&isAdmin()){const ok=await fotoNube(id,blob);if(!ok)toast("La foto quedó en este dispositivo; se subirá a la nube al volver a entrar");return local||ok}
+  return local}
+async function fotoGetLocal(id){try{const d=await idb();return await new Promise(res=>{const r=d.transaction("f").objectStore("f").get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null)})}catch(e){return null}}
+async function fotoGet(id){const b=await fotoGetLocal(id);if(b)return b;
+  if(CLOUD&&isAdmin()){try{const {data,error}=await sb.storage.from("comprobantes").download(id+".jpg");if(!error&&data){fotoLocal(id,data);return data}}catch(e){}}
+  return null}
+/* sube a la nube las fotos que solo estaban guardadas en este dispositivo */
+async function subirFotosPendientes(){if(!CLOUD||!isAdmin())return;
+  const ids=[...new Set([...(S.invoices||[]).map(i=>i.photoId),...(S.purchases||[]).map(c=>c.photoId)].filter(Boolean))];if(!ids.length)return;
+  let ya=new Set();try{const {data,error}=await sb.storage.from("comprobantes").list("",{limit:10000});if(error)throw error;ya=new Set((data||[]).map(o=>o.name))}catch(e){console.warn(e);return}
+  let n=0;for(const id of ids){if(ya.has(id+".jpg"))continue;const b=await fotoGetLocal(id);if(b&&await fotoNube(id,b))n++}
+  if(n)toast(n===1?"1 foto de comprobante subida a la nube":n+" fotos de comprobantes subidas a la nube")}
 function compress(file,max=1600,q=.75){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);
   img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error("img")),"image/jpeg",q)};
   img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error("img"))};img.src=u})}
-function verFoto(id){fotoGet(id).then(b=>{if(!b)return toast("Esa foto no está guardada en este celular");openSheet(`<h3 class="t">Foto de la factura</h3><img class="shot" style="max-height:none" src="${URL.createObjectURL(b)}" alt="Foto de la factura">`)})}
+function verFoto(id){fotoGet(id).then(b=>{if(!b)return toast("La foto aún no está en la nube: ábrela desde el dispositivo donde se subió para que se sincronice");openSheet(`<h3 class="t">Foto de la factura</h3><img class="shot" style="max-height:none" src="${URL.createObjectURL(b)}" alt="Foto de la factura">`)})}
 
 /* IA para leer facturas (si el visor lo permite) */
 let AI=null;(async()=>{try{if(!window.claude||!claude.use)return;const s=await claude.use("sample");if(!s)return;const l=await s.limits().catch(()=>null);if(l&&l.images)AI=s}catch(e){}})();
@@ -695,7 +710,7 @@ function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
   ${its(c).map(x=>`<div class="row"><div class="thumb">${P(x.pid)?visual(P(x.pid),26):""}</div><div class="grow"><b>${esc(P(x.pid)?.name||"Producto eliminado")}</b><small>${x.qty} × ${cop(x.costo)}</small></div><span>${cop(x.qty*x.costo)}</span></div>`).join("")}
   <div class="total"><span>Total</span><b>${cop(pTotal(c))}</b></div>`);
-  if(c.photoId)fotoGet(c.photoId).then(b=>{const el=$("cph");if(!el)return;if(b){el.src=URL.createObjectURL(b);el.hidden=false}else el.outerHTML=`<p class="hint">La foto está guardada en otro dispositivo.</p>`});
+  if(c.photoId)fotoGet(c.photoId).then(b=>{const el=$("cph");if(!el)return;if(b){el.src=URL.createObjectURL(b);el.hidden=false}else el.outerHTML=`<p class="hint">La foto aún no está en la nube. Se sube sola cuando se abra la página en el dispositivo donde se tomó.</p>`});
 }
 let CP=null;
 function formCompra(){CP={blob:null,url:null,proveedor:"",nuevo:false,items:{},fecha:today(),ref:"",q:"",miss:[],msg:""};drawCompra()}
