@@ -868,7 +868,7 @@ const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.
 function verFactura(id){
   const i=S.invoices.find(x=>x.id===id);
   openSheet(`${espNote(i)}${paper(i)}
-  <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="pdfFactura('${i.id}')">Descargar PDF</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
+  <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
   ${i.estado!=="anulada"?trackHTML(i):""}
@@ -1000,43 +1000,13 @@ async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
   else toast("Este navegador solo permite enviar el texto");
   window.open(waLink(i),"_blank");
 }
-function buildPDF(i){
-  const {jsPDF}=window.jspdf,d=new jsPDF({unit:"mm",format:"a4"}),C=S.company,W=210,M=16;
-  const G=[212,175,55],B=[10,10,10],CR=[245,245,220],GR=[110,110,110],DG=[154,123,31];
-  d.setFillColor(...B);d.rect(0,0,W,44,"F");
-  d.setFont("times","normal");d.setTextColor(...G);d.setFontSize(34);d.text("U",M,25);d.text("P",M+7.2,31);
-  d.setFontSize(19);d.text((C.nombre||"Upperfumes").toUpperCase(),M+26,23,{charSpace:1.5});
-  d.setFontSize(9.5);d.setTextColor(...CR);d.text("fragancias que te elevan",M+26,30.5,{charSpace:.3});
-  d.setFont("helvetica","bold");d.setFontSize(8.5);d.setTextColor(...G);d.text("FACTURA DE VENTA",W-M,18,{align:"right"});
-  d.setFont("times","normal");d.setFontSize(18);d.text(i.id,W-M,27,{align:"right"});
-  d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(...CR);d.text(fdate(i.fecha),W-M,34,{align:"right"});
-  let y=58;d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(...DG);d.text("EMITIDA POR",M,y);d.text("CLIENTE",112,y);
-  y+=6;d.setFontSize(11);d.setTextColor(20,20,20);d.text(C.nombre||"Upperfumes",M,y);d.text(i.cliente,112,y,{maxWidth:82});
-  d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(...GR);
-  const ci=[C.nit&&"NIT/CC "+C.nit,C.telefono&&"Tel/WhatsApp "+C.telefono,C.email,[C.direccion,C.ciudad].filter(Boolean).join(", "),C.instagram&&"Instagram "+C.instagram].filter(Boolean);
-  const cl=[i.tel&&"Cel. "+i.tel,i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+i.metodo].filter(Boolean);
-  ci.forEach((l,k)=>d.text(l,M,y+5+k*4.6));cl.forEach((l,k)=>d.text(l,112,y+5+k*4.6));
-  y+=8+Math.max(ci.length,cl.length)*4.6+6;
-  d.setDrawColor(...G);d.setLineWidth(.5);d.line(M,y,W-M,y);
-  y+=6;d.setFont("helvetica","bold");d.setFontSize(8);d.setTextColor(...DG);
-  d.text("PRODUCTO",M,y);d.text("CANT.",128,y,{align:"right"});d.text("PRECIO",160,y,{align:"right"});d.text("SUBTOTAL",W-M,y,{align:"right"});
-  y+=3;d.setLineWidth(.2);d.setDrawColor(220,214,190);d.line(M,y,W-M,y);
-  d.setFont("helvetica","normal");d.setFontSize(10);d.setTextColor(20,20,20);
-  i.items.forEach(x=>{const nl=d.splitTextToSize(x.name,92);if(y+nl.length*5+6>262){d.addPage();y=20}
-    y+=6;d.text(nl,M,y);d.text(String(x.qty),128,y,{align:"right"});d.text(cop(x.price),160,y,{align:"right"});d.text(cop(x.qty*x.price),W-M,y,{align:"right"});
-    y+=(nl.length-1)*4.5+3;d.line(M,y,W-M,y)});
-  y+=8;d.setFillColor(...B);d.rect(110,y,W-M-110,12,"F");d.setFont("times","normal");d.setFontSize(13);d.setTextColor(...G);
-  d.text("TOTAL",114,y+8);d.text(cop(i.total),W-M-4,y+8,{align:"right"});
-  y+=20;d.setDrawColor(...DG);d.setLineWidth(.5);d.setFont("helvetica","bold");d.setFontSize(9);d.setTextColor(...DG);
-  const st=stName(i.estado),sw=d.getTextWidth(st)+8;d.rect(W-M-sw,y,sw,8);d.text(st,W-M-sw/2,y+5.4,{align:"center"});
-  d.setDrawColor(...G);d.setLineWidth(.3);d.line(M,272,W-M,272);
-  d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(...GR);
-  d.text(C.pie||"",W/2,278,{align:"center"});d.setFontSize(7.5);d.text("Documento interno de venta. No reemplaza la factura electrónica DIAN.",W/2,283,{align:"center"});
-  return d.output("blob");
-}
-async function pdfFactura(id){const i=S.invoices.find(x=>x.id===id);
-  if(!window.jspdf)return toast("El generador de PDF no cargó, revisa tu conexión");
-  try{await guardar(`${i.id}-${(S.company.nombre||"upperfumes").toLowerCase().replace(/\s+/g,"-")}.pdf`,buildPDF(i));toast("PDF descargado")}catch(e){if(e&&e.code!=="cancelled")toast("No se pudo generar el PDF")}}
+async function imgFactura(id){const i=S.invoices.find(x=>x.id===id);
+  if(!window.html2canvas)return toast("El generador de imágenes no cargó, revisa tu conexión");
+  toast("Generando imagen…");
+  try{let img=PRE[id]?(await PRE[id])[0]:null;if(!img)img=await invImage(id);if(!img)throw new Error("img");
+    const name=`${i.id}-${(S.company.nombre||"upperfumes").toLowerCase().replace(/\s+/g,"-")}.png`,file=new File([img],name,{type:"image/png"});
+    if(matchMedia("(pointer:coarse)").matches&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file]});return}catch(e){if(e&&e.name==="AbortError")return}}
+    await guardar(name,img);toast("Imagen descargada")}catch(e){if(e&&e.code!=="cancelled")toast("No se pudo generar la imagen")}}
 /* empresa */
 function aEmpresa(){const C=S.company,f=(k,l,ph,t)=>`<label for="e_${k}">${l}</label><input class="f" id="e_${k}" ${t||""} placeholder="${ph||""}" value="${esc(C[k]||"")}">`;
   $("ab").innerHTML=`<div class="sh"><h2 style="font-size:19px">Datos de la empresa</h2><p>Aparecen en las facturas y en el botón de WhatsApp de la tienda.</p></div><div class="panel">
