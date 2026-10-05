@@ -5,7 +5,7 @@ const DESC_VOL=10;         // porcentaje de descuento por volumen (cámbialo aqu
 const REPO_GH="Pablogpcv/upperfumes";   // para leer solas las capturas de assets/img/clientes/
 
 /* ===== Contenido de la portada (edítalo aquí) ===== */
-const ANUNCIOS=["100% originales","Envíos a todo Colombia",`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento`,"Asesoría gratis por WhatsApp"];
+const ANUNCIOS=["Envíos a todo Colombia",`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento`,"Asesoría gratis por WhatsApp"];
 const DESTACADOS=[49,10,18,15,2,12,24,5,47,53];   // ids de "Los más pedidos"
 const NUEVOS=10;                                 // cuántos mostrar en "Recién llegados" (los últimos agregados)
 // Clientes felices: sube las capturas a la carpeta assets/img/clientes/ del repositorio y aparecen solas.
@@ -428,7 +428,7 @@ function renderHome(){
   $("annc").innerHTML=loop(ANUNCIOS).map(t=>`<span>${esc(t)}</span>`).join("");
   $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
   if($("volP"))$("volP").textContent=`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
-  $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>100%</b><span>originales</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
+  $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>${new Set(S.products.map(p=>p.brand)).size}</b><span>marcas</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
   const pic=(cat,pref)=>{const p=P(pref)&&P(pref).img?P(pref):S.products.find(x=>x.cat===cat&&x.img&&IMG[x.img]);return p&&IMG[p.img]?IMG[p.img]:""};
   const cats=[
     {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:"assets/img/tienda/cat-arabes.webp",fn:"setF({cat:'Árabes'})"},
@@ -460,7 +460,7 @@ function renderFooter(){
   const C=S.company,ig=(C.instagram||REDES.instagram||"").replace(/^@/,""),tk=(REDES.tiktok||"").replace(/^@/,""),tel=C.telefono||"300 559 8061";
   const wa=`https://wa.me/${waNum()}`;
   $("ft").innerHTML=`<div class="ft-grid">
-    <div class="ft-brand"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div class="serif ft-name">UPPERFUMES</div><p>Perfumes de diseñador y árabes originales, con envíos a todo Colombia.</p>
+    <div class="ft-brand"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div class="serif ft-name">UPPERFUMES</div><p>Perfumes de diseñador y árabes, con envíos a todo Colombia.</p>
       <div class="ft-social"><a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>${ig?`<a href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener">Instagram</a>`:""}${tk?`<a href="https://www.tiktok.com/@${esc(tk)}" target="_blank" rel="noopener">TikTok</a>`:""}</div></div>
     <div><h4>Comprar</h4><button onclick="setF({cat:'Árabes'})">Árabes</button><button onclick="setF({cat:'Diseñador'})">Diseñador</button><button onclick="setF({})">Todo el catálogo</button><button onclick="go('promos')">Promociones</button></div>
     <div><h4>Ayuda</h4><a href="${wa}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}" target="_blank" rel="noopener">Asesoría para elegir</a><button onclick="go('cuenta')">Mi cuenta y pedidos</button></div>
@@ -502,7 +502,7 @@ function renderProducto(){
         <button class="primary" ${p.stock<=0?"disabled":""} onclick="addN(${p.id},pdQ)">${p.stock<=0?"Agotado":"Agregar al carrito"}</button>
         <a class="ghost" href="https://wa.me/${waNum()}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>
       </div>
-      <ul class="pd-trust"><li>100% original</li><li>Envíos a todo Colombia</li><li>Asesoría gratis por WhatsApp</li></ul>
+      <ul class="pd-trust"><li>Envíos a todo Colombia</li><li>Asesoría gratis por WhatsApp</li></ul>
     </div>
   </div>
   <section class="pd-sec"><h2>Descripción</h2><p class="pd-txt">${esc(X.t||p.desc||"")}</p>
