@@ -501,10 +501,17 @@ function logout(){session=null;save();mode="login";renderAcc()}
 function renderProfile(){
   const mine=S.invoices.filter(i=>i.cliente===session.name&&i.origen==="web");
   $("acc").innerHTML=`<div class="sh"><h2>Tu cuenta</h2><div class="rule"></div></div><div class="panel"><div class="who"><div class="av">${esc(session.name[0])}</div><div><b>${esc(session.name)}</b><br><small style="color:var(--muted)">${esc(session.email)}</small><br><span class="pill g">Cliente</span></div></div></div>
-  <div class="sh"><h2 style="font-size:19px">Mis pedidos</h2></div>${mine.length?mine.map(i=>`<div class="row"><div class="grow"><b>${i.id} · ${cop(i.total)}</b><small>${i.fecha} · ${i.items.length} referencias</small></div>${statePill(i.estado)}</div>`).join(""):`<p class="empty">Aún no tienes pedidos.</p>`}
+  <div class="sh"><h2 style="font-size:19px">Mis pedidos</h2></div>${mine.length?mine.map(i=>`<div class="row"><div class="grow"><b>${i.id} · ${cop(i.total)}</b><small>${i.fecha} · ${i.items.length} referencias${i.guia?` · Guía ${esc(i.transp||"")} ${esc(i.guia)}`:""}</small></div><div style="text-align:right">${statePill(i.estado)}<br>${i.estado!=="anulada"?envPill(envOf(i)):""}</div></div>`).join(""):`<p class="empty">Aún no tienes pedidos.</p>`}
   <button class="ghost" onclick="logout()">Cerrar sesión</button>`;
 }
 const statePill=s=>`<span class="pill ${s==="pagada"?"ok":s==="pendiente"?"warn":"bad"}">${s==="pagada"?"Pagada":s==="pendiente"?"Pendiente":"Anulada"}</span>`;
+/* ===== Seguimiento del pedido (envío) ===== */
+const ENVIO=[["pendiente","Pendiente","⏳"],["proceso","En proceso","📦"],["enviado","Enviado","🚚"],["entregado","Entregado","✅"]];
+const ENVIO_X=[["devuelto","Devuelto","↩️"],["cancelado","Cancelado","✖️"]];
+const envAll=[...ENVIO,...ENVIO_X];
+const envOf=i=>i.envio||"pendiente";
+const envName=k=>(envAll.find(e=>e[0]===k)||envAll[0])[1];
+const envPill=k=>`<span class="pill ${k==="entregado"?"ok":k==="enviado"?"g":k==="proceso"?"warn":k==="pendiente"?"":"bad"}">${(envAll.find(e=>e[0]===k)||envAll[0])[2]} ${envName(k)}</span>`;
 
 /* ---------- ADMIN ---------- */
 function renderAdmin(){
@@ -659,11 +666,14 @@ async function saveCompra(){
 }
 /* facturas */
 let fFilter="todas";
-const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${(i.log||[]).length?" · editada":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}</div></button>`;
+const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
+let eFilter="todos";
 function aFact(){
-  const l=S.invoices.filter(i=>fFilter==="todas"||i.estado===fFilter);
+  const l=S.invoices.filter(i=>(fFilter==="todas"||i.estado===fFilter)&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
+  const cnt=k=>S.invoices.filter(i=>i.estado!=="anulada"&&envOf(i)===k).length;
   $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="verRegistro()">Registro de cambios</button></div>
   <div class="chips" style="margin-top:12px">${[["todas","Todas"],["pendiente","Pendientes"],["pagada","Pagadas"],["anulada","Anuladas"]].map(([k,t])=>`<button class="chip" aria-pressed="${fFilter===k}" onclick="fFilter='${k}';aFact()">${t}</button>`).join("")}</div>
+  <p class="hint" style="margin:10px 0 4px">Envío</p><div class="chips">${[["todos","Todos",""],...envAll].map(([k,t])=>`<button class="chip" aria-pressed="${eFilter===k}" onclick="eFilter='${k}';aFact()">${t}${k!=="todos"?` (${cnt(k)})`:""}</button>`).join("")}</div>
   ${l.length?l.map(invRow).join(""):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
 }
 let lines=[],FV={blob:null,url:null};
@@ -713,6 +723,7 @@ function verFactura(id){
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="pdfFactura('${i.id}')">Descargar PDF</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select><button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
+  ${i.estado!=="anulada"?trackHTML(i):""}
   <div class="two" style="margin-top:10px">${i.estado!=="anulada"?`<button class="btn-line" style="margin:0" onclick="formEditFactura('${i.id}')">✏️ Editar factura</button>`:"<span></span>"}<button class="btn-line" style="margin:0;color:var(--bad);border-color:var(--bad)" onclick="borrarFactura('${i.id}')">🗑 Eliminar factura</button></div>
   ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
   ${histHTML(i)}`);
@@ -782,13 +793,39 @@ function saveEdit(){const i=S.invoices.find(x=>x.id===EF.id),v=efv();EF.v=v;
   i.items=ord.map(k=>{const l=nw[k],p=P(k),prev=old[k];const lp=listPrice(+k,v.tipo);return{pid:+k,name:nm(+k),qty:l.qty,price:l.price,cost:prev?prev.cost:p.compra,lista:lp,especial:l.price!==lp}});
   i.total=i.items.reduce((a,x)=>a+x.qty*x.price,0);
   if(i.total!==oldTot)ch.push(`Total: ${cop(oldTot)} → ${cop(i.total)}`);
-  addLog(i,ch,v.mot.trim());save();renderAdmin();toast("Factura actualizada");verFactura(i.id)}
+  i.editada=true;addLog(i,ch,v.mot.trim());save();renderAdmin();toast("Factura actualizada");verFactura(i.id)}
 function borrarFactura(id){const i=S.invoices.find(x=>x.id===id);
   const mot=prompt(`¿Eliminar ${id} de ${i.cliente} por ${cop(i.total)}?\n${i.estado!=="anulada"?"El stock vuelve al inventario.\n":""}Queda guardado en el registro de cambios.\n\nEscribe el motivo (o deja vacío) y presiona Aceptar:`,"");
   if(mot===null)return;
   if(i.estado!=="anulada")i.items.forEach(x=>{const p=P(x.pid);if(p)p.stock+=x.qty});
   S.invLog=S.invLog||[];S.invLog.unshift({fecha:ahora(),usuario:quien(),factura:i.id,cliente:i.cliente,accion:"eliminada",cambios:[`Factura eliminada (${stName(i.estado).toLowerCase()}, total ${cop(i.total)})`,...i.items.map(x=>`${x.qty} x ${x.name} a ${cop(x.price)}`)],motivo:(mot||"").trim(),copia:i});
   S.invoices=S.invoices.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Factura "+id+" eliminada")}
+function trackHTML(i){const cur=envOf(i),ci=ENVIO.findIndex(e=>e[0]===cur),h=i.envioHist||[];
+  const when=k=>{const e=h.slice().reverse().find(x=>x.estado===k);return e?fdt(e.fecha):""};
+  const steps=ENVIO.map((e,k)=>{const done=ci>=0&&k<=ci;return `<div style="flex:1;text-align:center;min-width:0"><div style="width:30px;height:30px;margin:0 auto 4px;border-radius:50%;display:grid;place-items:center;font-size:14px;border:1px solid ${done?"var(--gold)":"var(--line)"};background:${done?"rgba(201,162,92,.18)":"transparent"};opacity:${done?1:.45}">${e[2]}</div><small style="display:block;font-size:11px;color:${k===ci?"var(--gold)":"var(--muted)"};font-weight:${k===ci?600:400}">${e[1]}</small><small style="display:block;font-size:9.5px;color:var(--muted)">${done?when(e[0]):""}</small></div>`}).join("");
+  const next=ci>=0&&ci<ENVIO.length-1?ENVIO[ci+1]:null;
+  return `<div class="panel" style="margin-top:14px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Seguimiento del pedido</b>${envPill(cur)}</div>
+  ${ci>=0?`<div style="display:flex;gap:4px">${steps}</div>`:`<p class="hint" style="margin:0">Pedido ${envName(cur).toLowerCase()} · ${when(cur)}</p>`}
+  ${i.guia||i.transp?`<p class="hint" style="margin:10px 0 0">🚚 ${esc(i.transp||"Transportadora")}${i.guia?` · Guía <b>${esc(i.guia)}</b>`:""}</p>`:""}
+  ${next?`<button class="primary" style="margin-top:12px" onclick="formEnvio('${i.id}','${next[0]}')">${next[2]} Marcar como ${next[1].toLowerCase()}</button>`:""}
+  <button class="ghost" style="margin:4px 0 0" onclick="formEnvio('${i.id}')">Cambiar estado del envío / guía</button>
+  ${i.tel&&cur!=="pendiente"?`<a class="ghost" style="display:block;text-align:center;margin:0" target="_blank" rel="noopener" href="${waEnvio(i)}">💬 Avisar al cliente por WhatsApp</a>`:""}</div>`}
+function waEnvio(i){const to=String(i.tel||"").replace(/\D/g,""),C=S.company,k=envOf(i);
+  const t={proceso:"estamos preparando tu pedido",enviado:"tu pedido ya fue enviado",entregado:"tu pedido aparece como entregado. ¡Gracias por tu compra!",devuelto:"tu pedido fue devuelto",cancelado:"tu pedido fue cancelado"}[k]||"tu pedido está registrado";
+  const m=`Hola ${i.cliente}, te escribimos de ${C.nombre||"Upperfumes"}: ${t}.\nPedido ${i.id}${k==="enviado"&&i.transp?`\nTransportadora: ${i.transp}`:""}${k==="enviado"&&i.guia?`\nNúmero de guía: ${i.guia}`:""}`;
+  return `https://wa.me/${to?(to.startsWith("57")?to:"57"+to):""}?text=${encodeURIComponent(m)}`}
+function formEnvio(id,pre){const i=S.invoices.find(x=>x.id===id),cur=pre||envOf(i);
+  openSheet(`<h3 class="t">Envío de ${i.id}</h3><p class="hint">${esc(i.cliente)} · el cambio queda en el historial con fecha y hora.</p>
+  <label for="nE">Estado del envío</label><select class="f" id="nE">${envAll.map(e=>`<option value="${e[0]}" ${e[0]===cur?"selected":""}>${e[2]} ${e[1]}</option>`).join("")}</select>
+  <div class="two"><div><label for="nTr">Transportadora</label><input class="f" id="nTr" list="trL" value="${esc(i.transp||"")}" placeholder="Ej: Servientrega"><datalist id="trL">${["Servientrega","Interrapidísimo","Coordinadora","Envía","TCC","Domicilio propio","Recoge en tienda"].map(o=>`<option value="${o}">`).join("")}</datalist></div>
+  <div><label for="nG">Número de guía</label><input class="f" id="nG" value="${esc(i.guia||"")}" placeholder="Opcional"></div></div>
+  <label for="nN">Nota (opcional)</label><input class="f" id="nN" placeholder="Ej: entregado a portería">
+  <button class="primary" onclick="saveEnvio('${id}')">Guardar</button><button class="ghost" onclick="verFactura('${id}')">Cancelar</button>`)}
+function saveEnvio(id){const i=S.invoices.find(x=>x.id===id),e=$("nE").value,tr=$("nTr").value.trim(),g=$("nG").value.trim(),n=$("nN").value.trim(),prev=envOf(i);
+  const ch=[];if(e!==prev)ch.push(`Envío: ${envName(prev)} → ${envName(e)}`);if(tr!==(i.transp||""))ch.push(`Transportadora: ${i.transp||"—"} → ${tr||"—"}`);if(g!==(i.guia||""))ch.push(`Guía: ${i.guia||"—"} → ${g||"—"}`);
+  if(!ch.length&&!n){return verFactura(id)}
+  i.envioHist=i.envioHist||[];if(e!==prev)i.envioHist.push({estado:e,fecha:ahora(),usuario:quien(),nota:n});
+  i.envio=e;i.transp=tr;i.guia=g;addLog(i,ch.length?ch:["Nota de envío"],n);save();renderAdmin();toast("Envío: "+envName(e));verFactura(id)}
 function verRegistro(){const l=S.invLog||[];
   openSheet(`<h3 class="t">Registro de cambios</h3><p class="hint">Ediciones, cambios de estado y facturas eliminadas, con fecha, hora y usuario.</p>
   ${l.length?l.map((e,k)=>`<div class="row" style="align-items:flex-start"><div class="grow"><b style="font-weight:500">${esc(e.factura)} · ${esc(e.cliente||"")} <span class="pill ${e.accion==="eliminada"?"bad":"warn"}">${e.accion==="eliminada"?"Eliminada":"Editada"}</span></b><small>${fdt(e.fecha)} · ${esc(e.usuario)}<br>${e.cambios.map(esc).join("<br>")}${e.motivo?`<br><i>Motivo: ${esc(e.motivo)}</i>`:""}</small>${e.accion==="eliminada"&&e.copia&&!S.invoices.some(x=>x.id===e.factura)?`<button class="ghost" style="margin:4px 0 0;padding:0" onclick="restaurarFactura(${k})">Restaurar esta factura</button>`:""}</div></div>`).join(""):`<p class="empty">Todavía no hay cambios registrados.</p>`}`)}
