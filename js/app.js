@@ -220,7 +220,16 @@ const pubOf=p=>{const o={...p};delete o.compra;delete o.proveedor;delete o.stock
 const privOf=p=>({compra:p.compra||0,proveedor:p.proveedor||"Por definir"});
 function snapshot(){const n={p:{},st:{},pv:{},f:{},a:{},emp:JSON.stringify(S.company)};
   S.products.forEach(p=>{n.p[p.id]=JSON.stringify(pubOf(p));n.st[p.id]=p.stock;n.pv[p.id]=JSON.stringify(privOf(p))});
-  S.invoices.forEach(i=>n.f[i.id]=JSON.stringify(i));ADM_KEYS.forEach(k=>n.a[k]=JSON.stringify(S[k]||[]));return n}
+  S.invoices.forEach(i=>n.f[i.id]=JSON.stringify(i));ADM_KEYS.forEach(k=>(S[k]||[]).forEach(x=>n.a[k+"|"+akey(k,x)]=JSON.stringify(x)));return n}
+/* compras, gastos, proveedores, registro y clientes potenciales: una fila por elemento (dos admins no se pisan) */
+function akey(k,x){if(k==="providers")return String(x);if(x.id)return String(x.id);if(!x._k){x._t=x._t||Date.now();x._k=x._t.toString(36)+Math.random().toString(36).slice(2,7)}return x._k}
+function aord(k,a){return k==="providers"?a.sort((x,y)=>String(x).localeCompare(String(y),"es")):a.sort((x,y)=>(y.id||y._t||0)-(x.id||x._t||0))}
+let ADM_LEGACY=[];
+function armarAdmin(rows){const L={},seen={};ADM_KEYS.forEach(k=>{L[k]=[];seen[k]=new Set()});const leg=[];
+  const add=(k,x)=>{if(!L[k])return;const key=akey(k,x);if(seen[k].has(key))return;seen[k].add(key);L[k].push(x)};
+  (rows||[]).forEach(r=>{const i=r.clave.indexOf("|");if(i>0)add(r.clave.slice(0,i),r.data)});
+  (rows||[]).forEach(r=>{if(r.clave.indexOf("|")<0&&ADM_KEYS.includes(r.clave)){leg.push(r.clave);const t=Date.now();(r.data||[]).forEach((x,j)=>{if(x&&typeof x==="object"&&!x.id&&!x._t)x._t=t-j*1000;add(r.clave,x)})}});
+  ADM_KEYS.forEach(k=>{S[k]=aord(k,L[k])});return leg}
 const sbErr=e=>{const m=String(e&&(e.message||e.error_description||e)||"");
   return /Invalid login/i.test(m)?"Correo o contraseña incorrectos.":/not confirmed/i.test(m)?"Primero confirma tu correo: te enviamos un enlace.":/already registered|already been registered/i.test(m)?"Ese correo ya tiene cuenta. Inicia sesión.":/rate limit|too many/i.test(m)?"Demasiados intentos. Espera unos minutos.":/password/i.test(m)&&/6/.test(m)?"La contraseña debe tener al menos 6 caracteres.":/fetch|network/i.test(m)?"Sin conexión. Revisa tu internet.":m||"Ocurrió un error."};
 async function cloudBoot(){if(!CLOUD)return;
@@ -245,11 +254,11 @@ async function cargarAdmin(){
   if(fa.error)throw fa.error;
   (pv.data||[]).forEach(r=>{const p=P(r.id);if(p)Object.assign(p,r.data)});
   S.invoices=(fa.data||[]).map(r=>r.data).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
-  (ad.data||[]).forEach(r=>{if(ADM_KEYS.includes(r.clave))S[r.clave]=r.data});
+  ADM_LEGACY=armarAdmin(ad.data);
   PERFILES=pe.data||[];
   S.users=PERFILES.map(u=>({id:u.id,name:u.nombre||u.email,email:u.email,phone:u.telefono,role:u.rol,fecha:String(u.creado).slice(0,10)}));
   if(CLOUD_EMPTY){SNAP={p:{},st:{},pv:{},f:{},a:{},emp:""};await sync();CLOUD_EMPTY=false;toast("Catálogo subido a la nube")}
-  else SNAP=snapshot();
+  else{SNAP=snapshot();if(ADM_LEGACY.length){ADM_KEYS.forEach(k=>Object.keys(SNAP.a).forEach(c=>{if(c.startsWith(k+"|"))delete SNAP.a[c]}));sync()}}
   if(!(await sb.from("ajustes").select("clave").eq("clave","empresa")).data.length)await sb.from("ajustes").upsert({clave:"empresa",data:S.company});
   setTimeout(subirFotosPendientes,1500)}
 async function sync(){if(!CLOUD||!isAdmin()||!SNAP)return;if(syncing){syncAgain=true;return}syncing=true;
@@ -262,7 +271,9 @@ async function sync(){if(!CLOUD||!isAdmin()||!SNAP)return;if(syncing){syncAgain=
     const delP=Object.keys(O.p).filter(id=>N.p[id]===undefined);if(delP.length){const r=await sb.from("productos").delete().in("id",delP.map(Number));if(r.error)throw r.error}
     const fac=S.invoices.filter(i=>N.f[i.id]!==O.f[i.id]);if(fac.length){const r=await sb.from("facturas").upsert(fac.map(i=>({id:i.id,usuario:i.usuario||null,data:i,actualizado:new Date().toISOString()})));if(r.error)throw r.error}
     const delF=Object.keys(O.f).filter(id=>N.f[id]===undefined);if(delF.length){const r=await sb.from("facturas").delete().in("id",delF);if(r.error)throw r.error}
-    const ak=ADM_KEYS.filter(k=>N.a[k]!==O.a[k]);if(ak.length){const r=await sb.from("admin_datos").upsert(ak.map(k=>({clave:k,data:S[k]||[],actualizado:new Date().toISOString()})));if(r.error)throw r.error}
+    const ak=Object.keys(N.a).filter(c=>N.a[c]!==O.a[c]);if(ak.length){const r=await sb.from("admin_datos").upsert(ak.map(c=>({clave:c,data:JSON.parse(N.a[c]),actualizado:new Date().toISOString()})));if(r.error)throw r.error}
+    const delA=Object.keys(O.a).filter(c=>N.a[c]===undefined);if(delA.length){const r=await sb.from("admin_datos").delete().in("clave",delA);if(r.error)throw r.error}
+    if(ADM_LEGACY.length){const r=await sb.from("admin_datos").delete().in("clave",ADM_LEGACY);if(r.error)throw r.error;ADM_LEGACY=[]}
     if(N.emp!==O.emp){const r=await sb.from("ajustes").upsert({clave:"empresa",data:S.company});if(r.error)throw r.error}
     SNAP=N;
   }catch(e){console.warn("sync",e);toast("⚠️ No se pudo guardar en la nube. Reintentando…");clearTimeout(syncT);syncT=setTimeout(sync,6000)}
@@ -290,12 +301,29 @@ async function refrescar(){
       S.products=pr.data.sort((a,b)=>a.id-b.id).map(x=>({...x.data,id:x.id,stock:x.stock,compra:0,proveedor:"",...(priv[x.id]||{})}))}
     (aj.data||[]).forEach(x=>{if(x.clave==="empresa")S.company={...S.company,...x.data}});
     if(adm){S.invoices=(r[3].data||[]).map(x=>x.data).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
-      (r[4].data||[]).forEach(x=>{if(ADM_KEYS.includes(x.clave))S[x.clave]=x.data});
+      armarAdmin(r[4].data);
       PERFILES=r[5].data||[];S.users=PERFILES.map(u=>({id:u.id,name:u.nombre||u.email,email:u.email,phone:u.telefono,role:u.rol,fecha:String(u.creado).slice(0,10)}));
       SNAP=snapshot()}
     else if(session)MIS=r[2].data||[];
+    if(adm)avisarPedidos();
     redibujar();
   }catch(e){console.warn("refrescar",e)}finally{refBusy=false}}
+/* avisos de pedidos nuevos desde la tienda */
+let VISTOS=null,PNUEVOS=[];
+function avisarPedidos(){const web=S.invoices.filter(i=>i.origen==="web");
+  if(VISTOS===null){try{VISTOS=new Set(JSON.parse(localStorage.getItem("upf_pedidos_vistos")||"null")||web.map(i=>i.id))}catch(e){VISTOS=new Set(web.map(i=>i.id))}guardarVistos()}
+  const nuevos=web.filter(i=>!VISTOS.has(i.id)&&i.estado!=="anulada");
+  const avisar=nuevos.filter(i=>!PNUEVOS.includes(i.id));PNUEVOS=nuevos.map(i=>i.id);
+  if(avisar.length){const i=avisar[0],txt=avisar.length===1?`${i.id} · ${i.cliente} · ${cop(i.total)}`:`${avisar.length} pedidos nuevos`;
+    toast("🛍️ Nuevo pedido web: "+txt);campana();
+    try{if(window.Notification&&Notification.permission==="granted"){const n=new Notification("Nuevo pedido en Upperfumes",{body:txt,tag:"pedido-"+i.id});n.onclick=()=>{window.focus();go("cuenta");atab="facturas";renderAdmin();if(avisar.length===1)verFactura(i.id);n.close()}}}catch(e){}}
+  marcaNuevos()}
+function guardarVistos(){try{localStorage.setItem("upf_pedidos_vistos",JSON.stringify([...VISTOS].slice(-500)))}catch(e){}}
+function marcarVisto(id){if(VISTOS&&!VISTOS.has(id)){VISTOS.add(id);guardarVistos();PNUEVOS=PNUEVOS.filter(x=>x!==id);marcaNuevos()}}
+function marcaNuevos(){const n=PNUEVOS.length;document.title=(n?`(${n}) `:"")+document.title.replace(/^\(\d+\)\s*/,"");
+  const b=document.querySelector('.atabs [data-at="facturas"]');if(b)b.innerHTML="Facturas"+(n?` <span class="nbadge">${n}</span>`:"")}
+function campana(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.setValueAtTime(880,c.currentTime);o.frequency.setValueAtTime(1320,c.currentTime+.12);g.gain.setValueAtTime(.0001,c.currentTime);g.gain.exponentialRampToValueAtTime(.25,c.currentTime+.02);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.45);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.5)}catch(e){}}
+async function activarAvisos(){if(!window.Notification)return toast("Este navegador no permite avisos");const r=await Notification.requestPermission();toast(r==="granted"?"Avisos activados en este dispositivo":"No se activaron los avisos");if(atab==="resumen")aResumen()}
 function redibujar(){
   const a=document.activeElement,escribiendo=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!$("sheet").contains(a);
   if(escribiendo)return; // no interrumpir mientras se escribe en la página
@@ -305,6 +333,7 @@ function redibujar(){
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refrescar()});
 window.addEventListener("focus",()=>{if(Date.now()-refLast>3000)refrescar()});
 setInterval(()=>{if(document.visibilityState==="visible")refrescar()},20000);
+setInterval(()=>{if(document.visibilityState!=="visible"&&isAdmin())refrescar()},60000);
 async function migrarLocal(){let L;try{L=JSON.parse(localStorage.getItem("upperfumes_local_backup")||"null")}catch(e){}
   if(!L)return toast("No hay datos locales para subir");
   const ids=new Set(S.invoices.map(i=>i.id));const inv=(L.invoices||[]).filter(i=>!ids.has(i.id));
@@ -651,8 +680,9 @@ const envPill=k=>`<span class="pill ${k==="entregado"?"ok":k==="enviado"?"g":k==
 function renderAdmin(){
   const tabs=[["resumen","Resumen"],["inventario","Inventario"],["compras","Compras"],["facturas","Facturas"],["clientes","Clientes"],["contabilidad","Contabilidad"],["usuarios","Usuarios"],["empresa","Empresa"]];
   $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>
-  <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin();refrescar()">${l}</button>`).join("")}</div><div id="ab"></div>`;
+  <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" data-at="${k}" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin();refrescar()">${l}</button>`).join("")}</div><div id="ab"></div>`;
   ({resumen:aResumen,inventario:aInv,compras:aCompras,facturas:aFact,clientes:aClientes,contabilidad:aConta,usuarios:aUsers,empresa:aEmpresa})[atab]();
+  if(CLOUD)marcaNuevos();
 }
 const month=d=>d.slice(0,7);
 function totals(m){
@@ -665,7 +695,8 @@ function totals(m){
 }
 function aResumen(){
   const m=month(today()),t=totals(m),valInv=S.products.reduce((a,p)=>a+p.stock*p.compra,0),low=S.products.filter(p=>p.stock<=3);
-  $("ab").innerHTML=`<div class="kpis">
+  const avis=CLOUD&&window.Notification&&Notification.permission!=="granted"?`<div class="panel" style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><div class="grow" style="flex:1"><b>🔔 Avisos de pedidos nuevos</b><small class="hint" style="display:block">Recibe una notificación en este dispositivo cuando un cliente haga un pedido en la tienda.</small></div><button class="btn-gold" style="margin:0;white-space:nowrap" onclick="activarAvisos()">Activar</button></div>`:"";
+  $("ab").innerHTML=avis+`<div class="kpis">
    <div class="kpi"><span>Ventas del mes</span><b class="g">${cop(t.ventas)}</b></div><div class="kpi"><span>Utilidad neta del mes</span><b class="${t.neta<0?"neg":""}">${cop(t.neta)}</b></div>
    <div class="kpi"><span>Por cobrar</span><b>${cop(t.cxc)}</b></div><div class="kpi"><span>Inventario a costo</span><b>${cop(valInv)}</b></div></div>
    <div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="formCompra()">Registrar compra</button></div>
@@ -815,7 +846,7 @@ async function saveCompra(){
 }
 /* facturas */
 let fFilter="todas";
-const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
+const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?(PNUEVOS.includes(i.id)?' · <span class="nbadge">Nuevo</span> pedido web':" · pedido web"):""}${i.editada?" · editada":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
 let eFilter="todos";
 function aFact(){
   const l=S.invoices.filter(i=>(fFilter==="todas"||i.estado===fFilter)&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
@@ -901,7 +932,7 @@ function paper(i){const C=S.company;
   <div class="pp-foot">${esc(C.pie||"")}<br>Documento interno de venta. No reemplaza la factura electrónica DIAN.</div></div></div>`}
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
 function verFactura(id){
-  const i=S.invoices.find(x=>x.id===id);
+  const i=S.invoices.find(x=>x.id===id);marcarVisto(id);
   openSheet(`${espNote(i)}${paper(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
