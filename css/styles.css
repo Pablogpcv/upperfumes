@@ -637,4 +637,8 @@ html,body{overflow-x:clip}
 .pick-btn{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;width:100%;min-width:0;padding-top:6px;padding-bottom:6px}
 .pick-btn .pb-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pick-btn small{color:var(--muted);flex-shrink:0;font-size:12px}
-.ps-dd.all{max-height:240px;overflow-y:auto}
+.ps-dd.all{max-height:236px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
+.ps-dd.all::-webkit-scrollbar{width:5px}
+.ps-dd.all::-webkit-scrollbar-track{background:transparent}
+.ps-dd.all::-webkit-scrollbar-thumb{background:var(--gold);border-radius:3px}
+.ps-dd.all::-webkit-scrollbar-button{display:none;height:0}
