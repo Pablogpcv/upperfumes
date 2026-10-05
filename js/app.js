@@ -679,16 +679,26 @@ function aFact(){
 let lines=[],FV={blob:null,url:null};
 /* ===== Buscador de productos para facturas ===== */
 const norm=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-let PK=null;
-function pickBtn(pid,onPick){const p=P(pid);return `<button type="button" class="f pick-btn" aria-label="Cambiar producto" onclick="${onPick}">${p?`<span>${esc(p.brand+" "+p.name)}</span><small>${p.stock} disp.</small>`:`<span style="color:var(--muted)">🔍 Buscar producto…</span>`}</button>`}
-function openPicker(cb,tipo){PK={cb,tipo:tipo||"detal",q:""};let o=$("picker");if(!o){o=document.createElement("div");o.id="picker";document.body.appendChild(o)}
-  o.innerHTML=`<div class="pk-box" role="dialog" aria-label="Buscar producto"><div class="pk-head"><div class="search" style="margin:0;flex:1"><span aria-hidden="true">🔍</span><input id="pkQ" placeholder="Escribe marca o nombre…" autocomplete="off" oninput="PK.q=this.value;pkList()" onkeydown="if(event.key==='Enter'){const b=document.querySelector('#pkL button');if(b)b.click()}if(event.key==='Escape')closePicker()"></div><button class="x" aria-label="Cerrar" onclick="closePicker()">×</button></div><div id="pkL" class="pk-list"></div></div>`;
-  o.className="open";o.onclick=e=>{if(e.target===o)closePicker()};pkList();setTimeout(()=>$("pkQ").focus(),30)}
-function closePicker(){const o=$("picker");if(o)o.className="";PK=null}
-function pkList(){const q=norm(PK.q).split(/\s+/).filter(Boolean);
-  const l=S.products.filter(p=>{const h=norm(p.brand+" "+p.name+" "+(p.cat||"")+" "+(p.g||""));return q.every(w=>h.includes(w))});
-  $("pkL").innerHTML=l.length?l.slice(0,60).map(p=>`<button type="button" ${p.stock<=0?'class="out"':""} onclick="pkPick(${p.id})"><span class="pk-th">${visual(p,24)}</span><span class="pk-tx"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml · ${p.stock>0?p.stock+" disponibles":"Agotado"}</small></span><span class="pk-pr">${cop(PK.tipo==="mayor"?p.mayor:price(p))}</span></button>`).join("")+(l.length>60?`<p class="hint" style="padding:8px 12px">Sigue escribiendo para ver más…</p>`:""):`<p class="empty" style="padding:14px">No encontramos "${esc(PK.q)}".</p>`}
-function pkPick(id){const cb=PK.cb;closePicker();cb(id)}
+const PSCB={},PSN=5;
+function psInner(key,ph){return `<div class="search ps-in"><span aria-hidden="true">🔍</span><input id="ps_${key}" placeholder="${ph}" autocomplete="off" aria-label="${ph}" oninput="psList('${key}')" onfocus="psList('${key}')" onkeydown="psKey(event,'${key}')" onblur="setTimeout(()=>psClose('${key}'),180)"></div><div class="ps-dd" id="psd_${key}" hidden></div>`}
+function psBox(key,ph,cb,tipo){PSCB[key]={cb,tipo:tipo||"detal",ph,sel:0};return `<div class="ps">${psInner(key,ph)}</div>`}
+function pickBtn(pid,key,cb,tipo){const p=P(pid);PSCB[key]={cb,tipo:tipo||"detal",ph:"Cambiar por…",sel:0};
+  return `<div class="ps"><button type="button" class="f pick-btn" aria-label="Cambiar producto" onclick="psSwap(this,'${key}')">${p?`<span class="pb-th">${visual(p,20)}</span><span class="pb-nm">${esc(p.brand+" "+p.name)}</span><small>${p.ml} ml</small>`:`<span>Elegir producto</span>`}</button></div>`}
+function psSwap(btn,key){const w=btn.parentNode;w.innerHTML=psInner(key,PSCB[key].ph);const i=$("ps_"+key);i.focus();i.addEventListener("blur",()=>setTimeout(()=>{if(PSCB[key]&&!PSCB[key].done&&document.activeElement!==i){if(EF&&$("eC"))drawEdit(1);else if($("vC"))drawFactura(fv())}},200),{once:true})}
+function psRes(key){const q=norm(($("ps_"+key)||{}).value).split(/\s+/).filter(Boolean);if(!q.length)return[];
+  return S.products.filter(p=>{const h=norm(p.brand+" "+p.name+" "+(p.cat||"")+" "+(p.g||""));return q.every(w=>h.includes(w))}).sort((a,b)=>(b.stock>0)-(a.stock>0))}
+function psList(key){const d=$("psd_"+key),c=PSCB[key];if(!d||!c)return;const l=psRes(key),q=$("ps_"+key).value.trim();
+  if(!q){d.hidden=true;return}c.sel=Math.min(c.sel,Math.max(0,Math.min(l.length,PSN)-1));d.hidden=false;
+  d.innerHTML=l.length?l.slice(0,PSN).map((p,k)=>`<button type="button" class="${k===c.sel?"on ":""}${p.stock<=0?"out":""}" onmousedown="event.preventDefault()" onclick="psPick('${key}',${p.id})"><span class="pb-th">${visual(p,20)}</span><span class="ps-tx"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml${p.stock<=0?" · Agotado":""}</small></span><span class="ps-pr">${cop(c.tipo==="mayor"?p.mayor:price(p))}</span></button>`).join("")+(l.length>PSN?`<p class="ps-more">${l.length-PSN} más · sigue escribiendo</p>`:""):`<p class="ps-more">Sin resultados para "${esc(q)}"</p>`}
+function psKey(e,key){const c=PSCB[key],l=psRes(key).slice(0,PSN);
+  if(e.key==="ArrowDown"){e.preventDefault();c.sel=Math.min(l.length-1,c.sel+1);psList(key)}
+  else if(e.key==="ArrowUp"){e.preventDefault();c.sel=Math.max(0,c.sel-1);psList(key)}
+  else if(e.key==="Enter"){e.preventDefault();if(l[c.sel])psPick(key,l[c.sel].id)}
+  else if(e.key==="Escape"){$("ps_"+key).value="";psClose(key);$("ps_"+key).blur()}
+  else c.sel=0}
+function psClose(key){const d=$("psd_"+key);if(d)d.hidden=true}
+function psPick(key,id){const c=PSCB[key];c.done=true;c.cb(id)}
+const psFocus=k=>setTimeout(()=>{const i=$("ps_"+k);if(i)i.focus()},40);
 function formFactura(){leadConv=null;lines=[];FV={blob:null,url:null};drawFactura()}
 function drawFactura(keep){
   const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pagada"};
@@ -698,8 +708,8 @@ function drawFactura(keep){
   <div class="two"><div><label for="vC">Cliente</label><input class="f" id="vC" value="${esc(v.c)}"></div><div><label for="vT">Celular</label><input class="f" id="vT" inputmode="tel" value="${esc(v.t)}"></div></div>
   <div class="two"><div><label for="vTi">Tipo de venta</label><select class="f" id="vTi" onchange="drawFactura(fv())"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
   <div><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select></div></div>
-  <label>Productos</label>${lines.map((l,i)=>`<div class="line-item">${pickBtn(l.pid,`FVK=fv();openPicker(id=>{lines[${i}].pid=id;drawFactura(FVK)},$('vTi').value)`)}<input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);drawFactura(fv())">×</button></div>`).join("")}
-  <button class="${lines.length?"ghost":"btn-line"}" style="width:100%" onclick="FVK=fv();openPicker(id=>{const e=lines.find(l=>l.pid===id);if(e)e.qty++;else lines.push({pid:id,qty:1});drawFactura(FVK)},$('vTi').value)">🔍 ${lines.length?"Agregar otro producto":"Buscar y agregar producto"}</button>
+  <label>Productos</label>${lines.map((l,i)=>`<div class="line-item">${pickBtn(l.pid,"fl"+i,id=>{const v=fv();lines[i].pid=id;drawFactura(v)},v.tipo)}<input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);drawFactura(fv())">×</button></div>`).join("")}
+  ${psBox("fadd",lines.length?"Agregar otro producto…":"Buscar y agregar producto…",id=>{const v=fv();const e=lines.find(l=>l.pid===id);if(e)e.qty++;else lines.push({pid:id,qty:1});drawFactura(v);psFocus("fadd")},v.tipo)}
   <label for="vE">Estado</label><select class="f" id="vE"><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option><option value="pendiente" ${v.e==="pendiente"?"selected":""}>Pendiente</option></select>
   <label>Foto del comprobante (opcional)</label>
   ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}
@@ -771,13 +781,13 @@ function drawEdit(keep){const v=EF.v;
   <div class="two"><div><label for="eE">Estado</label><select class="f" id="eE"><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option><option value="pendiente" ${v.e==="pendiente"?"selected":""}>Pendiente</option></select></div><div><label for="eF">Fecha de la factura</label><input class="f" id="eF" type="date" value="${v.f}"></div></div>
   <label>Productos y precios</label>
   ${EF.lines.map((l,k)=>{const lp=listPrice(l.pid,v.tipo),esp=l.price!==lp;return `<div class="panel" style="padding:10px;margin:6px 0">
-   <div class="line-item">${pickBtn(l.pid,`EF.v=efv();openPicker(id=>{EF.lines[${k}].pid=id;EF.lines[${k}].price=listPrice(id,EF.v.tipo);drawEdit(1)},EF.v.tipo)`)}
+   <div class="line-item">${pickBtn(l.pid,"el"+k,id=>{EF.v=efv();EF.lines[k].pid=id;EF.lines[k].price=listPrice(id,EF.v.tipo);drawEdit(1)},v.tipo)}
    <input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="EF.v=efv();EF.lines[${k}].qty=Math.max(1,num(this.value));drawEdit(1)">
    <button class="x" aria-label="Quitar" onclick="EF.v=efv();EF.lines.splice(${k},1);if(!EF.lines.length)EF.lines.push({pid:S.products[0].id,qty:1,price:listPrice(S.products[0].id,EF.v.tipo)});drawEdit(1)">×</button></div>
    <div class="two" style="align-items:end"><div><label for="eP${k}">Precio unitario</label><input class="f" id="eP${k}" inputmode="numeric" value="${l.price}" onchange="EF.v=efv();EF.lines[${k}].price=num(this.value);drawEdit(1)"></div>
    <div><small class="hint" style="display:block;margin-bottom:10px">Lista: ${cop(lp)}${esp?` · <b style="color:var(--gold)">Precio especial (${l.price<lp?"−":"+"}${cop(Math.abs(lp-l.price))})</b>`:""}</small></div></div>
    ${esp?`<button class="ghost" style="margin:0;padding:4px 0" onclick="EF.v=efv();EF.lines[${k}].price=${lp};drawEdit(1)">Volver al precio de lista</button>`:""}</div>`}).join("")}
-  <button class="ghost" onclick="EF.v=efv();openPicker(id=>{const e=EF.lines.find(l=>l.pid===id);if(e)e.qty++;else EF.lines.push({pid:id,qty:1,price:listPrice(id,EF.v.tipo)});drawEdit(1)},EF.v.tipo)">🔍 Agregar otro producto</button>
+  ${psBox("eadd","Agregar otro producto…",id=>{EF.v=efv();const e=EF.lines.find(l=>l.pid===id);if(e)e.qty++;else EF.lines.push({pid:id,qty:1,price:listPrice(id,EF.v.tipo)});drawEdit(1);psFocus("eadd")},v.tipo)}
   <label for="eMo">Motivo del cambio (opcional)</label><input class="f" id="eMo" placeholder="Ej: precio especial cliente frecuente" value="${esc(v.mot)}">
   <div class="total"><span>Nuevo total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
   <button class="primary" onclick="saveEdit()">Guardar cambios</button><button class="ghost" onclick="verFactura('${EF.id}')">Cancelar</button>`,!!keep)}
