@@ -248,3 +248,20 @@ revoke execute on function public.nuevo_usuario(), public.proteger_perfil() from
 revoke all on public.perfiles, public.productos_privado, public.admin_datos, public.facturas from anon;
 revoke insert, update, delete on public.productos, public.ajustes from anon;
 revoke truncate, references, trigger on all tables in schema public from anon, authenticated;
+
+-- ---------- FOTOS DE COMPROBANTES (almacenamiento privado, solo administradores) ----------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('comprobantes', 'comprobantes', false, 6291456, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "comprobantes admin ver" on storage.objects;
+create policy "comprobantes admin ver" on storage.objects for select to authenticated
+  using (bucket_id = 'comprobantes' and public.es_admin());
+drop policy if exists "comprobantes admin subir" on storage.objects;
+create policy "comprobantes admin subir" on storage.objects for insert to authenticated
+  with check (bucket_id = 'comprobantes' and public.es_admin());
+drop policy if exists "comprobantes admin cambiar" on storage.objects;
+create policy "comprobantes admin cambiar" on storage.objects for update to authenticated
+  using (bucket_id = 'comprobantes' and public.es_admin()) with check (bucket_id = 'comprobantes' and public.es_admin());
+drop policy if exists "comprobantes admin borrar" on storage.objects;
+create policy "comprobantes admin borrar" on storage.objects for delete to authenticated
+  using (bucket_id = 'comprobantes' and public.es_admin());
