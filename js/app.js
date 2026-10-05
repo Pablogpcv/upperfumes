@@ -503,7 +503,7 @@ function openCart(){
 function chg(id,d){const p=P(id);cart[id]=Math.min(p.stock,Math.max(0,(cart[id]||0)+d));if(!cart[id])delete cart[id];save();badge();openCart()}
 function makeInvoice({id,cliente,tel,tipo,items,estado,metodo,origen}){
   const inv={id:id||("FV-"+String(S.seq++).padStart(4,"0")),fecha:today(),cliente,tel:tel||"",tipo,metodo:metodo||"Por definir",estado,origen:origen||"admin",
-    items:items.map(i=>{const p=P(i.pid);return{pid:i.pid,name:p.brand+" "+p.name,qty:i.qty,price:i.price,cost:p.compra}})};
+    items:items.map(i=>{const p=P(i.pid);const o={pid:i.pid,name:p.brand+" "+p.name,qty:i.qty,price:i.price,cost:p.compra};if(i.especial){o.lista=i.lista;o.especial=true}return o})};
   inv.total=inv.items.reduce((a,i)=>a+i.qty*i.price,0);
   inv.items.forEach(i=>{const p=P(i.pid);p.stock=Math.max(0,p.stock-i.qty)});
   S.invoices.unshift(inv);save();return inv;
@@ -802,34 +802,38 @@ function psSee(key){const b=document.querySelector(`#psd_${key} button.on`);if(b
 function psClose(key){const d=$("psd_"+key);if(d)d.hidden=true}
 function psPick(key,id){const c=PSCB[key];c.done=true;c.cb(id)}
 const psFocus=k=>setTimeout(()=>{const i=$("ps_"+k);if(i)i.focus()},40);
+const fPr=(l,tipo)=>l.op&&l.price>0?l.price:listPrice(l.pid,tipo);
 function formFactura(){leadConv=null;lines=[];FV={blob:null,url:null};drawFactura()}
 function drawFactura(keep){
-  const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pagada"};
-  const pr=l=>{const p=P(l.pid);return v.tipo==="mayor"?p.mayor:price(p)};
+  const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pendiente"};
+  const pr=l=>fPr(l,v.tipo);
   const tot=lines.reduce((a,l)=>a+pr(l)*l.qty,0);
   openSheet(`<h3 class="t">Nueva factura</h3>
   <div class="two"><div><label for="vC">Cliente</label><input class="f" id="vC" value="${esc(v.c)}"></div><div><label for="vT">Celular</label><input class="f" id="vT" inputmode="tel" value="${esc(v.t)}"></div></div>
   <div class="two"><div><label for="vTi">Tipo de venta</label><select class="f" id="vTi" onchange="drawFactura(fv())"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
-  <div><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select></div></div>
-  <label>Productos</label>${lines.map((l,i)=>`<div class="line-item">${pickBtn(l.pid,"fl"+i,id=>{const v=fv();lines[i].pid=id;drawFactura(v)},v.tipo)}<input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);drawFactura(fv())">×</button></div>`).join("")}
+  <div><label for="vE">Estado</label><select class="f" id="vE" onchange="drawFactura(fv())"><option value="pendiente" ${v.e!=="pagada"?"selected":""}>Pendiente</option><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option></select></div></div>
+  <label>Productos</label>${lines.map((l,i)=>{const lp=listPrice(l.pid,v.tipo),esp=l.op&&l.price>0&&l.price!==lp;return `<div class="li-wrap${l.op?" op":""}"><div class="line-item">${pickBtn(l.pid,"fl"+i,id=>{const v=fv();lines[i].pid=id;lines[i].op=0;delete lines[i].price;drawFactura(v)},v.tipo)}<input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);drawFactura(fv())">×</button></div>
+   <div class="li-px">${l.op?`<span class="li-ed"><input class="f li-in" id="fp${i}" inputmode="numeric" aria-label="Precio unitario" value="${l.price||lp}" onchange="lines[${i}].price=num(this.value);drawFactura(fv())"><small>c/u</small>${esp?`<span class="li-tag">Especial</span>`:""}</span><button class="li-lk" onclick="lines[${i}].op=0;delete lines[${i}].price;drawFactura(fv())">Usar precio normal</button>`:`<span>${cop(lp)} c/u</span><button class="li-lk" onclick="lines[${i}].op=1;lines[${i}].price=${lp};drawFactura(fv());setTimeout(()=>{const e=$('fp${i}');if(e){e.focus();e.select()}},60)">Precio diferente</button>`}</div></div>`}).join("")}
+  ${lines.some(l=>l.op)?`<p class="hint li-note">🔒 Solo lo ves tú. El cliente ve únicamente el precio final, sin descuentos ni recargos.</p>`:""}
   ${psBox("fadd",lines.length?"Agregar otro producto…":"Buscar y agregar producto…",id=>{const v=fv();const e=lines.find(l=>l.pid===id);if(e)e.qty++;else lines.push({pid:id,qty:1});drawFactura(v);psFocus("fadd")},v.tipo)}
-  <label for="vE">Estado</label><select class="f" id="vE"><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option><option value="pendiente" ${v.e==="pendiente"?"selected":""}>Pendiente</option></select>
+  ${v.e==="pagada"?`<div class="paid-box"><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select>
   <label>Foto del comprobante (opcional)</label>
-  ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}
+  ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}</div>`:""}
   <div class="total"><span>Total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
   <button class="primary" onclick="saveFactura()">Crear factura</button>`,!!keep);
 }
-const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM").value,e:$("vE").value});
+const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value});let FVM="Efectivo";
 async function pickFV(inp){const f=inp.files&&inp.files[0];if(!f)return;try{FV.blob=await compress(f);FV.url=URL.createObjectURL(FV.blob);drawFactura(fv())}catch(e){toast("No se pudo leer esa imagen")}}
 let FVK=null;
 async function saveFactura(){
   const v=fv();if(!v.c.trim())return $("err").textContent="Escribe el nombre del cliente.";
   if(!lines.length)return $("err").textContent="Agrega al menos un producto.";
+  if(lines.some(l=>l.op&&!(l.price>0)))return $("err").textContent="Escribe el precio diferente o vuelve al precio normal.";
   const need={};lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
   for(const k in need){if(P(k).stock<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`}
   let nid;try{nid=await nuevoIdFactura()}catch(e){return $("err").textContent="No se pudo crear el número de factura: "+sbErr(e)}
-  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.m,estado:v.e,items:lines.map(l=>({pid:l.pid,qty:l.qty,price:v.tipo==="mayor"?P(l.pid).mayor:price(P(l.pid))}))});
-  if(FV.blob){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
+  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo);return{pid:l.pid,qty:l.qty,price:pr,lista:lp,especial:pr!==lp}})});
+  if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
   atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada");verFactura(inv.id);
 }
@@ -845,12 +849,13 @@ function paper(i){const C=S.company;
   <div class="pp-total"><span>TOTAL</span><span>${cop(i.total)}</span></div>
   <div style="text-align:right"><span class="pp-stamp">${stName(i.estado)}</span></div>
   <div class="pp-foot">${esc(C.pie||"")}<br>Documento interno de venta. No reemplaza la factura electrónica DIAN.</div></div></div>`}
+const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
 function verFactura(id){
   const i=S.invoices.find(x=>x.id===id);
-  openSheet(`${paper(i)}
+  openSheet(`${espNote(i)}${paper(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="pdfFactura('${i.id}')">Descargar PDF</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
-  ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}
-  ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select><button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
+  ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
+  ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
   ${i.estado!=="anulada"?trackHTML(i):""}
   <div class="two" style="margin-top:10px">${i.estado!=="anulada"?`<button class="btn-line" style="margin:0" onclick="formEditFactura('${i.id}')">✏️ Editar factura</button>`:"<span></span>"}<button class="btn-line" style="margin:0;color:var(--bad);border-color:var(--bad)" onclick="borrarFactura('${i.id}')">🗑 Eliminar factura</button></div>
   ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
