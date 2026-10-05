@@ -1,6 +1,6 @@
 # Upperfumes · Fragancias que te elevan
 
-Tienda web móvil de perfumes de diseñador y árabes originales, con envíos a toda Colombia.
+Tienda web móvil de perfumes de diseñador y árabes, con envíos a toda Colombia.
 
 **Ver la página:** https://pablogpcv.github.io/upperfumes/
 
