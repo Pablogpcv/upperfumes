@@ -282,7 +282,7 @@ body.has-cart .app{padding-bottom:156px}
 @media (prefers-reduced-motion:reduce){.annc-track,.brands-track{animation:none}.annc,.brands{overflow-x:auto}}
 .cats{display:grid;gap:12px}
 .catc{position:relative;display:block;width:100%;height:200px;overflow:hidden;border:1px solid var(--line);text-align:left;color:#F5F5DC}
-.catimg{position:absolute;inset:0;background:#141311 center/cover no-repeat;transition:transform .5s}
+.catimg{position:absolute;inset:0;background:#141311 center 32%/cover no-repeat;transition:transform .5s}
 .catc::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,10,.05) 30%,rgba(10,10,10,.92))}
 .cattx{position:absolute;left:16px;right:16px;bottom:14px;z-index:1;display:block}
 .cattx b{display:block;font-family:Cinzel,Georgia,serif;font-weight:400;font-size:24px;color:#D4AF37}
@@ -576,4 +576,11 @@ body.has-cart .app{padding-bottom:156px}
   .pd-sec{margin-top:48px}
   .pd-dl{grid-template-columns:1fr 1fr 1fr}
   .pd-sec .grid{grid-template-columns:repeat(4,1fr)}
+}
+/* tarjetas de categoría en celular: imagen arriba y texto debajo, para que no tape los perfumes */
+@media (max-width:599px){
+  .catc{height:auto;background:var(--s1)}
+  .catc::after{display:none}
+  .catimg{position:relative;display:block;height:210px;background-position:center 42%}
+  .cattx{position:relative;left:auto;right:auto;bottom:auto;padding:12px 16px 16px}
 }
