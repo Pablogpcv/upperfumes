@@ -677,7 +677,19 @@ function aFact(){
   ${l.length?l.map(invRow).join(""):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
 }
 let lines=[],FV={blob:null,url:null};
-function formFactura(){leadConv=null;lines=[{pid:S.products[0].id,qty:1}];FV={blob:null,url:null};drawFactura()}
+/* ===== Buscador de productos para facturas ===== */
+const norm=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+let PK=null;
+function pickBtn(pid,onPick){const p=P(pid);return `<button type="button" class="f pick-btn" aria-label="Cambiar producto" onclick="${onPick}">${p?`<span>${esc(p.brand+" "+p.name)}</span><small>${p.stock} disp.</small>`:`<span style="color:var(--muted)">🔍 Buscar producto…</span>`}</button>`}
+function openPicker(cb,tipo){PK={cb,tipo:tipo||"detal",q:""};let o=$("picker");if(!o){o=document.createElement("div");o.id="picker";document.body.appendChild(o)}
+  o.innerHTML=`<div class="pk-box" role="dialog" aria-label="Buscar producto"><div class="pk-head"><div class="search" style="margin:0;flex:1"><span aria-hidden="true">🔍</span><input id="pkQ" placeholder="Escribe marca o nombre…" autocomplete="off" oninput="PK.q=this.value;pkList()" onkeydown="if(event.key==='Enter'){const b=document.querySelector('#pkL button');if(b)b.click()}if(event.key==='Escape')closePicker()"></div><button class="x" aria-label="Cerrar" onclick="closePicker()">×</button></div><div id="pkL" class="pk-list"></div></div>`;
+  o.className="open";o.onclick=e=>{if(e.target===o)closePicker()};pkList();setTimeout(()=>$("pkQ").focus(),30)}
+function closePicker(){const o=$("picker");if(o)o.className="";PK=null}
+function pkList(){const q=norm(PK.q).split(/\s+/).filter(Boolean);
+  const l=S.products.filter(p=>{const h=norm(p.brand+" "+p.name+" "+(p.cat||"")+" "+(p.g||""));return q.every(w=>h.includes(w))});
+  $("pkL").innerHTML=l.length?l.slice(0,60).map(p=>`<button type="button" ${p.stock<=0?'class="out"':""} onclick="pkPick(${p.id})"><span class="pk-th">${visual(p,24)}</span><span class="pk-tx"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml · ${p.stock>0?p.stock+" disponibles":"Agotado"}</small></span><span class="pk-pr">${cop(PK.tipo==="mayor"?p.mayor:price(p))}</span></button>`).join("")+(l.length>60?`<p class="hint" style="padding:8px 12px">Sigue escribiendo para ver más…</p>`:""):`<p class="empty" style="padding:14px">No encontramos "${esc(PK.q)}".</p>`}
+function pkPick(id){const cb=PK.cb;closePicker();cb(id)}
+function formFactura(){leadConv=null;lines=[];FV={blob:null,url:null};drawFactura()}
 function drawFactura(keep){
   const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pagada"};
   const pr=l=>{const p=P(l.pid);return v.tipo==="mayor"?p.mayor:price(p)};
@@ -686,8 +698,8 @@ function drawFactura(keep){
   <div class="two"><div><label for="vC">Cliente</label><input class="f" id="vC" value="${esc(v.c)}"></div><div><label for="vT">Celular</label><input class="f" id="vT" inputmode="tel" value="${esc(v.t)}"></div></div>
   <div class="two"><div><label for="vTi">Tipo de venta</label><select class="f" id="vTi" onchange="drawFactura(fv())"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
   <div><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select></div></div>
-  <label>Productos</label>${lines.map((l,i)=>`<div class="line-item"><select class="f" aria-label="Producto" onchange="lines[${i}].pid=+this.value;drawFactura(fv())">${S.products.map(p=>`<option value="${p.id}" ${p.id==l.pid?"selected":""}>${esc(p.brand+" "+p.name)} (${p.stock})</option>`).join("")}</select><input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);if(!lines.length)lines.push({pid:S.products[0].id,qty:1});drawFactura(fv())">×</button></div>`).join("")}
-  <button class="ghost" onclick="lines.push({pid:S.products[0].id,qty:1});drawFactura(fv())">Agregar otro producto</button>
+  <label>Productos</label>${lines.map((l,i)=>`<div class="line-item">${pickBtn(l.pid,`FVK=fv();openPicker(id=>{lines[${i}].pid=id;drawFactura(FVK)},$('vTi').value)`)}<input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);drawFactura(fv())">×</button></div>`).join("")}
+  <button class="${lines.length?"ghost":"btn-line"}" style="width:100%" onclick="FVK=fv();openPicker(id=>{const e=lines.find(l=>l.pid===id);if(e)e.qty++;else lines.push({pid:id,qty:1});drawFactura(FVK)},$('vTi').value)">🔍 ${lines.length?"Agregar otro producto":"Buscar y agregar producto"}</button>
   <label for="vE">Estado</label><select class="f" id="vE"><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option><option value="pendiente" ${v.e==="pendiente"?"selected":""}>Pendiente</option></select>
   <label>Foto del comprobante (opcional)</label>
   ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}
@@ -696,8 +708,10 @@ function drawFactura(keep){
 }
 const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM").value,e:$("vE").value});
 async function pickFV(inp){const f=inp.files&&inp.files[0];if(!f)return;try{FV.blob=await compress(f);FV.url=URL.createObjectURL(FV.blob);drawFactura(fv())}catch(e){toast("No se pudo leer esa imagen")}}
+let FVK=null;
 async function saveFactura(){
   const v=fv();if(!v.c.trim())return $("err").textContent="Escribe el nombre del cliente.";
+  if(!lines.length)return $("err").textContent="Agrega al menos un producto.";
   const need={};lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
   for(const k in need){if(P(k).stock<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`}
   const inv=makeInvoice({cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.m,estado:v.e,items:lines.map(l=>({pid:l.pid,qty:l.qty,price:v.tipo==="mayor"?P(l.pid).mayor:price(P(l.pid))}))});
@@ -757,13 +771,13 @@ function drawEdit(keep){const v=EF.v;
   <div class="two"><div><label for="eE">Estado</label><select class="f" id="eE"><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option><option value="pendiente" ${v.e==="pendiente"?"selected":""}>Pendiente</option></select></div><div><label for="eF">Fecha de la factura</label><input class="f" id="eF" type="date" value="${v.f}"></div></div>
   <label>Productos y precios</label>
   ${EF.lines.map((l,k)=>{const lp=listPrice(l.pid,v.tipo),esp=l.price!==lp;return `<div class="panel" style="padding:10px;margin:6px 0">
-   <div class="line-item"><select class="f" aria-label="Producto" onchange="EF.v=efv();EF.lines[${k}].pid=+this.value;EF.lines[${k}].price=listPrice(+this.value,EF.v.tipo);drawEdit(1)">${S.products.map(p=>`<option value="${p.id}" ${p.id==l.pid?"selected":""}>${esc(p.brand+" "+p.name)} (${p.stock})</option>`).join("")}</select>
+   <div class="line-item">${pickBtn(l.pid,`EF.v=efv();openPicker(id=>{EF.lines[${k}].pid=id;EF.lines[${k}].price=listPrice(id,EF.v.tipo);drawEdit(1)},EF.v.tipo)`)}
    <input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="EF.v=efv();EF.lines[${k}].qty=Math.max(1,num(this.value));drawEdit(1)">
    <button class="x" aria-label="Quitar" onclick="EF.v=efv();EF.lines.splice(${k},1);if(!EF.lines.length)EF.lines.push({pid:S.products[0].id,qty:1,price:listPrice(S.products[0].id,EF.v.tipo)});drawEdit(1)">×</button></div>
    <div class="two" style="align-items:end"><div><label for="eP${k}">Precio unitario</label><input class="f" id="eP${k}" inputmode="numeric" value="${l.price}" onchange="EF.v=efv();EF.lines[${k}].price=num(this.value);drawEdit(1)"></div>
    <div><small class="hint" style="display:block;margin-bottom:10px">Lista: ${cop(lp)}${esp?` · <b style="color:var(--gold)">Precio especial (${l.price<lp?"−":"+"}${cop(Math.abs(lp-l.price))})</b>`:""}</small></div></div>
    ${esp?`<button class="ghost" style="margin:0;padding:4px 0" onclick="EF.v=efv();EF.lines[${k}].price=${lp};drawEdit(1)">Volver al precio de lista</button>`:""}</div>`}).join("")}
-  <button class="ghost" onclick="EF.v=efv();EF.lines.push({pid:S.products[0].id,qty:1,price:listPrice(S.products[0].id,EF.v.tipo)});drawEdit(1)">Agregar otro producto</button>
+  <button class="ghost" onclick="EF.v=efv();openPicker(id=>{const e=EF.lines.find(l=>l.pid===id);if(e)e.qty++;else EF.lines.push({pid:id,qty:1,price:listPrice(id,EF.v.tipo)});drawEdit(1)},EF.v.tipo)">🔍 Agregar otro producto</button>
   <label for="eMo">Motivo del cambio (opcional)</label><input class="f" id="eMo" placeholder="Ej: precio especial cliente frecuente" value="${esc(v.mot)}">
   <div class="total"><span>Nuevo total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
   <button class="primary" onclick="saveEdit()">Guardar cambios</button><button class="ghost" onclick="verFactura('${EF.id}')">Cancelar</button>`,!!keep)}
