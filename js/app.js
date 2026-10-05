@@ -1,18 +1,83 @@
 const WHATSAPP="573005598061";   // número de la tienda (se puede cambiar en Admin > Empresa)
 const ADMIN_CODE="UP2026";       // código para registrar administradores
 const MIN_MAYOR=6;
+const DESC_MIN=6;          // desde cuántos perfumes en el carrito aplica el descuento
+const DESC_VOL=10;         // porcentaje de descuento por volumen (cámbialo aquí)
+const REPO_GH="Pablogpcv/upperfumes";   // para leer solas las capturas de assets/img/clientes/
 
 /* ===== Contenido de la portada (edítalo aquí) ===== */
-const ANUNCIOS=["100% originales","Envíos a todo Colombia","Precio por mayor desde 6 unidades","Asesoría gratis por WhatsApp"];
+const ANUNCIOS=["100% originales","Envíos a todo Colombia",`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento`,"Asesoría gratis por WhatsApp"];
 const DESTACADOS=[49,10,18,15,2,12,24,5,47,53];   // ids de "Los más pedidos"
 const NUEVOS=10;                                 // cuántos mostrar en "Recién llegados" (los últimos agregados)
-// Testimonios: sube capturas a assets/img/testimonios/ y escribe aquí sus rutas.
-// Ej: "assets/img/testimonios/1.jpg". Si la lista está vacía, la sección no aparece.
+// Clientes felices: sube las capturas a la carpeta assets/img/clientes/ del repositorio y aparecen solas.
+// Si prefieres escogerlas a mano, escribe aquí sus rutas (ej: "assets/img/clientes/1.jpg") y se usará esta lista.
 const TESTIMONIOS=[];
 // Videos de TikTok: pega los enlaces de los videos. Si está vacía, la sección no aparece.
 // Ej: "https://www.tiktok.com/@upperfumes/video/7300000000000000000"
 const TIKTOK_VIDEOS=[];
 const REDES={instagram:"",tiktok:""};
+/* ===== Descripciones ampliadas de cada perfume (por id) =====
+   t: descripción · o: ocasiones · c: clima · i: intensidad (Suave, Moderada, Intensa) */
+const FICHA_TXT={
+1:{t:"Uomo Born in Roma es la elegancia italiana en clave moderna. Abre con la frescura verde de la hoja de violeta y la salvia, y se asienta en un vetiver ahumado que le da carácter sin perder suavidad. Un perfume pulido, fácil de llevar y que deja una impresión de hombre seguro y cuidado.",o:["Oficina","Citas","Día a día"],c:"Todo el año",i:"Moderada"},
+2:{t:"Good Girl juega con el contraste entre luz y sombra: la almendra y la tuberosa aportan una dulzura luminosa, mientras el cacao le da un fondo profundo y seductor. Es femenino, atrevido y muy reconocible, de esos perfumes que hacen que te pregunten qué llevas puesto.",o:["Noche","Citas","Eventos"],c:"Clima fresco",i:"Intensa"},
+3:{t:"212 VIP Rosé es pura celebración. La champaña burbujeante y la flor de melocotón le dan una salida chispeante y alegre, y el ámbar la vuelve cálida en la piel. Ideal para quien disfruta la fiesta y quiere un aroma divertido, femenino y lleno de energía.",o:["Fiestas","Salidas con amigas","Noche"],c:"Todo el año",i:"Moderada"},
+4:{t:"Very Good Girl es la versión más roja y atrevida de Good Girl. La grosella roja abre jugosa y vibrante, la rosa le da un corazón romántico y la vainilla termina en una estela dulce y envolvente. Frutal, floral y con mucha personalidad.",o:["Citas","Noche","Eventos"],c:"Clima fresco",i:"Intensa"},
+5:{t:"Le Male es un ícono desde los años noventa. La lavanda y la menta le dan una frescura limpia, como recién salido de la ducha, y la vainilla aporta una calidez sensual que lo hace inolvidable. Un clásico masculino que sigue conquistando.",o:["Día a día","Citas","Noche"],c:"Todo el año",i:"Moderada"},
+6:{t:"Scandal es dulce y provocadora. La mandarina abre con brillo, la miel se convierte en la protagonista con un toque goloso y el pachulí le da un fondo elegante que equilibra la dulzura. Un perfume femenino con actitud.",o:["Noche","Citas","Eventos"],c:"Clima fresco",i:"Intensa"},
+7:{t:"Classique es la feminidad en estado puro. El jengibre le da una chispa especiada, la rosa un corazón romántico y la vainilla un fondo empolvado y cálido. Clásico, sensual y reconocible, para la mujer que no necesita seguir modas.",o:["Día a día","Citas","Eventos"],c:"Todo el año",i:"Moderada"},
+8:{t:"Royal Amber es lujo árabe en un frasco que parece una joya. La bergamota abre con frescura, el ámbar toma el protagonismo con su calidez dorada y la vainilla lo endulza en el fondo. Envolvente y elegante, perfecto para quien quiere dejar huella.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+9:{t:"Amber Noir es la cara oscura del ámbar. La bergamota da paso a un incienso profundo y un ámbar seco y amaderado, creando una estela misteriosa y sofisticada. Para quien busca un aroma con presencia y carácter.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+10:{t:"Khamrah es uno de los árabes más queridos. La canela abre cálida y especiada, los dátiles y el praliné le dan una dulzura golosa casi de postre, y todo descansa sobre un fondo ambarado. Unisex, envolvente y muy notorio.",o:["Noche","Citas","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+11:{t:"Asad es intenso y masculino. La pimienta negra abre con fuerza, el tabaco le da un corazón cálido y seco, y la vainilla suaviza el conjunto con un fondo dulce. Un perfume con presencia, para quien quiere hacerse notar.",o:["Noche","Salidas","Eventos"],c:"Clima fresco",i:"Intensa"},
+12:{t:"Yara es dulce, cremosa y muy femenina. La orquídea aporta un toque floral delicado, las frutas tropicales le dan alegría y la vainilla la convierte en una caricia suave en la piel. Uno de los favoritos para el día a día.",o:["Día a día","Universidad u oficina","Salidas"],c:"Todo el año",i:"Moderada"},
+13:{t:"Yum Yum es un dulce en frasco. La fresa jugosa, el algodón de azúcar y la vainilla crean un aroma goloso, alegre y juvenil. Para quien disfruta los perfumes divertidos que se notan y ponen de buen humor.",o:["Salidas","Día a día","Fiestas"],c:"Todo el año",i:"Moderada"},
+14:{t:"Odyssey Mandarin Sky combina la luz cítrica de la mandarina con un fondo dulce de caramelo y haba tonka. El resultado es un perfume brillante, alegre y muy rendidor, que funciona tanto de día como de noche.",o:["Salidas","Día a día","Noche"],c:"Todo el año",i:"Intensa"},
+15:{t:"Club de Nuit Intense es famoso por su proyección. La piña aporta una apertura frutal y jugosa, el abedul un toque ahumado elegante y el almizcle un fondo limpio y masculino. Un frutal ahumado que no pasa desapercibido.",o:["Noche","Eventos","Oficina"],c:"Todo el año",i:"Intensa"},
+16:{t:"Bharara King combina frescura y dulzura con aire de nicho. La naranja y la bergamota abren luminosas, y el ámbar lo vuelve cálido y elegante en la piel. Versátil, moderno y con mucha presencia.",o:["Día a día","Salidas","Eventos"],c:"Todo el año",i:"Moderada"},
+17:{t:"212 VIP Men es moderno y fiestero. El vodka y la menta le dan una salida fresca y vibrante, y el ámbar un fondo cálido y masculino. Pensado para las noches de salida y para quien vive la ciudad al máximo.",o:["Fiestas","Noche","Salidas"],c:"Todo el año",i:"Moderada"},
+18:{t:"9PM es dulce y nocturno. La manzana abre fresca, la canela aporta calidez especiada y la vainilla deja una estela golosa y seductora. Uno de los árabes favoritos para salir de noche.",o:["Noche","Citas","Fiestas"],c:"Clima fresco",i:"Intensa"},
+19:{t:"Bad Boy equilibra luz y oscuridad. La pimienta abre con energía, el cedro aporta un corazón amaderado firme y el cacao le da un fondo intenso y seductor. Para el hombre audaz que rompe las reglas con estilo.",o:["Noche","Citas","Eventos"],c:"Clima fresco",i:"Intensa"},
+20:{t:"Bade'e Al Oud Oud for Glory es profundo y majestuoso. El azafrán abre especiado, el oud toma el protagonismo con su carácter amaderado y oriental, y el pachulí le da un fondo terroso. Para quienes buscan un aroma oriental intenso y sofisticado.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+21:{t:"Donna Born in Roma es floral y moderna, con alma romana. La grosella negra le da un toque frutal, el jazmín un corazón luminoso y la vainilla un fondo cálido y adictivo. Para la mujer auténtica, elegante y audaz.",o:["Citas","Eventos","Día a día"],c:"Todo el año",i:"Moderada"},
+22:{t:"212 NYC Men es urbano y enérgico. La toronja abre fresca, el jengibre le da un toque especiado y el cedro un fondo amaderado limpio. Masculino, versátil y fácil de usar en cualquier momento.",o:["Oficina","Día a día","Salidas"],c:"Todo el año",i:"Moderada"},
+23:{t:"9PM Night Out es la versión más vibrante de 9PM. La manzana abre llamativa, la canela aporta calidez y el haba tonka deja un fondo dulce y sensual. Hecho para la noche y para destacar.",o:["Noche","Fiestas","Citas"],c:"Clima fresco",i:"Intensa"},
+24:{t:"Acqua di Giò es la frescura del Mediterráneo hecha perfume. Las notas cítricas y marinas abren limpias y luminosas, y el cedro le da un fondo amaderado elegante. Un clásico atemporal que funciona en cualquier ocasión.",o:["Día a día","Oficina","Playa y vacaciones"],c:"Clima cálido",i:"Suave"},
+25:{t:"Amber Rouge es intenso y sofisticado. El azafrán abre especiado, el ámbar aporta un corazón dulce y cálido, y las maderas le dan un fondo profundo y envolvente. Un oriental con presencia, en un frasco digno de colección.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+26:{t:"Amethyst combina flores rojas con la profundidad del oud y la calidez del ámbar. Es envolvente, elegante y duradero, con un carácter floral amaderado que funciona tanto en hombres como en mujeres.",o:["Noche","Eventos","Citas"],c:"Clima fresco",i:"Intensa"},
+27:{t:"Club de Nuit Oud mezcla el oud con especias y cedro sobre un fondo cálido y profundo. Amaderado, especiado y envolvente, para quien disfruta los aromas orientales con carácter.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+28:{t:"Atheeri es femenino y delicado. La pera abre fresca y jugosa, las flores blancas aportan elegancia y la vainilla un fondo suave y envolvente. Un floral frutal agradable para todos los días.",o:["Día a día","Oficina","Salidas"],c:"Todo el año",i:"Moderada"},
+29:{t:"Cloud es una nube de dulzura. La lavanda y la combinación de bergamota y pera abren ligeras, y la crema batida le da un fondo cremoso y goloso. Suave, acogedor y muy adictivo.",o:["Día a día","Universidad u oficina","Salidas"],c:"Todo el año",i:"Moderada"},
+30:{t:"Silver Mountain Water está inspirado en la pureza de las montañas nevadas. La bergamota abre fresca, la grosella negra aporta un toque frutal y el cedro un fondo limpio y elegante. Fresco, sofisticado y de nicho.",o:["Oficina","Día a día","Eventos de día"],c:"Clima cálido",i:"Suave"},
+31:{t:"Erba Pura es exótico y luminoso. Los cítricos mediterráneos y las frutas tropicales abren con mucha energía, y el ámbar, el almizcle y la vainilla le dan un fondo cálido y envolvente. Un nicho moderno con gran presencia.",o:["Salidas","Eventos","Día a día"],c:"Todo el año",i:"Intensa"},
+32:{t:"Sorbetto Rosso es el verano en frasco. La sandía jugosa, el toque salino del mar y un praliné suave crean un aroma frutal, refrescante y divertido.",o:["Día a día","Playa y vacaciones","Salidas"],c:"Clima cálido",i:"Suave"},
+33:{t:"Honor & Glory es dulce y cremoso. La piña abre frutal, la vainilla aporta suavidad y el sándalo un fondo cálido y amaderado. Deja una estela envolvente y agradable.",o:["Salidas","Citas","Día a día"],c:"Todo el año",i:"Moderada"},
+34:{t:"Invictus es frescura con energía de campeón. Las notas marinas y la toronja abren vibrantes, y la madera de guayaco aporta un fondo amaderado masculino. Deportivo, seguro y muy versátil.",o:["Día a día","Deporte","Salidas"],c:"Clima cálido",i:"Moderada"},
+35:{t:"L'Eau d'Issey Pour Homme es icónico y atemporal. El yuzu abre cítrico y luminoso, el lirio de agua le da la frescura acuática que lo caracteriza y el cedro un fondo limpio. Elegante, sobrio y fácil de llevar.",o:["Oficina","Día a día","Eventos de día"],c:"Clima cálido",i:"Suave"},
+36:{t:"Le Male Elixir es la versión más intensa del clásico. La vainilla, el haba tonka y el ámbar crean un aroma cálido, dulce y seductor, con una estela profunda e irresistible.",o:["Noche","Citas","Eventos"],c:"Clima fresco",i:"Intensa"},
+37:{t:"L.12.12 Rouge es fresco y vibrante. La manzana roja abre jugosa, la pimienta rosa aporta un toque especiado y el cedro un fondo amaderado. Moderno y energético, ideal para el día a día.",o:["Día a día","Deporte","Salidas"],c:"Todo el año",i:"Moderada"},
+38:{t:"Art of Universe es moderno y envolvente. Los cítricos y las notas aromáticas abren frescos, y las maderas le dan un fondo con carácter. Un aromático amaderado versátil y diferente.",o:["Día a día","Oficina","Salidas"],c:"Todo el año",i:"Moderada"},
+39:{t:"Sublime es dulce y adictivo. Los frutos rojos y las frutas jugosas abren alegres, y la vainilla los envuelve en un fondo suave y femenino. Elegante y fácil de llevar.",o:["Salidas","Citas","Día a día"],c:"Todo el año",i:"Moderada"},
+40:{t:"Yara Elixir es la versión más intensa de Yara. Los frutos rojos, la vainilla y el ámbar crean un aroma dulce, envolvente y elegante, con una estela más profunda.",o:["Noche","Citas","Salidas"],c:"Clima fresco",i:"Intensa"},
+41:{t:"Khamrah Dukhan lleva Khamrah a un terreno más ahumado. El tabaco, las especias y el ámbar crean un aroma cálido, sofisticado y adictivo, ideal para quien quiere algo más profundo.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+42:{t:"Arabians Tonka es intenso y envolvente. El ámbar y las especias crean un corazón cálido y dulce, y las maderas le dan profundidad. Un Montale con mucha presencia y estela.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+43:{t:"Starry Nights es brillante y cautivador. La manzana abre fresca, la rosa aporta un corazón floral y el almizcle un fondo cálido y suave. Un Montale luminoso, ideal para la noche.",o:["Noche","Citas","Eventos"],c:"Todo el año",i:"Intensa"},
+44:{t:"Toy 2 Bubble Gum es dulce y juguetón. El chicle de rosa abre goloso, el corazón floral le da delicadeza y las frutas cítricas un toque fresco. Lleno de color, como su frasco de osito.",o:["Día a día","Salidas","Fiestas"],c:"Todo el año",i:"Moderada"},
+45:{t:"Nautica Voyage evoca la aventura del mar. La manzana verde abre fresca, la flor de loto aporta un toque acuático y el cedro un fondo limpio. Vigorizante, ligero y perfecto para el calor.",o:["Día a día","Deporte","Playa y vacaciones"],c:"Clima cálido",i:"Suave"},
+46:{t:"Oud Saffron es intenso y elegante. El azafrán abre especiado, las maderas aportan profundidad y el ámbar un fondo cálido. Un oriental refinado para ocasiones especiales.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+47:{t:"1 Million es audaz y seductor. La toronja y las especias abren con energía, el cuero aporta un corazón con carácter y el ámbar y las maderas un fondo dulce y cálido. Un perfume que se nota y se recuerda.",o:["Noche","Fiestas","Citas"],c:"Clima fresco",i:"Intensa"},
+48:{t:"Santal 33 es un ícono del nicho. El sándalo y el cedro forman un corazón amaderado cremoso, y el cardamomo le da un toque especiado y ligeramente ahumado. Minimalista, moderno y muy adictivo.",o:["Día a día","Oficina","Eventos"],c:"Todo el año",i:"Moderada"},
+49:{t:"Sauvage es fresco, poderoso y magnético. La bergamota abre vibrante, la pimienta le da energía y el ámbar con maderas deja un fondo especiado y masculino. Uno de los perfumes más reconocidos del mundo, versátil para cualquier ocasión.",o:["Día a día","Noche","Citas"],c:"Todo el año",i:"Intensa"},
+50:{t:"Shaheen Gold es sofisticado y majestuoso. El ámbar, las especias y las maderas crean un aroma oriental cálido y elegante, digno de su frasco dorado.",o:["Noche","Eventos","Ocasiones especiales"],c:"Clima fresco",i:"Intensa"},
+51:{t:"Sweet Like Candy es dulce y goloso. La zarzamora abre frutal, la crema batida aporta suavidad y la vainilla un fondo cálido. Un perfume juvenil, divertido y adictivo.",o:["Día a día","Salidas","Universidad u oficina"],c:"Todo el año",i:"Moderada"},
+52:{t:"Thank U, Next es audaz y dulce. La pera y la frambuesa abren jugosas, y el coco le da un fondo cremoso y tropical. Divertido, femenino y lleno de energía.",o:["Día a día","Salidas","Fiestas"],c:"Todo el año",i:"Moderada"},
+53:{t:"Eros es fresco, sensual y masculino. El limón y la menta abren vibrantes, y la vainilla deja un fondo cálido y seductor. Uno de los perfumes masculinos más populares para salir y conquistar.",o:["Noche","Citas","Fiestas"],c:"Todo el año",i:"Intensa"},
+54:{t:"Swiss Army Classic es fresco, limpio y aromático. Los cítricos y la lavanda abren con un carácter verde, y las notas amaderadas le dan un fondo sobrio. Clásico y versátil para el día a día.",o:["Día a día","Oficina","Deporte"],c:"Clima cálido",i:"Suave"},
+55:{t:"Yara Candy es dulce y juguetona. Los frutos rojos, el toque gourmand y la vainilla crean un aroma femenino, moderno y adictivo.",o:["Día a día","Salidas","Fiestas"],c:"Todo el año",i:"Moderada"},
+56:{t:"Yara Rosa es femenina y delicada. El durazno abre jugoso, las flores blancas aportan elegancia y la vainilla un fondo suave y seductor.",o:["Día a día","Citas","Salidas"],c:"Todo el año",i:"Moderada"},
+57:{t:"Yara Tous es tropical y luminosa. El mango abre dulce y jugoso, las flores blancas le dan un corazón floral y la vainilla un fondo cálido. Alegre y perfecta para el calor.",o:["Día a día","Salidas","Playa y vacaciones"],c:"Clima cálido",i:"Moderada"}
+};
+
 /* ===== Vitrina del banner principal =====
    Foto: assets/img/tienda/vitrina-estanteria.webp (1600 x 893 de referencia para las zonas).
    Cada perfume de la foto es una zona z=[x1, y1, x2, y2] en píxeles y su id del catálogo.
@@ -191,10 +256,12 @@ function scene(p){
 const visual=(p,w)=>p.img&&IMG[p.img]?`<img src="${IMG[p.img]}" alt="${esc(p.brand+' '+p.name)}" loading="lazy">`:scene(p);
 
 function go(t){
+  if(t!=="producto"&&location.hash.startsWith("#/p/"))history.pushState(null,"",location.pathname+location.search);
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));$("v-"+t).classList.add("active");
   document.querySelectorAll("[data-tab]").forEach(b=>b.dataset.tab===t?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   window.scrollTo(0,0);cartBar();
-  ({mayor:renderW,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop();window.vitrinaStart&&vitrinaStart()}})[t]();
+  if(t!=="producto")document.title="Upperfumes · Fragancias que te elevan";
+  ({producto:renderProducto,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop();window.vitrinaStart&&vitrinaStart()}})[t]();
 }
 
 /* ---------- tienda ---------- */
@@ -235,27 +302,40 @@ function menuBlock(cat){
 function renderMenu(){$("mega-arabes").innerHTML=menuBlock("Árabes");$("mega-disenador").innerHTML=menuBlock("Diseñador")}
 function openMenu(){
   openSheet(`<h3 class="t">Explorar</h3><div class="mmob">${["Árabes","Diseñador"].map(c=>`<div class="mm">${menuBlock(c)}</div>`).join("")}
-  <div class="mm mlinks"><button onclick="setF({})">Todo el catálogo</button><button onclick="closeSheet();go('mayor')">Por mayor</button><button onclick="closeSheet();go('promos')">Promociones</button></div></div>`);
+  <div class="mm mlinks"><button onclick="setF({})">Todo el catálogo</button><button onclick="closeSheet();go('promos')">Promociones</button></div></div>`);
 }
 function renderHome(){
   const loop=a=>a.concat(a);
   $("annc").innerHTML=loop(ANUNCIOS).map(t=>`<span>${esc(t)}</span>`).join("");
   $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
-  $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>100%</b><span>originales</span></div><div><b>${MIN_MAYOR}+</b><span>unidades para precio por mayor</span></div>`;
+  if($("volP"))$("volP").textContent=`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
+  $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>100%</b><span>originales</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
   const pic=(cat,pref)=>{const p=P(pref)&&P(pref).img?P(pref):S.products.find(x=>x.cat===cat&&x.img&&IMG[x.img]);return p&&IMG[p.img]?IMG[p.img]:""};
   const cats=[
     {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:pic("Árabes",10),fn:"setF({cat:'Árabes'})"},
     {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:pic("Diseñador",49),fn:"setF({cat:'Diseñador'})"},
-    {t:"Por mayor",d:"Arma tu pedido desde 6 unidades y accede al precio mayorista.",img:pic("Árabes",15),fn:"go('mayor')"}];
+    {t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:pic("Diseñador",6),fn:"go('promos')"}];
   $("cats").innerHTML=cats.map(c=>`<button class="catc" onclick="${c.fn}"><span class="catimg" style="background-image:url('${c.img}')"></span><span class="cattx"><b>${c.t}</b><small>${c.d}</small><em>Descubrir</em></span></button>`).join("");
   $("rNew").innerHTML=[...S.products].sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(card).join("");
   $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map(card).join("");
-  $("testi").innerHTML=TESTIMONIOS.length?`<div class="railhead"><div class="sh"><h2>Lo que dicen nuestros clientes</h2><p>Mensajes reales de personas que ya compraron.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rTes',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rTes',1)">›</button></div></div><div class="rail tes" id="rTes">${TESTIMONIOS.map((s,i)=>`<img src="${esc(s)}" alt="Testimonio de cliente ${i+1}" loading="lazy">`).join("")}</div>`:"";
+  renderClientes();
   const vids=TIKTOK_VIDEOS.map(u=>(String(u).match(/(\d{15,})/)||[])[1]).filter(Boolean);
   $("tt").innerHTML=vids.length?`<div class="sh"><h2>Síguenos en TikTok</h2><p>Reseñas, llegadas y recomendaciones.</p><div class="rule"></div></div><div class="rail tt">${vids.map(v=>`<iframe src="https://www.tiktok.com/player/v1/${v}?controls=1&loop=1&rel=0" title="Video de TikTok" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`).join("")}</div>`:"";
   $("asesorBtn").href=`https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}`;
   renderFooter();
 }
+let CLIENTES=null;
+function loadClientes(){
+  if(TESTIMONIOS.length){CLIENTES=TESTIMONIOS;return renderClientes()}
+  fetch(`https://api.github.com/repos/${REPO_GH}/contents/assets/img/clientes`).then(r=>r.ok?r.json():[]).then(l=>{
+    CLIENTES=(Array.isArray(l)?l:[]).filter(f=>/\.(jpe?g|png|webp)$/i.test(f.name)).sort((a,b)=>b.name.localeCompare(a.name,undefined,{numeric:true})).map(f=>f.path);
+    renderClientes()}).catch(()=>{CLIENTES=[];renderClientes()});
+}
+function renderClientes(){
+  const l=CLIENTES||[];
+  $("testi").innerHTML=l.length?`<div class="railhead"><div class="sh"><h2>Clientes felices</h2><p>Mensajes reales de personas que ya compraron en Upperfumes.</p><div class="rule"></div></div><div class="arrows"><button aria-label="Anterior" onclick="rail('rTes',-1)">‹</button><button aria-label="Siguiente" onclick="rail('rTes',1)">›</button></div></div><div class="rail tes" id="rTes">${l.map((s,i)=>`<button class="tesb" onclick="verCliente2('${esc(s)}')" aria-label="Ver mensaje de cliente ${i+1}"><img src="${esc(s)}" alt="Mensaje de cliente ${i+1}" loading="lazy"></button>`).join("")}</div>`:"";
+}
+function verCliente2(s){openSheet(`<h3 class="t">Clientes felices</h3><img src="${esc(s)}" alt="Mensaje de cliente" style="width:100%;display:block;border:1px solid var(--line)">`)}
 function rail(id,d){const r=$(id);r.scrollBy({left:d*r.clientWidth*.9,behavior:"smooth"})}
 function renderFooter(){
   const C=S.company,ig=(C.instagram||REDES.instagram||"").replace(/^@/,""),tk=(REDES.tiktok||"").replace(/^@/,""),tel=C.telefono||"300 559 8061";
@@ -264,40 +344,89 @@ function renderFooter(){
     <div class="ft-brand"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div class="serif ft-name">UPPERFUMES</div><p>Perfumes de diseñador y árabes originales, con envíos a todo Colombia.</p>
       <div class="ft-social"><a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>${ig?`<a href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener">Instagram</a>`:""}${tk?`<a href="https://www.tiktok.com/@${esc(tk)}" target="_blank" rel="noopener">TikTok</a>`:""}</div></div>
     <div><h4>Comprar</h4><button onclick="setF({cat:'Árabes'})">Árabes</button><button onclick="setF({cat:'Diseñador'})">Diseñador</button><button onclick="setF({})">Todo el catálogo</button><button onclick="go('promos')">Promociones</button></div>
-    <div><h4>Ayuda</h4><a href="${wa}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}" target="_blank" rel="noopener">Asesoría para elegir</a><button onclick="go('mayor')">Ventas al por mayor</button><button onclick="go('cuenta')">Mi cuenta y pedidos</button></div>
+    <div><h4>Ayuda</h4><a href="${wa}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}" target="_blank" rel="noopener">Asesoría para elegir</a><button onclick="go('cuenta')">Mi cuenta y pedidos</button></div>
     <div><h4>Contacto</h4><a href="${wa}" target="_blank" rel="noopener">WhatsApp ${esc(tel)}</a>${C.email?`<a href="mailto:${esc(C.email)}">${esc(C.email)}</a>`:""}${C.ciudad?`<span>${esc(C.ciudad)}</span>`:""}<span>Envíos a todo Colombia</span></div>
   </div><div class="ft-bottom">© ${new Date().getFullYear()} Upperfumes · Fragancias que te elevan</div>`;
 }
-function ficha(id){
-  const p=P(id);const lv=["Notas de salida","Notas de corazón","Notas de fondo"];
-  openSheet(`<div class="ficha">${p.img&&SHEET[p.img]?`<div class="ficha-sheet"><img src="${SHEET[p.img]}" alt="Ficha ${esc(p.brand+' '+p.name)}"></div>`:`<div class="ficha-ph">${visual(p,100)}</div>`}
-  <h3>${esc(p.brand)}<br>${esc(p.name)}</h3><div class="meta">${esc(p.g)} | ${esc(p.conc)}</div>
-  <span class="big">${cop(price(p))}</span>${p.promo?` <s style="color:var(--muted);margin-left:6px">${cop(p.publico)}</s>`:""}
-  <p class="desc">${esc(p.desc||"")}</p>
-  <div class="nrow"><div class="nic">✦</div><div><small>Familia olfativa</small><span>${esc(p.fam||"")}</span></div></div>
-  ${(p.notes||[]).map((n,i)=>`<div class="nrow"><div class="nic">${n.e}</div><div><small>${lv[i]||"Nota"}</small><span>${esc(n.n)}</span></div></div>`).join("")}
-  <div class="nrow"><div class="nic">⚱</div><div><small>Presentación</small><span>${p.ml} ml</span></div></div>
-  <p class="hint">${p.stock>0?p.stock+" disponibles":"Agotado"}</p>
-  <button class="primary" ${p.stock<=0?"disabled":""} onclick="addCart(${p.id});closeSheet()">Agregar al carrito</button></div>`);
+const slug=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+function ficha(id){const p=P(id);if(!p)return;closeSheet();location.hash="#/p/"+p.id+"-"+slug(p.brand+" "+p.name)}
+let PD=null,pdQ=1,pdImg=0;
+function route(){const m=location.hash.match(/^#\/p\/(\d+)/);
+  if(m&&P(m[1])){PD=+m[1];pdQ=1;pdImg=0;closeSheet();go("producto")}
+  else if($("v-producto").classList.contains("active"))go("tienda")}
+addEventListener("hashchange",route);
+const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón","El carácter del perfume, aparece después"],["Fondo","Lo que queda en la piel al final del día"]];
+function renderProducto(){
+  const p=P(PD);if(!p)return go("tienda");
+  const X=FICHA_TXT[p.id]||{},pr=price(p),ahorro=p.promo?p.publico-pr:0;
+  const imgs=[p.img&&IMG[p.img]&&{src:IMG[p.img],alt:p.brand+" "+p.name},p.img&&SHEET[p.img]&&{src:SHEET[p.img],alt:"Ficha de "+p.name}].filter(Boolean);
+  const cur=imgs[pdImg]||imgs[0];const main=imgs.length?`<img class="${pdImg===1?"sheetimg":""}" src="${cur.src}" alt="${esc(cur.alt)}">`:visual(p);
+  const rel=S.products.filter(x=>x.id!==p.id&&(x.fam===p.fam||x.cat===p.cat&&x.g===p.g)).sort((a,b)=>(b.fam===p.fam)-(a.fam===p.fam)).slice(0,4);
+  const msg=`Hola Upperfumes, me interesa el ${p.brand} ${p.name} (${p.ml} ml) de ${cop(pr)}.`;
+  $("pd").innerHTML=`<nav class="crumbs" aria-label="Ruta"><button onclick="go('tienda')">Tienda</button><span>›</span><button onclick="setF({cat:'${p.cat}'})">${esc(p.cat)}</button><span>›</span><button onclick='setF(${JSON.stringify({brand:p.brand}).replace(/'/g,"&#39;")})'>${esc(p.brand)}</button></nav>
+  <div class="pd">
+    <div class="pd-gal">
+      <div class="pd-main">${p.promo?`<span class="off">−${p.promo}%</span>`:""}${main}</div>
+      ${imgs.length>1?`<div class="pd-thumbs">${imgs.map((m,i)=>`<button aria-label="Ver imagen ${i+1}" aria-pressed="${i===pdImg}" onclick="pdImg=${i};renderProducto()"><img src="${m.src}" alt=""></button>`).join("")}</div>`:""}
+    </div>
+    <div class="pd-info">
+      <div class="pd-badges">${p.promo?`<span class="b-off">Oferta −${p.promo}%</span>`:""}<span class="b-stock ${p.stock>0?"":"out"}">${p.stock>0?"En existencia":"Agotado"}</span></div>
+      <small class="pd-brand">${esc(p.brand)}</small>
+      <h1 class="pd-name">${esc(p.name)}</h1>
+      <div class="pd-meta">${esc(p.conc)} · ${p.ml} ml · ${esc(p.g)}</div>
+      <div class="pd-price"><b>${cop(pr)}</b>${p.promo?`<s>${cop(p.publico)}</s><span class="save">Ahorras ${cop(ahorro)}</span>`:""}</div>
+      <p class="pd-lead">${esc(p.desc||"")}</p>
+      <div class="pd-buy">
+        <div class="pd-qrow"><span>Cantidad</span><div class="qty"><button aria-label="Quitar uno" onclick="pdQ=Math.max(1,pdQ-1);renderProducto()">−</button><span>${pdQ}</span><button aria-label="Agregar uno" onclick="pdQ=Math.min(${Math.max(1,p.stock)},pdQ+1);renderProducto()">+</button></div></div>
+        <div class="pd-tot"><span>Total</span><b>${cop(pr*pdQ)}</b></div>
+        <p class="pd-vol">Lleva ${DESC_MIN} o más perfumes, iguales o distintos, y obtén ${DESC_VOL}% de descuento en todo tu pedido.</p>
+        <button class="primary" ${p.stock<=0?"disabled":""} onclick="addN(${p.id},pdQ)">${p.stock<=0?"Agotado":"Agregar al carrito"}</button>
+        <a class="ghost" href="https://wa.me/${waNum()}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>
+      </div>
+      <ul class="pd-trust"><li>100% original</li><li>Envíos a todo Colombia</li><li>Asesoría gratis por WhatsApp</li></ul>
+    </div>
+  </div>
+  <section class="pd-sec"><h2>Descripción</h2><p class="pd-txt">${esc(X.t||p.desc||"")}</p>
+    ${X.o?`<div class="pd-chars"><div><small>Ideal para</small><span>${X.o.map(esc).join(" · ")}</span></div><div><small>Clima</small><span>${esc(X.c)}</span></div><div><small>Intensidad</small><span class="int i-${slug(X.i)}"><i></i><i></i><i></i>${esc(X.i)}</span></div></div>`:""}
+  </section>
+  <section class="pd-sec"><h2>Pirámide olfativa</h2>
+    <div class="pyr">${(p.notes||[]).map((n,i)=>`<div><span class="nic">${n.e}</span><small>${LV3[i]?LV3[i][0]:"Nota"}</small><b>${esc(n.n)}</b><em>${LV3[i]?LV3[i][1]:""}</em></div>`).join("")}</div>
+  </section>
+  <section class="pd-sec"><h2>Detalles</h2>
+    <dl class="pd-dl"><div><dt>Marca</dt><dd>${esc(p.brand)}</dd></div><div><dt>Familia olfativa</dt><dd>${esc(p.fam||"")}</dd></div><div><dt>Concentración</dt><dd>${esc(p.conc)}</dd></div><div><dt>Presentación</dt><dd>${p.ml} ml</dd></div><div><dt>Género</dt><dd>${esc(p.g)}</dd></div><div><dt>Categoría</dt><dd>${esc(p.cat)}</dd></div></dl>
+  </section>
+  ${rel.length?`<section class="pd-sec"><h2>También te puede gustar</h2><div class="grid">${rel.map(card).join("")}</div></section>`:""}`;
+  document.title=`${p.brand} ${p.name} · Upperfumes`;
 }
+function addN(id,n){const p=P(id);let k=0;for(let i=0;i<n;i++){if((cart[id]||0)>=p.stock)break;cart[id]=(cart[id]||0)+1;k++}
+  lastAdded=id;save();badge(true);toast(k?`${k} × ${p.name} agregado${k>1?"s":""}`:"No hay más unidades disponibles")}
 
 /* ---------- carrito / pedidos ---------- */
 function addCart(id){const p=P(id);if((cart[id]||0)>=p.stock){toast("No hay más unidades disponibles");return}cart[id]=(cart[id]||0)+1;lastAdded=id;save();badge(true);toast(p.name+" agregado")}
 function badge(bump){const n=Object.values(cart).reduce((a,b)=>a+b,0);$("badge").hidden=!n;$("badge").textContent=n;cartBar(bump)}
+const units=()=>Object.keys(cart).filter(k=>cart[k]>0&&P(k)).reduce((a,k)=>a+cart[k],0);
+const volOn=()=>units()>=DESC_MIN;
+const lineP=p=>volOn()?Math.round(price(p)*(1-DESC_VOL/100)/100)*100:price(p);   // precio por unidad con el descuento por volumen
 function cartBar(bump){
-  const ids=Object.keys(cart).filter(k=>cart[k]>0&&P(k)),n=ids.reduce((a,k)=>a+cart[k],0),t=ids.reduce((a,k)=>a+price(P(k))*cart[k],0);
-  const onMayor=$("v-mayor").classList.contains("active"),show=n>0&&!onMayor,bar=$("cartbar");
+  const ids=Object.keys(cart).filter(k=>cart[k]>0&&P(k)),n=units(),t=ids.reduce((a,k)=>a+lineP(P(k))*cart[k],0);
+  const show=n>0,bar=$("cartbar");
   bar.hidden=!show;document.body.classList.toggle("has-cart",show);if(!n){bar.innerHTML="";return}
   const p=P(lastAdded&&cart[lastAdded]?lastAdded:ids[ids.length-1]);
-  bar.innerHTML=`<div class="thumb">${visual(p,20)}</div><div class="grow"><b>${n} perfume${n>1?"s":""} · ${cop(t)}</b><small>${esc(p.name)}${ids.length>1?" y "+(ids.length-1)+" más":""}</small></div><button onclick="openCart()">Ver carrito</button>`;
+  const sub=volOn()?`${DESC_VOL}% de descuento aplicado`:`${esc(p.name)}${ids.length>1?" y "+(ids.length-1)+" más":""}`;
+  bar.innerHTML=`<div class="thumb">${visual(p,20)}</div><div class="grow"><b>${n} perfume${n>1?"s":""} · ${cop(t)}</b><small>${sub}</small></div><button onclick="openCart()">Ver carrito</button>`;
   if(bump){bar.classList.remove("bump");void bar.offsetWidth;bar.classList.add("bump")}
 }
 function openCart(){
   const ids=Object.keys(cart).filter(k=>cart[k]>0&&P(k));
   if(!ids.length){openSheet(`<h3 class="t">Tu carrito</h3><p class="empty">Aún no has agregado perfumes.</p><button class="primary" onclick="closeSheet();go('tienda')">Ver catálogo</button>`);return}
-  let tot=0;const ls=ids.map(k=>{const p=P(k),q=cart[k];tot+=price(p)*q;
+  let sub=0,tot=0;const ls=ids.map(k=>{const p=P(k),q=cart[k];sub+=price(p)*q;tot+=lineP(p)*q;
     return `<div class="row"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.name)}</b><small>${cop(price(p))} c/u</small></div><div class="qty"><button onclick="chg(${p.id},-1)" aria-label="Quitar">−</button><span>${q}</span><button onclick="chg(${p.id},1)" aria-label="Agregar">+</button></div></div>`}).join("");
-  openSheet(`<h3 class="t">Tu carrito</h3>${ls}<div class="total"><span>Total</span><b>${cop(tot)}</b></div><button class="primary" onclick="checkout('detal')">Pedir por WhatsApp</button>`);
+  const n=units(),falta=DESC_MIN-n;
+  const vol=volOn()?`<div class="vol on">Descuento por volumen aplicado: ${DESC_VOL}% por llevar ${DESC_MIN} o más perfumes.</div>`
+    :`<div class="vol">Agrega ${falta} perfume${falta>1?"s":""} más y obtén ${DESC_VOL}% de descuento en todo tu pedido.</div>`;
+  openSheet(`<h3 class="t">Tu carrito</h3>${ls}${vol}
+    ${volOn()?`<div class="total sm"><span>Subtotal</span><span>${cop(sub)}</span></div><div class="total sm"><span>Descuento ${DESC_VOL}%</span><span>−${cop(sub-tot)}</span></div>`:""}
+    <div class="total"><span>Total</span><b>${cop(tot)}</b></div><button class="primary" onclick="checkout('detal')">Pedir por WhatsApp</button>`);
 }
 function chg(id,d){const p=P(id);cart[id]=Math.min(p.stock,Math.max(0,(cart[id]||0)+d));if(!cart[id])delete cart[id];save();badge();openCart()}
 function makeInvoice({cliente,tel,tipo,items,estado,metodo,origen}){
@@ -309,15 +438,17 @@ function makeInvoice({cliente,tel,tipo,items,estado,metodo,origen}){
 }
 function checkout(tipo){
   if(!session){closeSheet();go("cuenta");toast("Inicia sesión para hacer tu pedido");return}
-  const src=tipo==="mayor"?wcart:cart;
-  const items=Object.keys(src).filter(k=>src[k]>0).map(k=>({pid:+k,qty:src[k],price:tipo==="mayor"?P(k).mayor:price(P(k))}));
+  const desc=volOn();
+  const items=Object.keys(cart).filter(k=>cart[k]>0&&P(k)).map(k=>({pid:+k,qty:cart[k],price:lineP(P(k))}));
   if(!items.length)return;
-  const inv=makeInvoice({cliente:session.name,tel:session.phone,tipo,items,estado:"pendiente",origen:"web"});
-  let m=`Hola Upperfumes, soy ${session.name}. Pedido ${inv.id}${tipo==="mayor"?" (al por mayor)":""}:\n`;
-  inv.items.forEach(i=>m+=`• ${i.qty} x ${i.name} — ${cop(i.price)}\n`);m+=`Total: ${cop(inv.total)}`;
-  if(tipo==="mayor")wcart={};else cart={};save();badge();closeSheet();
+  const inv=makeInvoice({cliente:session.name,tel:session.phone,tipo:"detal",items,estado:"pendiente",origen:"web"});
+  let m=`Hola Upperfumes, soy ${session.name}. Pedido ${inv.id}:\n`;
+  inv.items.forEach(i=>m+=`• ${i.qty} x ${i.name} — ${cop(i.price)}\n`);
+  if(desc)m+=`Descuento por volumen: ${DESC_VOL}% (ya incluido en los precios)\n`;
+  m+=`Total: ${cop(inv.total)}`;
+  cart={};save();badge();closeSheet();
   window.open(`https://wa.me/${waNum()}?text=${encodeURIComponent(m)}`,"_blank");
-  toast("Pedido "+inv.id+" enviado");if(tipo==="mayor")renderW();
+  toast("Pedido "+inv.id+" enviado");
 }
 
 /* ---------- mayor ---------- */
@@ -351,7 +482,7 @@ function renderAcc(){
   if(session)return isAdmin()?renderAdmin():renderProfile();
   $("acc").innerHTML=`<div class="sh"><h2>${mode==="login"?"Inicia sesión":"Crea tu cuenta"}</h2><div class="rule"></div></div><div class="panel">
   <div class="seg"><button aria-pressed="${mode==="login"}" onclick="mode='login';renderAcc()">Ingresar</button><button aria-pressed="${mode==="reg"}" onclick="mode='reg';renderAcc()">Registrarme</button></div>
-  ${mode==="reg"?`<label>Tipo de cuenta</label><div class="role"><button aria-pressed="${role==="cliente"}" onclick="role='cliente';renderAcc()"><b>Cliente</b>Compra al detal y por mayor</button><button aria-pressed="${role==="admin"}" onclick="role='admin';renderAcc()"><b>Administrador</b>Inventario y contabilidad</button></div>
+  ${mode==="reg"?`<label>Tipo de cuenta</label><div class="role"><button aria-pressed="${role==="cliente"}" onclick="role='cliente';renderAcc()"><b>Cliente</b>Compra y sigue tus pedidos</button><button aria-pressed="${role==="admin"}" onclick="role='admin';renderAcc()"><b>Administrador</b>Inventario y contabilidad</button></div>
   <label for="fN">Nombre</label><input class="f" id="fN" autocomplete="name"><label for="fT">Celular</label><input class="f" id="fT" inputmode="tel" autocomplete="tel">`:""}
   <label for="fE">Correo</label><input class="f" id="fE" type="email" autocomplete="email">
   <label for="fP">Contraseña</label><input class="f" id="fP" type="password" autocomplete="${mode==="login"?"current-password":"new-password"}">
@@ -778,7 +909,7 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
 
 function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open")}
 function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open")}
-renderMenu();renderHome();renderShop();badge();
+renderMenu();renderHome();renderShop();badge();loadClientes();route();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
 (function vitrina(){
