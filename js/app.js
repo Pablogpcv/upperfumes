@@ -316,8 +316,8 @@ function renderHome(){
     {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:"assets/img/tienda/cat-disenador.webp",fn:"setF({cat:'Diseñador'})"},
     {t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:"assets/img/tienda/cat-promociones.webp",fn:"go('promos')"}];
   $("cats").innerHTML=cats.map(c=>`<button class="catc" onclick="${c.fn}"><span class="catimg" style="background-image:url('${c.img}')"></span><span class="cattx"><b>${c.t}</b><small>${c.d}</small><em>Descubrir</em></span></button>`).join("");
-  $("rNew").innerHTML=[...S.products].sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(card).join("");
-  $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map(card).join("");
+  $("rNew").innerHTML=[...S.products].sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(p=>card(p).replace('<div class="card">','<div class="card"><span class="newtag">Nuevo</span>')).join("");
+  $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map((p,i)=>`<div class="topi"><span class="rank" aria-label="Puesto ${i+1}">${i+1}</span>${card(p)}</div>`).join("");
   renderClientes();
   const vids=TIKTOK_VIDEOS.map(u=>(String(u).match(/(\d{15,})/)||[])[1]).filter(Boolean);
   $("tt").innerHTML=vids.length?`<div class="sh"><h2>Síguenos en TikTok</h2><p>Reseñas, llegadas y recomendaciones.</p><div class="rule"></div></div><div class="rail tt">${vids.map(v=>`<iframe src="https://www.tiktok.com/player/v1/${v}?controls=1&loop=1&rel=0" title="Video de TikTok" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`).join("")}</div>`:"";
