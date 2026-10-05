@@ -312,9 +312,9 @@ function renderHome(){
   $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>100%</b><span>originales</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
   const pic=(cat,pref)=>{const p=P(pref)&&P(pref).img?P(pref):S.products.find(x=>x.cat===cat&&x.img&&IMG[x.img]);return p&&IMG[p.img]?IMG[p.img]:""};
   const cats=[
-    {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:pic("Árabes",10),fn:"setF({cat:'Árabes'})"},
-    {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:pic("Diseñador",49),fn:"setF({cat:'Diseñador'})"},
-    {t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:pic("Diseñador",6),fn:"go('promos')"}];
+    {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:"assets/img/tienda/cat-arabes.webp",fn:"setF({cat:'Árabes'})"},
+    {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:"assets/img/tienda/cat-disenador.webp",fn:"setF({cat:'Diseñador'})"},
+    {t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:"assets/img/tienda/cat-promociones.webp",fn:"go('promos')"}];
   $("cats").innerHTML=cats.map(c=>`<button class="catc" onclick="${c.fn}"><span class="catimg" style="background-image:url('${c.img}')"></span><span class="cattx"><b>${c.t}</b><small>${c.d}</small><em>Descubrir</em></span></button>`).join("");
   $("rNew").innerHTML=[...S.products].sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(card).join("");
   $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map(card).join("");
