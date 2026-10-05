@@ -617,22 +617,23 @@ body.has-cart .app{padding-bottom:156px}
 @media (min-width:1280px){.rail.top{grid-auto-columns:calc((100% - 72px)/4)}}
 
 html,body{overflow-x:clip}
-/* buscador de productos en facturas */
-.pick-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;cursor:pointer;min-width:0}
-.pick-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* buscador de productos en facturas (desplegable) */
+.ps{position:relative;flex:1;min-width:0}
+.ps .ps-in{margin:0;width:100%;max-width:none;box-sizing:border-box}
+.line-item+.ps,label+.ps{margin-top:8px}
+.ps-in input{font-size:15px;color:var(--ink)}
+.ps-dd{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:60;background:var(--bg);border:1px solid var(--gold);border-radius:2px;box-shadow:0 14px 30px rgba(0,0,0,.45);overflow:hidden}
+.ps-dd button{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;text-align:left;background:none;color:var(--ink);border-bottom:1px solid var(--line);cursor:pointer}
+.ps-dd button:last-of-type{border-bottom:0}
+.ps-dd button.on,.ps-dd button:hover{background:rgba(212,175,55,.12)}
+.ps-dd button.out{opacity:.5}
+.pb-th{width:32px;height:32px;flex-shrink:0;overflow:hidden;border-radius:2px;display:grid;place-items:center}
+.pb-th img{width:100%;height:100%;object-fit:cover}
+.ps-tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.ps-tx b{font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-tx small{color:var(--muted);font-size:11.5px}
+.ps-pr{color:var(--gold);font-size:13px;flex-shrink:0}
+.ps-more{margin:0;padding:7px 10px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+.pick-btn{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;width:100%;min-width:0;padding-top:6px;padding-bottom:6px}
+.pick-btn .pb-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pick-btn small{color:var(--muted);flex-shrink:0;font-size:12px}
-#picker{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:none;align-items:flex-start;justify-content:center;padding:12px}
-#picker.open{display:flex}
-.pk-box{width:100%;max-width:520px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:4px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
-.pk-head{display:flex;gap:8px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}
-.pk-head .search input{font-size:16px;color:var(--ink)}
-.pk-list{overflow-y:auto;padding:4px 0}
-.pk-list button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);background:none;color:var(--ink);cursor:pointer}
-.pk-list button:hover,.pk-list button:focus{background:rgba(212,175,55,.08)}
-.pk-list button.out{opacity:.5}
-.pk-th{width:42px;height:42px;flex-shrink:0;overflow:hidden;border-radius:2px;display:grid;place-items:center}
-.pk-th img{width:100%;height:100%;object-fit:cover}
-.pk-tx{flex:1;min-width:0;display:flex;flex-direction:column}
-.pk-tx b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pk-tx small{color:var(--muted);font-size:12px}
-.pk-pr{color:var(--gold);font-size:13px;flex-shrink:0}
