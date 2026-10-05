@@ -659,10 +659,10 @@ async function saveCompra(){
 }
 /* facturas */
 let fFilter="todas";
-const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}</div></button>`;
+const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${(i.log||[]).length?" · editada":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}</div></button>`;
 function aFact(){
   const l=S.invoices.filter(i=>fFilter==="todas"||i.estado===fFilter);
-  $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button></div>
+  $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="verRegistro()">Registro de cambios</button></div>
   <div class="chips" style="margin-top:12px">${[["todas","Todas"],["pendiente","Pendientes"],["pagada","Pagadas"],["anulada","Anuladas"]].map(([k,t])=>`<button class="chip" aria-pressed="${fFilter===k}" onclick="fFilter='${k}';aFact()">${t}</button>`).join("")}</div>
   ${l.length?l.map(invRow).join(""):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
 }
@@ -713,14 +713,88 @@ function verFactura(id){
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="pdfFactura('${i.id}')">Descargar PDF</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select><button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
-  ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}`);
+  <div class="two" style="margin-top:10px">${i.estado!=="anulada"?`<button class="btn-line" style="margin:0" onclick="formEditFactura('${i.id}')">✏️ Editar factura</button>`:"<span></span>"}<button class="btn-line" style="margin:0;color:var(--bad);border-color:var(--bad)" onclick="borrarFactura('${i.id}')">🗑 Eliminar factura</button></div>
+  ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
+  ${histHTML(i)}`);
   setTimeout(()=>prepShare(id),50);
 }
 async function attachFV(id,inp){const f=inp.files&&inp.files[0];if(!f)return;try{const b=await compress(f),pid="v"+Date.now();if(!await fotoPut(pid,b))return toast("No se pudo guardar la foto");S.invoices.find(x=>x.id===id).photoId=pid;save();verFactura(id);if(atab==="facturas")aFact();toast("Foto adjuntada")}catch(e){toast("No se pudo leer esa imagen")}}
 function setEstado(id,e){const i=S.invoices.find(x=>x.id===id);
   if(e==="anulada")i.items.forEach(x=>{const p=P(x.pid);if(p)p.stock+=x.qty});
   if(e==="pagada"&&$("pm"))i.metodo=$("pm").value;
+  addLog(i,[e==="pagada"?`Marcada como pagada (${i.metodo})`:"Factura anulada, stock devuelto"]);
   i.estado=e;save();renderAdmin();verFactura(id);toast(e==="pagada"?"Factura pagada":"Factura anulada")}
+/* ===== Edición y eliminación de facturas, con registro de cambios ===== */
+const ahora=()=>new Date().toISOString();
+const fdt=t=>new Date(t).toLocaleString("es-CO",{day:"2-digit",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"});
+const quien=()=>session?session.name:"Sin sesión";
+const listPrice=(pid,tipo)=>{const p=P(pid);return p?(tipo==="mayor"?p.mayor:price(p)):0};
+function addLog(i,cambios,motivo){if(!cambios.length)return;i.log=i.log||[];const e={fecha:ahora(),usuario:quien(),cambios,motivo:motivo||""};i.log.push(e);
+  S.invLog=S.invLog||[];S.invLog.unshift({...e,factura:i.id,cliente:i.cliente,accion:"editada"})}
+function histHTML(i){const l=i.log||[];if(!l.length)return "";
+  return `<div class="sh" style="margin-top:14px"><h2 style="font-size:16px">Historial de cambios</h2></div>`+l.slice().reverse().map(e=>`<div class="row" style="align-items:flex-start"><div class="grow"><b style="font-weight:500">${fdt(e.fecha)} · ${esc(e.usuario)}</b><small>${e.cambios.map(esc).join("<br>")}${e.motivo?`<br><i>Motivo: ${esc(e.motivo)}</i>`:""}</small></div></div>`).join("")}
+let EF=null;
+function formEditFactura(id){const i=S.invoices.find(x=>x.id===id);
+  EF={id,v:{c:i.cliente,t:i.tel||"",tipo:i.tipo,m:i.metodo,e:i.estado,f:i.fecha,mot:""},lines:i.items.map(x=>({pid:x.pid,qty:x.qty,price:x.price}))};drawEdit()}
+function efv(){return{c:$("eC").value,t:$("eT").value,tipo:$("eTi").value,m:$("eM").value,e:$("eE").value,f:$("eF").value,mot:$("eMo").value}}
+function drawEdit(keep){const v=EF.v;
+  const tot=EF.lines.reduce((a,l)=>a+l.price*l.qty,0);
+  openSheet(`<h3 class="t">Editar ${EF.id}</h3><p class="hint">Cada cambio queda guardado con fecha, hora y quién lo hizo.</p>
+  <div class="two"><div><label for="eC">Cliente</label><input class="f" id="eC" value="${esc(v.c)}"></div><div><label for="eT">Celular</label><input class="f" id="eT" inputmode="tel" value="${esc(v.t)}"></div></div>
+  <div class="two"><div><label for="eTi">Tipo de venta</label><select class="f" id="eTi" onchange="EF.v=efv();EF.lines.forEach(l=>l.price=listPrice(l.pid,EF.v.tipo));drawEdit(1)"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
+  <div><label for="eM">Método de pago</label><select class="f" id="eM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta","Por definir"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select></div></div>
+  <div class="two"><div><label for="eE">Estado</label><select class="f" id="eE"><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option><option value="pendiente" ${v.e==="pendiente"?"selected":""}>Pendiente</option></select></div><div><label for="eF">Fecha de la factura</label><input class="f" id="eF" type="date" value="${v.f}"></div></div>
+  <label>Productos y precios</label>
+  ${EF.lines.map((l,k)=>{const lp=listPrice(l.pid,v.tipo),esp=l.price!==lp;return `<div class="panel" style="padding:10px;margin:6px 0">
+   <div class="line-item"><select class="f" aria-label="Producto" onchange="EF.v=efv();EF.lines[${k}].pid=+this.value;EF.lines[${k}].price=listPrice(+this.value,EF.v.tipo);drawEdit(1)">${S.products.map(p=>`<option value="${p.id}" ${p.id==l.pid?"selected":""}>${esc(p.brand+" "+p.name)} (${p.stock})</option>`).join("")}</select>
+   <input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="EF.v=efv();EF.lines[${k}].qty=Math.max(1,num(this.value));drawEdit(1)">
+   <button class="x" aria-label="Quitar" onclick="EF.v=efv();EF.lines.splice(${k},1);if(!EF.lines.length)EF.lines.push({pid:S.products[0].id,qty:1,price:listPrice(S.products[0].id,EF.v.tipo)});drawEdit(1)">×</button></div>
+   <div class="two" style="align-items:end"><div><label for="eP${k}">Precio unitario</label><input class="f" id="eP${k}" inputmode="numeric" value="${l.price}" onchange="EF.v=efv();EF.lines[${k}].price=num(this.value);drawEdit(1)"></div>
+   <div><small class="hint" style="display:block;margin-bottom:10px">Lista: ${cop(lp)}${esp?` · <b style="color:var(--gold)">Precio especial (${l.price<lp?"−":"+"}${cop(Math.abs(lp-l.price))})</b>`:""}</small></div></div>
+   ${esp?`<button class="ghost" style="margin:0;padding:4px 0" onclick="EF.v=efv();EF.lines[${k}].price=${lp};drawEdit(1)">Volver al precio de lista</button>`:""}</div>`}).join("")}
+  <button class="ghost" onclick="EF.v=efv();EF.lines.push({pid:S.products[0].id,qty:1,price:listPrice(S.products[0].id,EF.v.tipo)});drawEdit(1)">Agregar otro producto</button>
+  <label for="eMo">Motivo del cambio (opcional)</label><input class="f" id="eMo" placeholder="Ej: precio especial cliente frecuente" value="${esc(v.mot)}">
+  <div class="total"><span>Nuevo total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
+  <button class="primary" onclick="saveEdit()">Guardar cambios</button><button class="ghost" onclick="verFactura('${EF.id}')">Cancelar</button>`,!!keep)}
+function saveEdit(){const i=S.invoices.find(x=>x.id===EF.id),v=efv();EF.v=v;
+  if(!v.c.trim())return $("err").textContent="Escribe el nombre del cliente.";
+  if(EF.lines.some(l=>l.price<=0))return $("err").textContent="Hay un producto con precio en cero.";
+  // stock: devolvemos lo que tenía la factura y descontamos lo nuevo
+  const back={},need={};i.items.forEach(x=>back[x.pid]=(back[x.pid]||0)+x.qty);EF.lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
+  for(const k in need){const disp=P(k).stock+(back[k]||0);if(disp<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (disponibles ${disp}).`}
+  const ch=[];const nm=pid=>{const p=P(pid);return p?p.brand+" "+p.name:"Producto"};
+  if(v.c.trim()!==i.cliente)ch.push(`Cliente: ${i.cliente} → ${v.c.trim()}`);
+  if((v.t||"")!==(i.tel||""))ch.push(`Celular: ${i.tel||"—"} → ${v.t||"—"}`);
+  if(v.tipo!==i.tipo)ch.push(`Tipo: ${i.tipo} → ${v.tipo}`);
+  if(v.m!==i.metodo)ch.push(`Método de pago: ${i.metodo} → ${v.m}`);
+  if(v.e!==i.estado)ch.push(`Estado: ${i.estado} → ${v.e}`);
+  if(v.f&&v.f!==i.fecha)ch.push(`Fecha: ${i.fecha} → ${v.f}`);
+  const old={};i.items.forEach(x=>old[x.pid]=x);const nw={},ord=[];EF.lines.forEach(l=>{if(nw[l.pid]){nw[l.pid].qty+=l.qty}else{nw[l.pid]={...l};ord.push(l.pid)}});
+  for(const k in old){const o=old[k],n=nw[k];
+    if(!n)ch.push(`Quitado: ${o.qty} x ${o.name}`);
+    else{if(n.qty!==o.qty)ch.push(`${o.name}: cantidad ${o.qty} → ${n.qty}`);if(n.price!==o.price)ch.push(`${o.name}: precio ${cop(o.price)} → ${cop(n.price)}${n.price!==listPrice(+k,v.tipo)?" (precio especial)":""}`)}}
+  for(const k in nw)if(!old[k])ch.push(`Agregado: ${nw[k].qty} x ${nm(+k)} a ${cop(nw[k].price)}${nw[k].price!==listPrice(+k,v.tipo)?" (precio especial)":""}`);
+  if(!ch.length){toast("No hiciste cambios");return verFactura(i.id)}
+  const oldTot=i.total;
+  for(const k in back){const p=P(k);if(p)p.stock+=back[k]}
+  for(const k in need){P(k).stock-=need[k]}
+  i.cliente=v.c.trim();i.tel=v.t;i.tipo=v.tipo;i.metodo=v.m;i.estado=v.e;if(v.f)i.fecha=v.f;
+  i.items=ord.map(k=>{const l=nw[k],p=P(k),prev=old[k];const lp=listPrice(+k,v.tipo);return{pid:+k,name:nm(+k),qty:l.qty,price:l.price,cost:prev?prev.cost:p.compra,lista:lp,especial:l.price!==lp}});
+  i.total=i.items.reduce((a,x)=>a+x.qty*x.price,0);
+  if(i.total!==oldTot)ch.push(`Total: ${cop(oldTot)} → ${cop(i.total)}`);
+  addLog(i,ch,v.mot.trim());save();renderAdmin();toast("Factura actualizada");verFactura(i.id)}
+function borrarFactura(id){const i=S.invoices.find(x=>x.id===id);
+  const mot=prompt(`¿Eliminar ${id} de ${i.cliente} por ${cop(i.total)}?\n${i.estado!=="anulada"?"El stock vuelve al inventario.\n":""}Queda guardado en el registro de cambios.\n\nEscribe el motivo (o deja vacío) y presiona Aceptar:`,"");
+  if(mot===null)return;
+  if(i.estado!=="anulada")i.items.forEach(x=>{const p=P(x.pid);if(p)p.stock+=x.qty});
+  S.invLog=S.invLog||[];S.invLog.unshift({fecha:ahora(),usuario:quien(),factura:i.id,cliente:i.cliente,accion:"eliminada",cambios:[`Factura eliminada (${stName(i.estado).toLowerCase()}, total ${cop(i.total)})`,...i.items.map(x=>`${x.qty} x ${x.name} a ${cop(x.price)}`)],motivo:(mot||"").trim(),copia:i});
+  S.invoices=S.invoices.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Factura "+id+" eliminada")}
+function verRegistro(){const l=S.invLog||[];
+  openSheet(`<h3 class="t">Registro de cambios</h3><p class="hint">Ediciones, cambios de estado y facturas eliminadas, con fecha, hora y usuario.</p>
+  ${l.length?l.map((e,k)=>`<div class="row" style="align-items:flex-start"><div class="grow"><b style="font-weight:500">${esc(e.factura)} · ${esc(e.cliente||"")} <span class="pill ${e.accion==="eliminada"?"bad":"warn"}">${e.accion==="eliminada"?"Eliminada":"Editada"}</span></b><small>${fdt(e.fecha)} · ${esc(e.usuario)}<br>${e.cambios.map(esc).join("<br>")}${e.motivo?`<br><i>Motivo: ${esc(e.motivo)}</i>`:""}</small>${e.accion==="eliminada"&&e.copia&&!S.invoices.some(x=>x.id===e.factura)?`<button class="ghost" style="margin:4px 0 0;padding:0" onclick="restaurarFactura(${k})">Restaurar esta factura</button>`:""}</div></div>`).join(""):`<p class="empty">Todavía no hay cambios registrados.</p>`}`)}
+function restaurarFactura(k){const e=S.invLog[k],i=JSON.parse(JSON.stringify(e.copia));
+  if(i.estado!=="anulada"){for(const x of i.items){const p=P(x.pid);if(!p||p.stock<x.qty)return toast(`No hay stock de ${x.name} para restaurarla`)}i.items.forEach(x=>P(x.pid).stock-=x.qty)}
+  S.invoices.unshift(i);S.invoices.sort((a,b)=>b.id.localeCompare(a.id));addLog(i,["Factura restaurada después de eliminarla"]);save();renderAdmin();toast("Factura "+i.id+" restaurada");verFactura(i.id)}
 const PRE={};
 function invImage(id){const i=S.invoices.find(x=>x.id===id);
   return (async()=>{if(!window.html2canvas)throw new Error("h2c");
