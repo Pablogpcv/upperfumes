@@ -843,7 +843,7 @@ function paper(i){const C=S.company;
   const info=[C.nit&&"NIT/CC "+C.nit,C.telefono&&"Tel/WhatsApp "+C.telefono,C.email,[C.direccion,C.ciudad].filter(Boolean).join(", "),C.instagram&&"IG "+C.instagram].filter(Boolean);
   return `<div class="paper"><div class="pp-head"><div class="pp-logo"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div><b>${esc((C.nombre||"Upperfumes").toUpperCase())}</b><small>fragancias que te elevan</small></div></div><div class="pp-no"><small>FACTURA DE VENTA</small><b>${i.id}</b></div></div>
   <div class="pp-body"><div class="pp-cols"><div><h5>EMITIDA POR</h5><b>${esc(C.nombre||"Upperfumes")}</b><br>${info.map(esc).join("<br>")}</div>
-  <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}<br>${i.tipo==="mayor"?"Venta por mayor":"Venta al detal"} · ${esc(i.metodo)}</div></div>
+  <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}${[i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+esc(i.metodo)].filter(Boolean).map(x=>"<br>"+x).join("")}</div></div>
   <table class="pp-t"><thead><tr><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th></tr></thead><tbody>
   ${i.items.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.qty}</td><td class="r">${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")}</tbody></table>
   <div class="pp-total"><span>TOTAL</span><span>${cop(i.total)}</span></div>
@@ -981,7 +981,7 @@ async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
   const files=[];if(img)files.push(new File([img],`${i.id}-upperfumes.png`,{type:"image/png"}));if(foto)files.push(new File([foto],`${i.id}-comprobante.jpg`,{type:"image/jpeg"}));
   if(files.length&&navigator.canShare&&navigator.canShare({files})){
     try{await navigator.share({files,text:invText(i)});return}catch(e){if(e&&e.name==="AbortError")return}}
-  if(img&&DL){try{await DL.save({filename:`${i.id}-upperfumes.png`,data:img});toast("Imagen guardada: adjúntala en el chat de WhatsApp")}catch(e){if(e&&e.code==="cancelled")return}}
+  if(img){try{await guardar(`${i.id}-upperfumes.png`,img);toast("Imagen guardada: adjúntala en el chat de WhatsApp")}catch(e){if(e&&e.code==="cancelled")return}}
   else toast("Este navegador solo permite enviar el texto");
   window.open(waLink(i),"_blank");
 }
@@ -999,7 +999,7 @@ function buildPDF(i){
   y+=6;d.setFontSize(11);d.setTextColor(20,20,20);d.text(C.nombre||"Upperfumes",M,y);d.text(i.cliente,112,y,{maxWidth:82});
   d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(...GR);
   const ci=[C.nit&&"NIT/CC "+C.nit,C.telefono&&"Tel/WhatsApp "+C.telefono,C.email,[C.direccion,C.ciudad].filter(Boolean).join(", "),C.instagram&&"Instagram "+C.instagram].filter(Boolean);
-  const cl=[i.tel&&"Cel. "+i.tel,(i.tipo==="mayor"?"Venta por mayor":"Venta al detal"),"Pago: "+i.metodo].filter(Boolean);
+  const cl=[i.tel&&"Cel. "+i.tel,i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+i.metodo].filter(Boolean);
   ci.forEach((l,k)=>d.text(l,M,y+5+k*4.6));cl.forEach((l,k)=>d.text(l,112,y+5+k*4.6));
   y+=8+Math.max(ci.length,cl.length)*4.6+6;
   d.setDrawColor(...G);d.setLineWidth(.5);d.line(M,y,W-M,y);
@@ -1021,8 +1021,7 @@ function buildPDF(i){
 }
 async function pdfFactura(id){const i=S.invoices.find(x=>x.id===id);
   if(!window.jspdf)return toast("El generador de PDF no cargó, revisa tu conexión");
-  if(!DL)return toast("Las descargas no están disponibles en esta vista");
-  try{await DL.save({filename:`${i.id}-${(S.company.nombre||"upperfumes").toLowerCase().replace(/\s+/g,"-")}.pdf`,data:buildPDF(i)})}catch(e){if(e&&e.code!=="cancelled")toast("No se pudo generar el PDF")}}
+  try{await guardar(`${i.id}-${(S.company.nombre||"upperfumes").toLowerCase().replace(/\s+/g,"-")}.pdf`,buildPDF(i));toast("PDF descargado")}catch(e){if(e&&e.code!=="cancelled")toast("No se pudo generar el PDF")}}
 /* empresa */
 function aEmpresa(){const C=S.company,f=(k,l,ph,t)=>`<label for="e_${k}">${l}</label><input class="f" id="e_${k}" ${t||""} placeholder="${ph||""}" value="${esc(C[k]||"")}">`;
   $("ab").innerHTML=`<div class="sh"><h2 style="font-size:19px">Datos de la empresa</h2><p>Aparecen en las facturas y en el botón de WhatsApp de la tienda.</p></div><div class="panel">
@@ -1143,12 +1142,16 @@ function delLead(id){S.leads=(S.leads||[]).filter(l=>l.id!==id);save();closeShee
 function convLead(id){
   const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;
   const ps=l.pids.filter(i=>P(i));lines=ps.length?ps.map(pid=>({pid,qty:1})):[{pid:S.products[0].id,qty:1}];FV={blob:null,url:null};
-  drawFactura({c:l.nombre,t:l.tel,tipo:"detal",m:"Efectivo",e:"pagada"});leadConv=id;
+  drawFactura({c:l.nombre,t:l.tel,tipo:"detal",m:"Efectivo",e:"pendiente"});leadConv=id;
 }
 /* export */
 let DL=null;(async()=>{try{if(window.claude&&claude.use)DL=await claude.use("downloads")}catch(e){}})();
+async function guardar(filename,blob){
+  if(DL)return DL.save({filename,data:blob});
+  const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=filename;a.rel="noopener";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
 async function dl(name,rows){const csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
-  if(!DL){toast("La descarga no está disponible en esta vista");return}try{await DL.save({filename:name,data:new Blob([csv],{type:"text/csv"})})}catch(e){if(e&&e.code!=="cancelled")toast("No se pudo descargar")}}
+  try{await guardar(name,new Blob([csv],{type:"text/csv"}))}catch(e){if(e&&e.code!=="cancelled")toast("No se pudo descargar")}}
 function exportInv(){dl("inventario-upperfumes.csv",[["Marca","Producto","ml","Stock","Precio compra","Precio público","Precio mayor","Proveedor","Valor inventario"],...S.products.map(p=>[p.brand,p.name,p.ml,p.stock,p.compra,p.publico,p.mayor,p.proveedor,p.stock*p.compra])])}
 function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso","Egreso"]];
   S.invoices.filter(i=>i.estado==="pagada"&&month(i.fecha)===cMonth).forEach(i=>r.push([i.fecha,"Venta",i.id,i.cliente,i.total,0]));
