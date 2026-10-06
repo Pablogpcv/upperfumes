@@ -347,6 +347,7 @@ async function migrarLocal(){let L;try{L=JSON.parse(localStorage.getItem("upperf
 const $=id=>document.getElementById(id);
 const cop=n=>"$"+Math.round(n||0).toLocaleString("es-CO");
 const P=id=>S.products.find(p=>p.id==id);
+const VIS=()=>S.products.filter(p=>!p.oculto);   // productos publicados (los ocultos solo los ve el administrador en Inventario)
 const price=p=>p.promo?p.publico*(1-p.promo/100):p.publico;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=v=>parseInt(String(v).replace(/\D/g,""))||0;
@@ -419,7 +420,7 @@ function renderShop(){
   const lbl=[F.cat,F.g&&GEN[F.g],F.brand].filter(Boolean);
   $("fl").innerHTML=lbl.length>1||F.brand?`<span>Mostrando: <b>${esc(lbl.join(" · "))}</b></span><button onclick="setF({},true)">Quitar filtro ✕</button>`:"";
   const q=$("q").value.trim().toLowerCase();
-  const l=S.products.filter(p=>matchF(p)&&(!q||(p.brand+" "+p.name).toLowerCase().includes(q)));
+  const l=VIS().filter(p=>matchF(p)&&(!q||(p.brand+" "+p.name).toLowerCase().includes(q)));
   $("grid").innerHTML=l.length?l.map(card).join(""):`<p class="empty" style="grid-column:1/-1">No encontramos ese perfume. Prueba con otra marca.</p>`;
 }
 function toCat(){$("cat").scrollIntoView({behavior:"smooth"})}
@@ -432,7 +433,7 @@ function setF(o,stay){
 }
 
 /* ---------- portada ---------- */
-const brandsOf=cat=>[...new Set(S.products.filter(p=>!cat||p.cat===cat).map(p=>p.brand))].sort((a,b)=>a.localeCompare(b,"es"));
+const brandsOf=cat=>[...new Set(VIS().filter(p=>!cat||p.cat===cat).map(p=>p.brand))].sort((a,b)=>a.localeCompare(b,"es"));
 function menuBlock(cat){
   const gl=["Masculino","Femenino","Unisex"].map(g=>`<button onclick="setF({cat:'${cat}',g:'${g}'})">${GEN[g]}</button>`).join("");
   const bl=brandsOf(cat).map(b=>`<button onclick='setF(${JSON.stringify({cat,brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
@@ -448,14 +449,14 @@ function renderHome(){
   $("annc").innerHTML=loop(ANUNCIOS).map(t=>`<span>${esc(t)}</span>`).join("");
   $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
   if($("volP"))$("volP").textContent=`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
-  $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>${new Set(S.products.map(p=>p.brand)).size}</b><span>marcas</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
-  const pic=(cat,pref)=>{const p=P(pref)&&fotoDe(P(pref))?P(pref):S.products.find(x=>x.cat===cat&&fotoDe(x));return fotoDe(p)};
+  $("stats").innerHTML=`<div><b>${VIS().length}</b><span>referencias disponibles</span></div><div><b>${new Set(VIS().map(p=>p.brand)).size}</b><span>marcas</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
+  const pic=(cat,pref)=>{const p=P(pref)&&fotoDe(P(pref))?P(pref):VIS().find(x=>x.cat===cat&&fotoDe(x));return fotoDe(p)};
   const cats=[
     {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:"assets/img/tienda/cat-arabes.webp",fn:"setF({cat:'Árabes'})"},
     {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:"assets/img/tienda/cat-disenador.webp",fn:"setF({cat:'Diseñador'})"},
     {t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:"assets/img/tienda/cat-promociones.webp",fn:"go('promos')"}];
   $("cats").innerHTML=cats.map(c=>`<button class="catc" onclick="${c.fn}"><span class="catimg" style="background-image:url('${c.img}')"></span><span class="cattx"><b>${c.t}</b><small>${c.d}</small><em>Descubrir</em></span></button>`).join("");
-  $("rNew").innerHTML=[...S.products].sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(p=>card(p).replace('<div class="card">','<div class="card"><span class="newtag">Nuevo</span>')).join("");
+  $("rNew").innerHTML=VIS().sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(p=>card(p).replace('<div class="card">','<div class="card"><span class="newtag">Nuevo</span>')).join("");
   $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map((p,i)=>`<div class="topi"><span class="rank" aria-label="Puesto ${i+1}">${i+1}</span>${card(p)}</div>`).join("");
   renderClientes();
   const vids=TIKTOK_VIDEOS.map(u=>(String(u).match(/(\d{15,})/)||[])[1]).filter(Boolean);
@@ -494,7 +495,7 @@ let SRI=-1;
 function openSearch(){const el=$("srch");el.hidden=false;requestAnimationFrame(()=>el.classList.add("open"));$("sq").value="";SRI=-1;renderSearch();$("sq").focus()}
 function closeSearch(){const el=$("srch");if(el.hidden)return;el.classList.remove("open");setTimeout(()=>{el.hidden=true},180)}
 function buscarProductos(q){const t=norm(q).split(/\s+/).filter(Boolean);if(!t.length)return[];
-  return S.products.map(p=>{const hay=norm(p.brand+" "+p.name+" "+(p.cat||""));if(!t.every(w=>hay.includes(w)))return null;
+  return VIS().map(p=>{const hay=norm(p.brand+" "+p.name+" "+(p.cat||""));if(!t.every(w=>hay.includes(w)))return null;
     const nm=norm(p.name),sc=(nm.startsWith(t[0])?0:norm(p.brand).startsWith(t[0])?1:2)+(p.stock<=0?3:0);return{p,sc}})
     .filter(Boolean).sort((a,b)=>a.sc-b.sc||a.p.name.localeCompare(b.p.name)).map(x=>x.p)}
 function renderSearch(){const q=$("sq").value.trim(),box=$("sres");SRI=-1;
@@ -514,7 +515,7 @@ function ficha(id){const p=P(id);if(!p)return;closeSheet();location.hash=fichaUr
 function abrirFicha(e,id){if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button)return true;e.preventDefault();ficha(id);return false}
 let PD=null,pdQ=1,pdImg=0;
 function route(){const m=location.hash.match(/^#\/p\/(\d+)/);
-  if(m&&P(m[1])){PD=+m[1];pdQ=1;pdImg=0;closeSheet();go("producto")}
+  if(m&&P(m[1])&&(!P(m[1]).oculto||isAdmin())){PD=+m[1];pdQ=1;pdImg=0;closeSheet();go("producto")}
   else if($("v-producto").classList.contains("active"))go("tienda")}
 addEventListener("hashchange",route);
 /* ===== Biblioteca de ingredientes para la pirámide olfativa =====
@@ -702,7 +703,7 @@ function renderProducto(){
   const X=FICHA_TXT[p.id]||{},pr=price(p),ahorro=p.promo?p.publico-pr:0;
   const imgs=[fotoDe(p)&&{src:fotoDe(p),alt:p.brand+" "+p.name}].filter(Boolean);
   const cur=imgs[pdImg]||imgs[0];const main=imgs.length?`<img class="${pdImg===1?"sheetimg":""}" src="${cur.src}" alt="${esc(cur.alt)}">`:visual(p);
-  const rel=S.products.filter(x=>x.id!==p.id&&(x.fam===p.fam||x.cat===p.cat&&x.g===p.g)).sort((a,b)=>(b.fam===p.fam)-(a.fam===p.fam)).slice(0,4);
+  const rel=VIS().filter(x=>x.id!==p.id&&(x.fam===p.fam||x.cat===p.cat&&x.g===p.g)).sort((a,b)=>(b.fam===p.fam)-(a.fam===p.fam)).slice(0,4);
   const msg=`Hola Upperfumes, me interesa el ${p.brand} ${p.name} (${p.ml} ml) de ${cop(pr)}.`;
   $("pd").innerHTML=`<nav class="crumbs" aria-label="Ruta"><button onclick="go('tienda')">Tienda</button><span>›</span><button onclick="setF({cat:'${p.cat}'})">${esc(p.cat)}</button><span>›</span><button onclick='setF(${JSON.stringify({brand:p.brand}).replace(/'/g,"&#39;")})'>${esc(p.brand)}</button></nav>
   <div class="pd">
@@ -838,7 +839,7 @@ async function checkoutNube(tipo){
 /* ---------- mayor ---------- */
 function renderW(){
   $("wLock").innerHTML=session?"":`<div class="note">Para enviar un pedido mayorista necesitas una cuenta.<br><button class="btn-line" onclick="go('cuenta')">Iniciar sesión</button></div>`;
-  $("wList").innerHTML=S.products.map(p=>`<div class="row"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml</small><small style="color:var(--gold)">Mayor ${cop(p.mayor)} <s style="color:var(--muted)">${cop(p.publico)}</s></small></div>
+  $("wList").innerHTML=VIS().map(p=>`<div class="row"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.name)}</b><small>${esc(p.brand)} · ${p.ml} ml</small><small style="color:var(--gold)">Mayor ${cop(p.mayor)} <s style="color:var(--muted)">${cop(p.publico)}</s></small></div>
    <div class="qty"><button onclick="wchg(${p.id},-1)" aria-label="Quitar">−</button><span>${wcart[p.id]||0}</span><button onclick="wchg(${p.id},1)" aria-label="Agregar">+</button></div></div>`).join("");
   const u=Object.values(wcart).reduce((a,b)=>a+b,0);let t=0;for(const k in wcart)t+=P(k).mayor*wcart[k];
   $("wBar").hidden=!u;
@@ -851,7 +852,7 @@ const COMBOS=[{t:"Dúo Carolina Herrera",d:"Good Girl + Very Good Girl",ids:[2,4
 function renderPromos(){
   $("combos").innerHTML=COMBOS.map((c,i)=>{const f=c.ids.reduce((a,id)=>a+P(id).publico,0);
     return `<div class="promo"><div class="imgs">${c.ids.map(id=>`<div class="thumb">${visual(P(id),26)}</div>`).join("")}</div><div><h4>${c.t}</h4><p>${c.d}</p><div class="pr">${cop(f*(1-c.off))}<s>${cop(f)}</s></div><button onclick="addCombo(${i})">Agregar combo</button></div></div>`}).join("");
-  const l=S.products.filter(p=>p.promo);
+  const l=VIS().filter(p=>p.promo);
   $("pgrid").innerHTML=l.length?l.map(card).join(""):`<p class="empty" style="grid-column:1/-1">Esta semana no hay productos con descuento.</p>`;
   tick();
 }
@@ -940,12 +941,14 @@ function aResumen(){
 /* inventario */
 function aInv(){
   $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formProducto()">Agregar producto</button><button class="btn-line" onclick="exportInv()">Exportar CSV</button></div>
-  <div class="search" style="margin-top:12px"><input id="iq" placeholder="Buscar en inventario" oninput="invList()" aria-label="Buscar en inventario"></div><div id="il"></div>`;invList();
+  <div class="search" style="margin-top:12px"><input id="iq" placeholder="Buscar en inventario" oninput="invList()" aria-label="Buscar en inventario"></div><div class="chips inv-f" id="ivf"></div><div id="il"></div>`;invList();
 }
+let IVF="todos";
 function invList(){
-  const q=($("iq").value||"").toLowerCase();
-  $("il").innerHTML=S.products.filter(p=>(p.brand+" "+p.name+" "+p.proveedor).toLowerCase().includes(q)).map(p=>{const mg=p.publico?Math.round((p.publico-p.compra)/p.publico*100):0;
-   return `<div class="inv"><div class="inv-top"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.brand)} ${esc(p.name)}</b><small>${p.ml} ml · ${esc(p.cat)}</small></div><b class="${p.stock===0?"stock-out":p.stock<=3?"stock-low":""}">${p.stock} uds</b></div>
+  const q=($("iq").value||"").toLowerCase(),nO=S.products.filter(p=>p.oculto).length;
+  if($("ivf"))$("ivf").innerHTML=[["todos","Todos"],["vis","Publicados"],["ocu",`Ocultos (${nO})`]].map(([k,t])=>`<button class="chip" aria-pressed="${IVF===k}" onclick="IVF='${k}';invList()">${t}</button>`).join("");
+  $("il").innerHTML=S.products.filter(p=>(IVF==="todos"||(IVF==="ocu")===!!p.oculto)&&(p.brand+" "+p.name+" "+p.proveedor).toLowerCase().includes(q)).map(p=>{const mg=p.publico?Math.round((p.publico-p.compra)/p.publico*100):0;
+   return `<div class="inv"><div class="inv-top"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.brand)} ${esc(p.name)}</b>${p.oculto?`<span class="oc-tag">Oculto</span>`:""}<small>${p.ml} ml · ${esc(p.cat)}${p.oculto&&!p.publico?" · sin precio":""}</small></div><b class="${p.stock===0?"stock-out":p.stock<=3?"stock-low":""}">${p.stock} uds</b></div>
    <div class="inv-grid"><div><span>Compra</span><b>${cop(p.compra)}</b></div><div><span>Público</span><b>${cop(p.publico)}</b></div><div><span>Mayor</span><b>${cop(p.mayor)}</b></div></div>
    <div class="inv-foot"><span>${esc(p.proveedor)} · ganancia ${cop(p.publico-p.compra)} (${mg}%)${p.mayor?` · al mayor ${cop(p.mayor-p.compra)}`:""}${p.promo?` · promo −${p.promo}%`:""}</span><button onclick="formProducto(${p.id})">Editar</button></div></div>`}).join("");
 }
@@ -957,6 +960,7 @@ function pfPrev(){const el=$("pfBox");if(!el)return;const cur=PF.url||(!PF.quita
 function formProducto(id){PF={blob:null,url:null,quitar:false};
   const p=id?P(id):{brand:"",name:"",ml:100,g:"Unisex",cat:"Árabes",conc:"Eau de Parfum",fam:"",stock:0,compra:0,publico:0,mayor:0,proveedor:"",promo:0};
   openSheet(`<h3 class="t">${id?"Editar producto":"Nuevo producto"}</h3>
+  <label class="vis-sw"><input type="checkbox" id="pVis" ${p.oculto?"":"checked"} onchange="this.nextElementSibling.querySelector('small').textContent=this.checked?'Los clientes lo ven en la tienda':'Oculto: solo lo ves tú en Inventario'"><span><b>Visible en la tienda</b><small>${p.oculto?"Oculto: solo lo ves tú en Inventario":"Los clientes lo ven en la tienda"}</small></span></label>
   <label>Foto</label><div id="pfBox" class="pf-box" data-cur="${esc(fotoDe(p))}" data-own="${p.foto?1:""}"></div>
   <div class="two"><div><label>Marca</label><input class="f" id="pB" value="${esc(p.brand)}"></div><div><label>Nombre</label><input class="f" id="pN" value="${esc(p.name)}"></div></div>
   <div class="two"><div><label>Género</label><select class="f" id="pG">${["Femenino","Masculino","Unisex"].map(o=>`<option ${o===p.g?"selected":""}>${o}</option>`).join("")}</select></div><div><label>Categoría</label><select class="f" id="pC">${["Árabes","Diseñador"].map(o=>`<option ${o===p.cat?"selected":""}>${o}</option>`).join("")}</select></div></div>
@@ -972,9 +976,9 @@ async function subirFotoProducto(pid,blob){
   const path=`p${pid}-${Date.now()}.jpg`,{error}=await sb.storage.from("productos").upload(path,blob,{contentType:"image/jpeg",cacheControl:"31536000"});
   if(error)throw error;return sb.storage.from("productos").getPublicUrl(path).data.publicUrl}
 async function saveProducto(id){
-  const v={brand:$("pB").value.trim(),name:$("pN").value.trim(),g:$("pG").value,cat:$("pC").value,ml:num($("pM").value),stock:num($("pS").value),compra:num($("pCo").value),publico:num($("pPu").value),mayor:num($("pMa").value),promo:Math.min(90,num($("pPr").value)),proveedor:$("pPv").value.trim()||"Por definir"};
+  const v={brand:$("pB").value.trim(),name:$("pN").value.trim(),g:$("pG").value,cat:$("pC").value,ml:num($("pM").value),stock:num($("pS").value),compra:num($("pCo").value),publico:num($("pPu").value),mayor:num($("pMa").value),promo:Math.min(90,num($("pPr").value)),proveedor:$("pPv").value.trim()||"Por definir",oculto:!$("pVis").checked};
   if(!v.brand||!v.name)return $("err").textContent="Escribe la marca y el nombre.";
-  if(!v.publico)return $("err").textContent="Escribe el precio al público.";
+  if(!v.publico&&!v.oculto)return $("err").textContent="Para publicarlo escribe el precio al público (o déjalo oculto).";
   const nid=id||Math.max(...S.products.map(p=>p.id))+1;
   if(PF.blob){const b=$("pSave");b.disabled=true;b.textContent="Subiendo foto…";
     try{v.foto=await subirFotoProducto(nid,PF.blob)}catch(e){b.disabled=false;b.textContent="Guardar producto";return $("err").textContent="No se pudo subir la foto: "+sbErr(e)}}
