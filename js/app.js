@@ -670,6 +670,8 @@ const FICHA_DESC={
 "yara-tous": "Una fragancia tropical, dulce y luminosa, con un carácter frutal y floral."
 };
 const fichaDe=p=>p.img&&SHEET[p.img]?SHEET[p.img].split("/").pop().replace(/\.[a-z]+$/,""):"";
+/* Nombre de cada perfume con su tipografía original (sacado de su ficha): assets/img/nombres/<ficha>.webp */
+const NOMBRES=new Set(["1-million", "212-nyc-men", "9pm-night-out", "acqua-di-gio", "amber-rouge", "arabians-tonka", "erba-pura", "invictus", "khamrah", "le-male-elixir", "leau-dissey-pour-homme", "mandarin-sky", "nautica-voyage", "oud-saffron", "santal-33", "sauvage", "silver-mountain-water", "sorbetto-rosso", "starry-nights", "valentino-uomo-born-in-roma", "versace-eros"]);   // solo los que tienen logo propio de la marca; los demás usan la letra de la página
 const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón","El carácter del perfume, aparece después"],["Fondo","Lo que queda en la piel al final del día"]];
 function renderProducto(){
   const p=P(PD);if(!p)return go("tienda");
@@ -686,8 +688,8 @@ function renderProducto(){
     </div>
     <div class="pd-info">
       <div class="pd-badges">${p.promo?`<span class="b-off">Oferta −${p.promo}%</span>`:""}<span class="b-stock ${p.stock>0?"":"out"}">${p.stock>0?"En existencia":"Agotado"}</span></div>
-      <small class="pd-brand">${esc(p.brand)}</small>
-      <h1 class="pd-name">${esc(p.name)}</h1>
+      ${fichaDe(p)&&NOMBRES.has(fichaDe(p))?`<h1 class="pd-name pd-logo"><img src="assets/img/nombres/${fichaDe(p)}.webp" alt="${esc(p.brand+" "+p.name)}"></h1>`:`<small class="pd-brand">${esc(p.brand)}</small>
+      <h1 class="pd-name">${esc(p.name)}</h1>`}
       <div class="pd-meta">${esc(p.conc)} · ${p.ml} ml · ${esc(p.g)}</div>
       <div class="pd-price"><b>${cop(pr)}</b>${p.promo?`<s>${cop(p.publico)}</s><span class="save">Ahorras ${cop(ahorro)}</span>`:""}</div>
       <p class="pd-lead">${esc(FICHA_DESC[fichaDe(p)]||p.desc||"")}</p>
