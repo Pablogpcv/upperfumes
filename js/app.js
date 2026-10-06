@@ -309,11 +309,20 @@ async function refrescar(){
   }catch(e){console.warn("refrescar",e)}finally{refBusy=false}}
 function redibujar(){
   const a=document.activeElement,escribiendo=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!$("sheet").contains(a);
-  if(escribiendo)return; // no interrumpir mientras se escribe en la página
+  if(escribiendo){if(a.id==="cq"&&typeof comprasList==="function")comprasList();return} // no interrumpir mientras se escribe en la página
   const y=window.scrollY;rerender();
   const v=document.querySelector(".view.active");if(v&&v.id==="v-producto"&&window.renderProducto)try{renderProducto()}catch(e){}
   window.scrollTo(0,y)}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refrescar()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){refrescar();revisarVersion()}});
+/* versión nueva de la página: se actualiza sola, sin F5 */
+const MI_VER=(([...document.scripts].map(s=>s.src).find(s=>/app\.js\?v=/.test(s))||"").match(/v=(\d+)/)||[])[1];let NUEVA_VER=null;
+async function revisarVersion(){if(!MI_VER||NUEVA_VER)return;try{const h=await (await fetch("index.html?_="+Date.now(),{cache:"no-store"})).text();const v=(h.match(/app\.js\?v=(\d+)/)||[])[1];
+  if(v&&v!==MI_VER){NUEVA_VER=v;aplicarVersion()}}catch(e){}}
+function aplicarVersion(){const a=document.activeElement,ocupado=$("sheet").classList.contains("open")||(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))||syncing;
+  if(!ocupado){location.reload();return}
+  if(!$("verBar")){const b=document.createElement("button");b.id="verBar";b.className="ver-bar";b.textContent="✨ Hay una versión nueva de la página · tocar para actualizar";b.onclick=()=>location.reload();document.body.appendChild(b)}
+  setTimeout(aplicarVersion,15000)}
+setInterval(revisarVersion,60000);
 window.addEventListener("focus",()=>{if(Date.now()-refLast>3000)refrescar()});
 setInterval(()=>{if(document.visibilityState==="visible")refrescar()},20000);
 async function migrarLocal(){let L;try{L=JSON.parse(localStorage.getItem("upperfumes_local_backup")||"null")}catch(e){}
@@ -766,10 +775,13 @@ function comprasList(){const el=$("cl");if(!el)return;
   let h="";
   if(lines.length){
     const byP={};lines.forEach(l=>(byP[l.x.pid]=byP[l.x.pid]||[]).push(l));
-    h+=Object.entries(byP).map(([pid,ls])=>{ls.sort((a,b)=>String(b.c.fecha).localeCompare(String(a.c.fecha))||b.c.id-a.c.id);
-      const cs=ls.map(l=>l.x.costo),mn=Math.min(...cs),mx=Math.max(...cs),uds=ls.reduce((a,l)=>a+l.x.qty,0),p=P(+pid);
-      return `<div class="panel" style="padding:12px;margin:10px 0"><div style="display:flex;gap:10px;align-items:center"><div class="thumb">${p?visual(p,26):""}</div><div class="grow"><b>${esc(p?p.brand+" "+p.name:"Producto eliminado")}</b><small>${ls.length} ${ls.length===1?"compra":"compras"} · ${uds} uds · último ${cop(cs[0])}${mn!==mx?` · más barato ${cop(mn)} · más caro ${cop(mx)}`:""}</small></div></div>
-      ${ls.map(l=>`<button class="row" style="width:100%;text-align:left;padding:8px 0" onclick="verCompra(${l.c.id})"><div class="grow"><small style="margin:0">${l.c.fecha} · ${esc(l.c.proveedor)}${l.c.ref?" · Fact. "+esc(l.c.ref):""}</small></div><span style="font-size:13px">${l.x.qty} × <b style="font-weight:500${l.x.costo===mn&&mn!==mx?";color:var(--good,#7bc47f)":l.x.costo===mx&&mn!==mx?";color:var(--bad)":""}">${cop(l.x.costo)}</b></span></button>`).join("")}</div>`}).join("");
+    h+=Object.entries(byP).map(([pid,ls])=>{ls.sort((a,b)=>a.x.costo-b.x.costo||b.c.id-a.c.id);
+      const mn=ls[0].x.costo,mx=ls[ls.length-1].x.costo,uds=ls.reduce((a,l)=>a+l.x.qty,0),p=P(+pid),ult=ls.slice().sort((a,b)=>b.c.id-a.c.id)[0];
+      const prom=Math.round(ls.reduce((a,l)=>a+l.x.costo*l.x.qty,0)/uds/100)*100;
+      const cuando=c=>{const d=new Date(c.id>1e12?c.id:c.fecha+"T12:00:00");return d.toLocaleDateString("es-CO",{day:"2-digit",month:"short",year:"numeric"})+(c.id>1e12?" · "+d.toLocaleTimeString("es-CO",{hour:"numeric",minute:"2-digit"}):"")};
+      return `<div class="panel ph-card"><div class="ph-head"><div class="thumb">${p?visual(p,30):""}</div><div class="grow"><b>${esc(p?p.brand+" "+p.name:"Producto eliminado")}</b><small>${ls.length} ${ls.length===1?"compra":"compras"} · ${uds} ${uds===1?"unidad":"unidades"}</small></div></div>
+      <div class="ph-stats"><div class="best"><span>Mejor precio</span><b>${cop(mn)}</b></div><div><span>Último</span><b>${cop(ult.x.costo)}</b></div><div><span>Promedio</span><b>${cop(prom)}</b></div>${mx!==mn?`<div><span>Más alto</span><b>${cop(mx)}</b></div>`:""}</div>
+      ${ls.map((l,k)=>`<button class="ph-row${k===0&&mn!==mx?" best":""}" onclick="verCompra(${l.c.id})"><div class="grow"><div class="ph-name"><b>${esc(l.c.proveedor)}</b>${k===0&&mn!==mx?'<span class="ph-tag">Más barato</span>':""}</div><small>${cuando(l.c)}${l.c.ref?" · Fact. "+esc(l.c.ref):""} · ${l.x.qty} ${l.x.qty===1?"ud":"uds"}</small></div><div class="ph-price"><b>${cop(l.x.costo)}</b>${l.x.costo>mn?`<small>+${cop(l.x.costo-mn)}</small>`:""}</div></button>`).join("")}</div>`}).join("");
   }
   const rest=comp.filter(c=>!lines.some(l=>l.c===c));
   if(rest.length)h+=`<p class="hint" style="margin:12px 0 0">Compras de proveedor o factura que coinciden</p>`+rest.map(cRow).join("");
@@ -789,7 +801,7 @@ function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
   ${its(c).map(x=>`<div class="row"><div class="thumb">${P(x.pid)?visual(P(x.pid),26):""}</div><div class="grow"><b>${esc(P(x.pid)?.name||"Producto eliminado")}</b><small>${x.qty} × ${cop(x.costo)}</small></div><span>${cop(x.qty*x.costo)}</span></div>`).join("")}
   <div class="total"><span>Total</span><b>${cop(pTotal(c))}</b></div>
-  <button class="ghost" style="color:var(--bad);border-color:var(--bad);margin-top:16px" onclick="pedirBorrarCompra(${c.id})">🗑 Eliminar compra</button>`);
+  <button class="ghost" style="color:var(--bad);border-color:var(--bad);margin-top:16px" onclick="borrarCompra(${c.id})">🗑 Eliminar compra</button>`);
   if(c.photoId)fotoGet(c.photoId).then(b=>{const el=$("cph");if(!el)return;if(b){el.src=URL.createObjectURL(b);el.hidden=false}else el.outerHTML=`<p class="hint">La foto aún no está en la nube. Se sube sola cuando se abra la página en el dispositivo donde se tomó.</p>`});
 }
 let CP=null;
