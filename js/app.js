@@ -1226,12 +1226,13 @@ function guardarNota(id){const i=S.invoices.find(x=>x.id===id),n=$("nE").value.t
   if(n)i.notas=n;else delete i.notas;if(vis)i.notaCliente=true;else delete i.notaCliente;
   save();if(atab==="facturas")renderAdmin();verFactura(id,1);toast("Nota guardada")}
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
+const PMS={};
 function verFactura(id,keep){
   const i=S.invoices.find(x=>x.id===id);
   openSheet(`${espNote(i)}${paper(i)}${notaBox(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
-  ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
+  ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm" onchange="PMS['${i.id}']=this.value;$('pmMore').hidden=!this.value"><option value="" ${PMS[i.id]?"":"selected"} disabled>Selecciona el método de pago</option>${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===PMS[i.id]?"selected":""}>${o}</option>`).join("")}</select><div id="pmMore" ${PMS[i.id]?"":"hidden"}>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button></div>`:""}
   ${i.estado!=="anulada"?trackHTML(i):""}
   <div class="two" style="margin-top:10px">${i.estado!=="anulada"?`<button class="btn-line" style="margin:0" onclick="formEditFactura('${i.id}')">✏️ Editar factura</button>`:"<span></span>"}<button class="btn-line" style="margin:0;color:var(--bad);border-color:var(--bad)" onclick="borrarFactura('${i.id}')">🗑 Eliminar factura</button></div>
   ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
@@ -1241,7 +1242,7 @@ function verFactura(id,keep){
 async function attachFV(id,inp){const f=inp.files&&inp.files[0];if(!f)return;try{const b=await compress(f),pid="v"+Date.now();if(!await fotoPut(pid,b))return toast("No se pudo guardar la foto");S.invoices.find(x=>x.id===id).photoId=pid;save();verFactura(id);if(atab==="facturas")aFact();toast("Foto adjuntada")}catch(e){toast("No se pudo leer esa imagen")}}
 function setEstado(id,e){const i=S.invoices.find(x=>x.id===id);
   if(e==="anulada")i.items.forEach(x=>{const p=P(x.pid);if(p)p.stock+=x.qty});
-  if(e==="pagada"&&$("pm"))i.metodo=$("pm").value;
+  if(e==="pagada"&&$("pm")){if(!$("pm").value)return toast("Selecciona el método de pago");i.metodo=$("pm").value}
   addLog(i,[e==="pagada"?`Marcada como pagada (${i.metodo})`:"Factura anulada, stock devuelto"]);
   i.estado=e;save();renderAdmin();verFactura(id);toast(e==="pagada"?"Factura pagada":"Factura anulada")}
 /* ===== Edición y eliminación de facturas, con registro de cambios ===== */
@@ -1312,12 +1313,10 @@ function borrarFactura(id){const i=S.invoices.find(x=>x.id===id);
 function trackHTML(i){const cur=envOf(i),ci=ENVIO.findIndex(e=>e[0]===cur),h=i.envioHist||[];
   const when=k=>{const e=h.slice().reverse().find(x=>x.estado===k);return e?fdt(e.fecha):""};
   const steps=ENVIO.map((e,k)=>{const done=ci>=0&&k<=ci;return `<button type="button" class="trk-step${k===ci?" cur":""}" ${k===ci?'aria-current="step" disabled':""} title="${k===ci?"Estado actual":"Marcar como "+e[1].toLowerCase()}" onclick="envioRapido('${i.id}','${e[0]}')"><div class="trk-dot" style="border-color:${done?"var(--gold)":"var(--line)"};background:${done?"rgba(201,162,92,.18)":"transparent"};opacity:${done?1:.45}">${e[2]}</div><small style="display:block;font-size:11px;color:${k===ci?"var(--gold)":"var(--muted)"};font-weight:${k===ci?600:400}">${e[1]}</small><small style="display:block;font-size:9.5px;color:var(--muted)">${done?when(e[0]):""}</small></button>`}).join("");
-  const next=ci>=0&&ci<ENVIO.length-1?ENVIO[ci+1]:null;
   return `<div class="panel" style="margin-top:14px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Seguimiento del pedido</b>${envPill(cur)}</div>
   ${ci>=0?`<div style="display:flex;gap:4px">${steps}</div><p class="hint" style="margin:8px 0 0;text-align:center;font-size:11px">Toca un paso para cambiar el estado</p>`:`<p class="hint" style="margin:0">Pedido ${envName(cur).toLowerCase()} · ${when(cur)}</p>`}
   ${i.guia||i.transp?`<p class="hint" style="margin:10px 0 0">🚚 ${esc(i.transp||"Transportadora")}${i.guia?` · Guía <b>${esc(i.guia)}</b>`:""}</p>`:""}
-  ${next?`<button class="primary" style="margin-top:12px" onclick="formEnvio('${i.id}','${next[0]}')">${next[2]} Marcar como ${next[1].toLowerCase()}</button>`:""}
-  <button class="ghost" style="margin:4px 0 0" onclick="formEnvio('${i.id}')">Cambiar estado del envío / guía</button>
+  <button class="primary" style="margin-top:12px" onclick="formEnvio('${i.id}')">📦 Cambiar estado del envío / guía</button>
   ${i.tel&&cur!=="pendiente"?`<a class="ghost" style="display:block;text-align:center;margin:0" target="_blank" rel="noopener" href="${waEnvio(i)}">💬 Avisar al cliente por WhatsApp</a>`:""}</div>`}
 function waEnvio(i){const to=String(i.tel||"").replace(/\D/g,""),C=S.company,k=envOf(i);
   const t={proceso:"estamos preparando tu pedido",enviado:"tu pedido ya fue enviado",entregado:"tu pedido aparece como entregado. ¡Gracias por tu compra!",devuelto:"tu pedido fue devuelto",cancelado:"tu pedido fue cancelado"}[k]||"tu pedido está registrado";
