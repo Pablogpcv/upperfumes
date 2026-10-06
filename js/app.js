@@ -404,8 +404,9 @@ function go(t){
 
 /* ---------- tienda ---------- */
 function card(p){
-  return `<div class="card"><button class="ph" onclick="ficha(${p.id})" aria-label="Ver ${esc(p.name)}">${p.promo?`<span class="off">−${p.promo}%</span>`:""}${visual(p,58)}</button>
-  <div class="body"><div class="br">${esc(p.brand)}</div><div class="nm">${esc(p.name)}</div>
+  const h=fichaUrl(p),oc=`onclick="return abrirFicha(event,${p.id})"`;
+  return `<div class="card"><a class="ph" href="${h}" ${oc} aria-label="Ver ${esc(p.name)}">${p.promo?`<span class="off">−${p.promo}%</span>`:""}${visual(p,58)}</a>
+  <div class="body"><div class="br">${esc(p.brand)}</div><a class="nm" href="${h}" ${oc}>${esc(p.name)}</a>
   <span class="pbox">${cop(price(p))}${p.promo?`<s>${cop(p.publico)}</s>`:""}</span>
   <button class="add" onclick="addCart(${p.id})" ${p.stock<=0?"disabled":""}>${p.stock<=0?"Agotado":"Agregar"}</button></div></div>`;
 }
@@ -488,7 +489,10 @@ function renderFooter(){
   </div><div class="ft-bottom">© ${new Date().getFullYear()} Upperfumes · Fragancias que te elevan</div>`;
 }
 const slug=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-function ficha(id){const p=P(id);if(!p)return;closeSheet();location.hash="#/p/"+p.id+"-"+slug(p.brand+" "+p.name)}
+const fichaUrl=p=>"#/p/"+p.id+"-"+slug(p.brand+" "+p.name);
+function ficha(id){const p=P(id);if(!p)return;closeSheet();location.hash=fichaUrl(p)}
+/* clic normal abre la ficha aquí; Ctrl/Cmd/clic central o "abrir en pestaña nueva" abren la ficha en otra pestaña */
+function abrirFicha(e,id){if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||e.button)return true;e.preventDefault();ficha(id);return false}
 let PD=null,pdQ=1,pdImg=0;
 function route(){const m=location.hash.match(/^#\/p\/(\d+)/);
   if(m&&P(m[1])){PD=+m[1];pdQ=1;pdImg=0;closeSheet();go("producto")}
