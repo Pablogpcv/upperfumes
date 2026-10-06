@@ -279,3 +279,9 @@ create policy "productos admin cambiar" on storage.objects for update to authent
 drop policy if exists "productos admin borrar" on storage.objects;
 create policy "productos admin borrar" on storage.objects for delete to authenticated
   using (bucket_id = 'productos' and public.es_admin());
+
+-- ---------- PRODUCTOS OCULTOS ----------
+-- Un producto con data.oculto = true no se entrega a los visitantes; solo lo ve el administrador.
+drop policy if exists "catalogo publico" on public.productos;
+create policy "catalogo publico" on public.productos for select
+  using (coalesce((data->>'oculto')::boolean, false) = false or public.es_admin());
