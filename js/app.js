@@ -489,6 +489,25 @@ function renderFooter(){
   </div><div class="ft-bottom">© ${new Date().getFullYear()} Upperfumes · Fragancias que te elevan</div>`;
 }
 const slug=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+/* ---------- buscador del encabezado (lupa) ---------- */
+let SRI=-1;
+function openSearch(){const el=$("srch");el.hidden=false;requestAnimationFrame(()=>el.classList.add("open"));$("sq").value="";SRI=-1;renderSearch();$("sq").focus()}
+function closeSearch(){const el=$("srch");if(el.hidden)return;el.classList.remove("open");setTimeout(()=>{el.hidden=true},180)}
+function buscarProductos(q){const t=norm(q).split(/\s+/).filter(Boolean);if(!t.length)return[];
+  return S.products.map(p=>{const hay=norm(p.brand+" "+p.name+" "+(p.cat||""));if(!t.every(w=>hay.includes(w)))return null;
+    const nm=norm(p.name),sc=(nm.startsWith(t[0])?0:norm(p.brand).startsWith(t[0])?1:2)+(p.stock<=0?3:0);return{p,sc}})
+    .filter(Boolean).sort((a,b)=>a.sc-b.sc||a.p.name.localeCompare(b.p.name)).map(x=>x.p)}
+function renderSearch(){const q=$("sq").value.trim(),box=$("sres");SRI=-1;
+  if(!q){box.innerHTML=`<p class="srch-hint">Escribe el nombre del perfume o la marca.</p>`;return}
+  const l=buscarProductos(q),top=l.slice(0,6);
+  box.innerHTML=top.length?top.map(p=>`<a class="srch-it" href="${fichaUrl(p)}" onclick="closeSearch();return abrirFicha(event,${p.id})"><span class="srch-ph">${fotoDe(p)?`<img src="${esc(fotoDe(p))}" alt="" loading="lazy">`:""}</span><span class="srch-tx"><small>${esc(p.brand)}</small><b>${esc(p.name)}</b></span><span class="srch-pr">${p.stock<=0?"Agotado":cop(price(p))}</span></a>`).join("")
+    +(l.length>top.length?`<button class="srch-all" onclick="verTodosBusqueda()">Ver los ${l.length} resultados</button>`:"")
+    :`<p class="srch-hint">No encontramos “${esc(q)}”. Prueba con otra marca o nombre.</p>`}
+function verTodosBusqueda(){const q=$("sq").value.trim();closeSearch();setF({});$("q").value=q;renderShop()}
+function searchKey(e){const its=[...document.querySelectorAll("#sres .srch-it")];
+  if(e.key==="Escape"){closeSearch();return}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!its.length)return;SRI=(SRI+(e.key==="ArrowDown"?1:-1)+its.length)%its.length;its.forEach((a,i)=>a.classList.toggle("on",i===SRI));its[SRI].scrollIntoView({block:"nearest"});return}
+  if(e.key==="Enter"){e.preventDefault();const a=its[SRI>=0?SRI:0];if(its.length===1||SRI>=0)a.click();else if(its.length)verTodosBusqueda()}}
 const fichaUrl=p=>"#/p/"+p.id+"-"+slug(p.brand+" "+p.name);
 function ficha(id){const p=P(id);if(!p)return;closeSheet();location.hash=fichaUrl(p)}
 /* clic normal abre la ficha aquí; Ctrl/Cmd/clic central o "abrir en pestaña nueva" abren la ficha en otra pestaña */
@@ -1527,5 +1546,5 @@ renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot(
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)start()});
   window.vitrinaStart=start;start();
 })();
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeSearch()}});
 
