@@ -23,7 +23,7 @@
 <meta name="twitter:image" content="https://upperfumes.com/assets/img/tienda/compartir.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=33">
+<link rel="stylesheet" href="css/styles.css?v=34">
 </head>
 <body>
 <div class="app">
@@ -38,10 +38,18 @@
   </nav>
   <div class="icons">
     <button class="ib mmenu" aria-label="Menú de categorías y marcas" onclick="openMenu()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    <button class="ib" aria-label="Buscar perfume" onclick="openSearch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg></button>
     <button class="ib" aria-label="Mi cuenta" onclick="go('cuenta')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
     <button class="ib" aria-label="Carrito" onclick="openCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span class="badge" id="badge" hidden>0</span></button>
   </div>
 </header>
+<div class="srch" id="srch" role="dialog" aria-label="Buscar perfume" hidden>
+  <div class="srch-bg" onclick="closeSearch()"></div>
+  <div class="srch-box">
+    <div class="srch-in"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="sq" placeholder="Buscar perfume o marca" autocomplete="off" aria-label="Buscar perfume o marca" oninput="renderSearch()" onkeydown="searchKey(event)"><button class="srch-x" onclick="closeSearch()" aria-label="Cerrar búsqueda">Cerrar</button></div>
+    <div class="srch-res" id="sres"></div>
+  </div>
+</div>
 
 <section class="view active" id="v-tienda">
   <section class="vban" id="vban" aria-label="Vitrina de Upperfumes">
@@ -134,6 +142,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
-<script src="js/app.js?v=40"></script>
+<script src="js/app.js?v=41"></script>
 </body>
 </html>
