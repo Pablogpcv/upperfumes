@@ -751,8 +751,37 @@ function makeInvoice({id,cliente,tel,tipo,items,estado,metodo,origen}){
   inv.items.forEach(i=>{const p=P(i.pid);p.stock=Math.max(0,p.stock-i.qty)});
   S.invoices.unshift(inv);save();return inv;
 }
+/* sin sesión: elegir cómo pedir */
+let PEND_PEDIDO=null;
+function elegirPedido(tipo){const src=tipo==="mayor"?wcart:cart,u=Object.values(src).reduce((a,b)=>a+(b||0),0);
+  const tot=tipo==="mayor"?Object.keys(src).reduce((a,k)=>a+(P(k)?P(k).mayor*src[k]:0),0):Object.keys(src).reduce((a,k)=>a+(P(k)?lineP(P(k))*src[k]:0),0);
+  openSheet(`<h3 class="t">¿Cómo quieres hacer tu pedido?</h3><p class="hint" style="margin-top:-4px">${u} ${u===1?"perfume":"perfumes"} · ${cop(tot)}</p>
+  <div class="ck-opts">
+   ${tipo!=="mayor"?`<button class="ck-opt main" onclick="pedidoInvitado()"><span class="ck-ic">⚡</span><span><b>Comprar como invitado</b><small>Lo más rápido: solo tu nombre y te llevamos a WhatsApp con tu pedido.</small></span></button>`:""}
+   <button class="ck-opt" onclick="irCuenta('login','${tipo}')"><span class="ck-ic">👤</span><span><b>Ingresar</b><small>Ya tengo cuenta. Mis pedidos quedan guardados.</small></span></button>
+   <button class="ck-opt" onclick="irCuenta('reg','${tipo}')"><span class="ck-ic">✨</span><span><b>Crear cuenta</b><small>Guarda tus pedidos y sigue el estado de tu envío.</small></span></button>
+  </div>${tipo==="mayor"?`<p class="hint">Los pedidos al por mayor requieren una cuenta.</p>`:""}`)}
+function irCuenta(m,tipo){PEND_PEDIDO=tipo;mode=m;closeSheet();go("cuenta");setTimeout(()=>{const e=$(m==="reg"?"fN":"fE");if(e)e.focus()},150)}
+function pedidoInvitado(){let g={};try{g=JSON.parse(localStorage.getItem("upf_invitado")||"{}")}catch(e){}
+  openSheet(`<h3 class="t">Comprar como invitado</h3><p class="hint">Te llevamos a WhatsApp con tu pedido listo para enviar.</p>
+  <label for="gN">Tu nombre</label><input class="f" id="gN" autocomplete="name" value="${esc(g.n||"")}" placeholder="Nombre y apellido">
+  <label for="gC">Ciudad (opcional)</label><input class="f" id="gC" autocomplete="address-level2" value="${esc(g.c||"")}" placeholder="Ej: Medellín">
+  <p class="err" id="err"></p>
+  <button class="primary" onclick="enviarInvitado()">Pedir por WhatsApp</button><button class="ghost" onclick="elegirPedido('detal')">Volver</button>`);
+  setTimeout(()=>{const e=$("gN");if(e&&!e.value)e.focus()},100)}
+function enviarInvitado(){const n=$("gN").value.trim(),c=$("gC").value.trim();if(!n)return $("err").textContent="Escribe tu nombre.";
+  try{localStorage.setItem("upf_invitado",JSON.stringify({n,c}))}catch(e){}
+  const items=Object.keys(cart).filter(k=>cart[k]>0&&P(k));if(!items.length)return closeSheet();
+  let m=`Hola Upperfumes, soy ${n}${c?" de "+c:""}. Quiero hacer este pedido:\n`,tot=0;
+  items.forEach(k=>{const p=P(k),pr=lineP(p);tot+=pr*cart[k];m+=`• ${cart[k]} x ${p.brand} ${p.name} — ${cop(pr)}\n`});
+  if(volOn())m+=`Descuento por volumen: ${DESC_VOL}% (ya incluido en los precios)\n`;
+  m+=`Total: ${cop(tot)}`;
+  cart={};save();badge();closeSheet();
+  window.open(`https://wa.me/${waNum()}?text=${encodeURIComponent(m)}`,"_blank");toast("¡Listo! Envía el mensaje en WhatsApp")}
+function retomarPedido(){if(!PEND_PEDIDO||!session)return;const t=PEND_PEDIDO;PEND_PEDIDO=null;
+  if(t==="mayor"){go("mayor");toast("Ya puedes enviar tu pedido mayorista")}else{openCart();toast("Ya puedes enviar tu pedido")}}
 function checkout(tipo){
-  if(!session){closeSheet();go("cuenta");toast("Inicia sesión para hacer tu pedido");return}
+  if(!session)return elegirPedido(tipo);
   if(CLOUD)return checkoutNube(tipo);
   const desc=volOn();
   const items=Object.keys(cart).filter(k=>cart[k]>0&&P(k)).map(k=>({pid:+k,qty:cart[k],price:lineP(P(k))}));
@@ -824,13 +853,13 @@ async function login(){const e=$("fE").value.trim().toLowerCase(),p=$("fP").valu
   if(!CLOUD){const u=S.users.find(x=>x.email===e&&x.pass===p);if(!u){$("err").textContent="Correo o contraseña incorrectos.";return}session={name:u.name,email:u.email,role:u.role,phone:u.phone||""};save();toast("Bienvenido, "+u.name.split(" ")[0]);return renderAcc()}
   if(!e||!p)return $("err").textContent="Escribe tu correo y contraseña.";
   busy(true);try{const {data,error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)throw error;await cargarPerfil(data.user);
-    if(!session)throw new Error("No encontramos tu perfil");toast("Bienvenido, "+session.name.split(" ")[0]);rerender()}catch(err){$("err").textContent=sbErr(err)}busy(false)}
+    if(!session)throw new Error("No encontramos tu perfil");toast("Bienvenido, "+session.name.split(" ")[0]);rerender();retomarPedido()}catch(err){$("err").textContent=sbErr(err)}busy(false)}
 async function reg(){const n=$("fN").value.trim(),t=$("fT").value.trim(),e=$("fE").value.trim().toLowerCase(),p=$("fP").value;
   if(!n||!e||!p)return $("err").textContent="Completa nombre, correo y contraseña.";
   if(p.length<6)return $("err").textContent="La contraseña debe tener al menos 6 caracteres.";
   if(!CLOUD){if(S.users.some(x=>x.email===e))return $("err").textContent="Ese correo ya tiene cuenta.";S.users.push({name:n,email:e,pass:p,phone:t,role:"cliente",fecha:today()});session={name:n,email:e,role:"cliente",phone:t};save();toast("Cuenta creada");return renderAcc()}
   busy(true);try{const {data,error}=await sb.auth.signUp({email:e,password:p,options:{data:{nombre:n,telefono:t},emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
-    if(data.session){await cargarPerfil(data.user);toast("Cuenta creada");rerender()}
+    if(data.session){await cargarPerfil(data.user);toast("Cuenta creada");rerender();retomarPedido()}
     else{$("ok").textContent="¡Listo! Te enviamos un correo a "+e+". Abre el enlace para activar tu cuenta y luego inicia sesión.";$("err").textContent=""}}catch(err){$("err").textContent=sbErr(err)}busy(false)}
 async function resetClave(){const e=$("fE").value.trim().toLowerCase();if(!e)return $("err").textContent="Escribe tu correo.";
   busy(true);const {error}=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});busy(false);
