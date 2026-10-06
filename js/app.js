@@ -214,6 +214,14 @@ function save(){try{if(!CLOUD){localStorage.setItem(KEY,JSON.stringify(S));local
 const SB_URL="https://pyxmrttbjynccwviotef.supabase.co", SB_KEY="sb_publishable_QDeX1szmmx4wxQ4enVhuyQ_SdKFxxGM";
 const sb=(window.supabase&&/^https:/.test(SB_URL))?window.supabase.createClient(SB_URL,SB_KEY):null;
 const CLOUD=!!sb;
+/* Catálogo en caché: la página arranca con los últimos precios reales de la nube (no con los precios base del código).
+   Si es la primera visita y aún no hay caché, los precios se ocultan hasta que llegue la información de la nube. */
+const CAT_CACHE="upperfumes_catalogo_nube";
+const filaProd=r=>({...r.data,id:r.id,stock:r.stock,compra:0,proveedor:""});
+function guardarCatalogo(rows){try{localStorage.setItem(CAT_CACHE,JSON.stringify(rows))}catch(e){}}
+if(CLOUD){let c=null;try{c=JSON.parse(localStorage.getItem(CAT_CACHE)||"null")}catch(e){}
+  if(Array.isArray(c)&&c.length)S.products=c.sort((a,b)=>a.id-b.id).map(filaProd);
+  else document.documentElement.classList.add("precios-cargando")}
 let SNAP=null,syncT=null,syncing=false,syncAgain=false,PERFILES=[],cloudReady=!CLOUD,CLOUD_EMPTY=false,MIS=null;
 const ADM_KEYS=["purchases","expenses","providers","invLog","leads"];
 const pubOf=p=>{const o={...p};delete o.compra;delete o.proveedor;delete o.stock;return o};
@@ -239,12 +247,13 @@ async function cloudBoot(){if(!CLOUD)return;
   try{const [r1,r2]=await Promise.all([sb.from("productos").select("id,data,stock"),sb.from("ajustes").select("clave,data")]);
     if(r1.error)throw r1.error;
     CLOUD_EMPTY=!r1.data.length;
-    if(!CLOUD_EMPTY)S.products=r1.data.sort((a,b)=>a.id-b.id).map(r=>({...r.data,id:r.id,stock:r.stock,compra:0,proveedor:""}));
+    if(!CLOUD_EMPTY){S.products=r1.data.sort((a,b)=>a.id-b.id).map(filaProd);guardarCatalogo(r1.data)}
     (r2.data||[]).forEach(r=>{if(r.clave==="empresa")S.company={...S.company,...r.data}});
   }catch(e){console.warn("nube",e);toast("Sin conexión con la base de datos")}
   try{const {data}=await sb.auth.getSession();if(data.session)await cargarPerfil(data.session.user)}catch(e){console.warn(e)}
   sb.auth.onAuthStateChange((ev,ss)=>{if(ev==="SIGNED_OUT"){session=null;SNAP=null;rerender()}if(ev==="PASSWORD_RECOVERY")setTimeout(formNuevaClave,300)});
-  cloudReady=true;rerender()}
+  cloudReady=true;document.documentElement.classList.remove("precios-cargando");rerender();
+  const v=document.querySelector(".view.active");if(v&&v.id==="v-producto"&&window.renderProducto)try{renderProducto()}catch(e){}}
 async function cargarPerfil(user){const {data:pf,error}=await sb.from("perfiles").select("*").eq("id",user.id).single();
   if(error||!pf){session=null;return}
   session={id:pf.id,name:pf.nombre||pf.email,email:pf.email,phone:pf.telefono||"",role:pf.rol==="admin"?"admin":"cliente"};
@@ -297,7 +306,7 @@ async function refrescar(){
     if(syncing||gen!==SYNCGEN||(adm&&SNAP&&JSON.stringify(snapshot())!==JSON.stringify(SNAP)))return; // se guardó algo mientras se descargaba: esperar a la próxima // hubo un cambio local mientras se descargaba
     const h=JSON.stringify(r.map(x=>x.data));if(h===refHash)return;const first=!refHash;refHash=h;if(first&&!adm&&!session)return;
     const [pr,aj]=r;
-    if(pr.data.length){const priv={};if(adm)(r[2].data||[]).forEach(x=>priv[x.id]=x.data);
+    if(pr.data.length){guardarCatalogo(pr.data);const priv={};if(adm)(r[2].data||[]).forEach(x=>priv[x.id]=x.data);
       S.products=pr.data.sort((a,b)=>a.id-b.id).map(x=>({...x.data,id:x.id,stock:x.stock,compra:0,proveedor:"",...(priv[x.id]||{})}))}
     (aj.data||[]).forEach(x=>{if(x.clave==="empresa")S.company={...S.company,...x.data}});
     if(adm){S.invoices=(r[3].data||[]).map(x=>x.data).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
