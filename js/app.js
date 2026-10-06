@@ -751,7 +751,7 @@ function aCompras(){
   const t=S.purchases.reduce((a,c)=>a+pTotal(c),0);
   $("ab").innerHTML=`<div class="kpis"><div class="kpi"><span>Compras registradas</span><b>${S.purchases.length}</b></div><div class="kpi"><span>Total invertido</span><b class="g">${cop(t)}</b></div></div>
   <div class="toolbar"><button class="btn-line" onclick="formCompra()">Registrar compra</button></div>
-  ${S.purchases.length?`<div class="search" style="margin:14px 0 4px;max-width:none"><input id="cq" class="f" placeholder="🔍 Buscar producto, proveedor o factura… (ej. mandarin sky)" value="${esc(CQ)}" oninput="CQ=this.value;comprasList()" autocomplete="off"></div>`:""}
+  ${S.purchases.length?`<div class="search cq-box"><span aria-hidden="true">🔍</span><input id="cq" placeholder="Buscar producto, proveedor o factura" value="${esc(CQ)}" oninput="CQ=this.value;comprasList()" autocomplete="off" aria-label="Buscar en compras"></div>`:""}
   <div id="cl"></div>`;
   comprasList()}
 const cRow=c=>{const u=its(c).reduce((a,x)=>a+x.qty,0);return `<button class="row" style="width:100%;text-align:left" onclick="verCompra(${c.id})"><div class="grow"><b>${esc(c.proveedor)}${c.photoId?" 📷":""}</b><small>${c.fecha}${c.ref?" · Fact. "+esc(c.ref):""} · ${u} uds</small><small>${its(c).map(x=>esc(P(x.pid)?.name||"Eliminado")+" ×"+x.qty).join(", ")}</small></div><b style="font-weight:500">${cop(pTotal(c))}</b></button>`};
@@ -774,11 +774,22 @@ function comprasList(){const el=$("cl");if(!el)return;
   const rest=comp.filter(c=>!lines.some(l=>l.c===c));
   if(rest.length)h+=`<p class="hint" style="margin:12px 0 0">Compras de proveedor o factura que coinciden</p>`+rest.map(cRow).join("");
   el.innerHTML=h||`<p class="empty">No hay compras que coincidan con “${esc(CQ)}”.</p>`}
+function pedirBorrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return;const u=its(c).reduce((a,x)=>a+x.qty,0);
+  openSheet(`<h3 class="t" style="color:var(--bad)">¿Eliminar esta compra?</h3>
+  <p>${esc(c.proveedor)} · ${c.fecha}${c.ref?" · Factura "+esc(c.ref):""} · <b>${cop(pTotal(c))}</b></p>
+  <div class="panel" style="padding:10px 12px;margin:12px 0">${its(c).map(x=>{const p=P(x.pid);return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(p?p.name:"Producto eliminado")}</span><span>${p?`stock ${p.stock} → <b>${Math.max(0,p.stock-x.qty)}</b>`:"—"}</span></div>`}).join("")}</div>
+  <p class="hint">Se restarán ${u} ${u===1?"unidad":"unidades"} del inventario. Esta acción no se puede deshacer.</p>
+  <button class="primary" style="background:var(--bad);border-color:var(--bad);color:#fff" onclick="borrarCompra(${c.id})">Sí, eliminar compra</button>
+  <button class="ghost" onclick="verCompra(${c.id})">Cancelar</button>`)}
+function borrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return;
+  its(c).forEach(x=>{const p=P(x.pid);if(p)p.stock=Math.max(0,p.stock-x.qty)});
+  S.purchases=S.purchases.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Compra eliminada · inventario ajustado")}
 function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   openSheet(`<h3 class="t">${esc(c.proveedor)}</h3><p class="hint">${c.fecha}${c.ref?" · Factura "+esc(c.ref):""}</p>
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
   ${its(c).map(x=>`<div class="row"><div class="thumb">${P(x.pid)?visual(P(x.pid),26):""}</div><div class="grow"><b>${esc(P(x.pid)?.name||"Producto eliminado")}</b><small>${x.qty} × ${cop(x.costo)}</small></div><span>${cop(x.qty*x.costo)}</span></div>`).join("")}
-  <div class="total"><span>Total</span><b>${cop(pTotal(c))}</b></div>`);
+  <div class="total"><span>Total</span><b>${cop(pTotal(c))}</b></div>
+  <button class="ghost" style="color:var(--bad);border-color:var(--bad);margin-top:16px" onclick="pedirBorrarCompra(${c.id})">🗑 Eliminar compra</button>`);
   if(c.photoId)fotoGet(c.photoId).then(b=>{const el=$("cph");if(!el)return;if(b){el.src=URL.createObjectURL(b);el.hidden=false}else el.outerHTML=`<p class="hint">La foto aún no está en la nube. Se sube sola cuando se abra la página en el dispositivo donde se tomó.</p>`});
 }
 let CP=null;
