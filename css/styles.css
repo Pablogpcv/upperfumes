@@ -725,3 +725,12 @@ textarea.nota-in{resize:vertical;min-height:72px;line-height:1.45;font-family:in
 .nota-box p{margin:6px 0 0;color:var(--ink);white-space:normal}
 .pp-notas{margin-top:12px;padding:8px 10px;border:1px solid #e3dccb;border-radius:4px;font-size:11.5px;color:#333;line-height:1.45}
 .pp-notas h5{font-size:9.5px;color:#9a7b1f;letter-spacing:.08em;font-weight:600;margin:0 0 3px}
+
+/* productos ocultos */
+.oc-tag{display:inline-block;margin-left:6px;padding:1px 7px;border:1px solid var(--line);border-radius:10px;font-size:10.5px;color:var(--muted);letter-spacing:.04em;vertical-align:middle}
+.inv-f{margin:10px 0 2px}
+.vis-sw{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:6px;margin:4px 0 6px;cursor:pointer}
+.vis-sw input{appearance:none;-webkit-appearance:none;width:42px;height:24px;border-radius:12px;background:var(--s2);border:1px solid var(--line);position:relative;flex:none;cursor:pointer;transition:background .15s}
+.vis-sw input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.vis-sw input:checked{background:var(--gold)}.vis-sw input:checked::after{transform:translateX(18px);background:var(--onGold)}
+.vis-sw span{display:flex;flex-direction:column}.vis-sw b{font-weight:500;color:var(--ink)}.vis-sw small{color:var(--muted);font-size:12px}
