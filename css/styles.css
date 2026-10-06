@@ -657,3 +657,4 @@ html,body{overflow-x:clip}
 .esp-note .en-h{margin:0 0 6px;font-size:12px}.esp-note b{color:var(--gold);letter-spacing:.03em}
 .esp-note div{color:var(--ink)}
 .paid-box{border-left:2px solid var(--gold);padding-left:10px;margin-top:6px}
+.proms a.prom-emp{color:inherit;text-decoration:none;display:block;cursor:pointer;transition:opacity .2s}.proms a.prom-emp:hover{opacity:.85}.emp-cta{display:inline-block;color:var(--gold);font-weight:500;margin-top:4px;white-space:nowrap}
