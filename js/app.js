@@ -549,7 +549,72 @@ const NOTAS_IMG=[
 const nNorm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z ]/g," ").replace(/\s+/g," ").trim();
 const notaImg=n=>{const k=" "+nNorm(n);const m=NOTAS_IMG.find(([,ws])=>ws.some(w=>k.includes(" "+w)));   // la palabra debe empezar igual (así "tuberosa" no cuenta como "rosa")
 return m?`assets/img/notas/${m[0]}.webp`:""};
-function notasDe(p){return (p.notes||[]).map(x=>({n:x.n,e:x.e,img:notaImg(x.n)}))}
+/* Qué aporta cada ingrediente (se muestra en la pirámide olfativa). La clave es la misma de NOTAS_IMG;
+   las que empiezan por _ son ingredientes sin imagen que se reconocen por esa palabra. */
+const NOTAS_TXT={
+"madera-de-cedro": "Madera seca y limpia, con un toque de lápiz recién tajado. Le da elegancia y estructura.",
+"sandalo": "Madera cremosa y suave, cálida y un poco lechosa. Deja una estela envolvente.",
+"vetiver": "Raíz terrosa y ligeramente ahumada. Aporta un carácter masculino y sofisticado.",
+"madera-de-guayaco": "Madera ahumada y algo dulce, con un fondo resinoso. Da profundidad y fuerza.",
+"maderas": "Acorde amaderado seco y cálido. Le da cuerpo, elegancia y duración al perfume.",
+"pimienta-rosa": "Especia fresca y chispeante, más luminosa que picante. Le da un toque moderno.",
+"pimienta": "Especia vibrante y algo picante. Aporta energía y un toque masculino desde la salida.",
+"canela": "Especia dulce y cálida, como de postre recién horneado. Envuelve y abriga.",
+"jengibre": "Especia fresca y picante con un toque cítrico. Despierta y da energía.",
+"cardamomo": "Especia aromática, fresca y ligeramente cítrica. Le da un aire elegante y exótico.",
+"azafran": "Especia lujosa, cálida y un poco cuerosa. Típica de los perfumes orientales.",
+"especias": "Mezcla cálida de canela, clavo y pimienta. Aporta calidez y carácter.",
+"vainilla": "Dulce, cremosa y envolvente. Suaviza el perfume y lo vuelve sensual y adictivo.",
+"haba-tonka": "Dulce y almendrada, con matices de caramelo y vainilla. Muy cálida y seductora.",
+"datiles": "Fruta dulce y melosa, con un toque de caramelo. Le da riqueza y calidez oriental.",
+"praline": "Dulce de almendra caramelizada y cacao. Aporta un fondo goloso, tipo postre.",
+"ambar": "Cálido, resinoso y ligeramente dulce. Da profundidad y una estela duradera.",
+"oud": "Madera oscura y resinosa, intensa y lujosa. El sello de la perfumería árabe.",
+"tabaco": "Hoja seca, dulce y cálida, con un matiz de miel. Le da un aire sofisticado.",
+"cuero": "Suave y ahumado, con un toque animal. Aporta carácter, elegancia y misterio.",
+"almizcle": "Suave, limpio y sensual, como piel recién bañada. Fija el perfume y le da suavidad.",
+"salvia": "Hierba aromática, verde y ligeramente terrosa. Da frescura con carácter.",
+"lavanda": "Floral aromática, limpia y relajante. Aporta frescura y un toque clásico.",
+"menta": "Fresca y helada, muy vibrante. Le da una salida limpia y energizante.",
+"notas-aromaticas": "Hierbas frescas como romero y salvia. Dan un aire limpio, verde y natural.",
+"bergamota": "Cítrico fresco y un poco amargo, más elegante que el limón. Ilumina la salida.",
+"toronja": "Cítrico jugoso y ligeramente amargo. Aporta frescura vibrante y moderna.",
+"limon": "Cítrico brillante y chispeante. Da una salida fresca, limpia y alegre.",
+"mandarina": "Cítrico dulce y jugoso, más suave que la naranja. Aporta alegría y luz.",
+"naranja": "Cítrico dulce y soleado. Le da una salida fresca, alegre y luminosa.",
+"yuzu": "Cítrico japonés, fresco y ácido, entre limón y mandarina. Muy limpio y original.",
+"citricos": "Mezcla fresca de limón, naranja y bergamota. Da una salida luminosa y limpia.",
+"manzana": "Fruta fresca y crujiente, ligeramente dulce. Aporta jugosidad y frescura.",
+"pera": "Fruta jugosa, dulce y acuosa. Le da un toque fresco, suave y moderno.",
+"pina": "Fruta tropical jugosa y dulce. Aporta una salida brillante y llamativa.",
+"mango": "Fruta tropical dulce y cremosa. Da un aire alegre, exótico y veraniego.",
+"durazno": "Fruta aterciopelada, dulce y jugosa. Aporta suavidad y feminidad.",
+"grosella-negra": "Fruta oscura, ácida y jugosa, con un toque verde. Le da un aire vibrante.",
+"frambuesa": "Fruta roja dulce y ligeramente ácida. Aporta alegría y jugosidad.",
+"zarzamora": "Fruta oscura, jugosa y dulce. Le da un toque goloso y frutal.",
+"frutos-rojos": "Fresas, frambuesas y grosellas: dulces, jugosas y alegres.",
+"coco": "Cremoso, dulce y tropical. Aporta una sensación suave y veraniega.",
+"sandia": "Fruta acuosa, fresca y dulce. Le da un aire veraniego y refrescante.",
+"frutas-tropicales": "Mezcla jugosa de frutas exóticas. Aporta alegría, dulzura y luz.",
+"frutas-jugosas": "Frutas dulces y llenas de jugo. Dan una salida alegre y fresca.",
+"rosa": "La reina de las flores: romántica, elegante y ligeramente dulce.",
+"flor-de-loto": "Flor acuática, delicada y fresca. Aporta pureza y un toque limpio.",
+"lirio-de-agua": "Floral acuático, limpio y transparente. Da frescura elegante.",
+"flores-rojas": "Flores intensas y aterciopeladas. Le dan un corazón seductor y elegante.",
+"flores-blancas": "Jazmín, azahar y tuberosa: florales luminosos, cremosos y femeninos.",
+"sal-marina": "Salada y fresca, como la brisa del mar en la piel. Muy veraniega.",
+"notas-marinas": "Frescura acuática, como el aire del océano. Limpia y vigorizante.",
+"crema-batida": "Dulce, aireada y cremosa. Aporta un toque goloso y suave.",
+"chicle": "Dulce y juguetón, como un chicle de fresa. Divertido y juvenil.",
+"dulce-gourmand": "Notas de postre como caramelo, azúcar y miel. Golosas y adictivas.",
+"_violeta": "Hoja verde y fresca con un matiz floral suave. Le da un aire elegante.",
+"_almendra": "Dulce y suave, con un toque de mazapán. Cálida y reconfortante.",
+"_champana": "Burbujeante y chispeante, ligeramente afrutada. Aporta un aire festivo.",
+"_vodka": "Fresca, limpia y un poco alcohólica. Le da un toque moderno y urbano."
+};
+const notaTxt=n=>{const k=" "+nNorm(n);const m=NOTAS_IMG.find(([,ws])=>ws.some(w=>k.includes(" "+w)));
+  if(m&&NOTAS_TXT[m[0]])return NOTAS_TXT[m[0]];const s=Object.keys(NOTAS_TXT).find(x=>x[0]==="_"&&k.includes(" "+x.slice(1)));return s?NOTAS_TXT[s]:""};
+function notasDe(p){return (p.notes||[]).map(x=>({n:x.n,e:x.e,img:notaImg(x.n),t:notaTxt(x.n)}))}
 /* ===== Descripción de cada ficha (el mismo texto que aparece en la imagen de la ficha) =====
    Se muestra debajo del precio en la página del perfume. La clave es el nombre de la imagen en assets/img/fichas/. */
 const FICHA_DESC={
@@ -600,7 +665,7 @@ const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón",
 function renderProducto(){
   const p=P(PD);if(!p)return go("tienda");
   const X=FICHA_TXT[p.id]||{},pr=price(p),ahorro=p.promo?p.publico-pr:0;
-  const imgs=[p.img&&IMG[p.img]&&{src:IMG[p.img],alt:p.brand+" "+p.name},p.img&&SHEET[p.img]&&{src:SHEET[p.img],alt:"Ficha de "+p.name}].filter(Boolean);
+  const imgs=[p.img&&IMG[p.img]&&{src:IMG[p.img],alt:p.brand+" "+p.name}].filter(Boolean);
   const cur=imgs[pdImg]||imgs[0];const main=imgs.length?`<img class="${pdImg===1?"sheetimg":""}" src="${cur.src}" alt="${esc(cur.alt)}">`:visual(p);
   const rel=S.products.filter(x=>x.id!==p.id&&(x.fam===p.fam||x.cat===p.cat&&x.g===p.g)).sort((a,b)=>(b.fam===p.fam)-(a.fam===p.fam)).slice(0,4);
   const msg=`Hola Upperfumes, me interesa el ${p.brand} ${p.name} (${p.ml} ml) de ${cop(pr)}.`;
@@ -631,7 +696,7 @@ function renderProducto(){
     ${X.o?`<div class="pd-chars"><div><small>Ideal para</small><span>${X.o.map(esc).join(" · ")}</span></div><div><small>Clima</small><span>${esc(X.c)}</span></div><div><small>Intensidad</small><span class="int i-${slug(X.i)}"><i></i><i></i><i></i>${esc(X.i)}</span></div></div>`:""}
   </section>
   <section class="pd-sec"><h2>Pirámide olfativa</h2>
-    <div class="pyr">${notasDe(p).map((n,i)=>`<div>${n.img?`<img class="nimg" src="${n.img}" alt="" loading="lazy">`:`<span class="nic">${n.e||"✦"}</span>`}<small>${LV3[i]?LV3[i][0]:"Nota"}</small><b>${esc(n.n)}</b><em>${LV3[i]?LV3[i][1]:""}</em></div>`).join("")}</div>
+    <div class="pyr">${notasDe(p).map((n,i)=>`<div>${n.img?`<img class="nimg" src="${n.img}" alt="" loading="lazy">`:`<span class="nic">${n.e||"✦"}</span>`}<small>${LV3[i]?LV3[i][0]:"Nota"}</small><b>${esc(n.n)}</b><em>${esc(n.t||(LV3[i]?LV3[i][1]:""))}</em></div>`).join("")}</div>
   </section>
   <section class="pd-sec"><h2>Detalles</h2>
     <dl class="pd-dl"><div><dt>Marca</dt><dd>${esc(p.brand)}</dd></div><div><dt>Familia olfativa</dt><dd>${esc(p.fam||"")}</dd></div><div><dt>Concentración</dt><dd>${esc(p.conc)}</dd></div><div><dt>Presentación</dt><dd>${p.ml} ml</dd></div><div><dt>Género</dt><dd>${esc(p.g)}</dd></div><div><dt>Categoría</dt><dd>${esc(p.cat)}</dd></div></dl>
