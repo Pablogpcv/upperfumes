@@ -265,3 +265,17 @@ create policy "comprobantes admin cambiar" on storage.objects for update to auth
 drop policy if exists "comprobantes admin borrar" on storage.objects;
 create policy "comprobantes admin borrar" on storage.objects for delete to authenticated
   using (bucket_id = 'comprobantes' and public.es_admin());
+
+-- ---------- FOTOS DE PRODUCTOS (lectura pública; solo administradores suben o cambian) ----------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('productos', 'productos', true, 6291456, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "productos admin subir" on storage.objects;
+create policy "productos admin subir" on storage.objects for insert to authenticated
+  with check (bucket_id = 'productos' and public.es_admin());
+drop policy if exists "productos admin cambiar" on storage.objects;
+create policy "productos admin cambiar" on storage.objects for update to authenticated
+  using (bucket_id = 'productos' and public.es_admin()) with check (bucket_id = 'productos' and public.es_admin());
+drop policy if exists "productos admin borrar" on storage.objects;
+create policy "productos admin borrar" on storage.objects for delete to authenticated
+  using (bucket_id = 'productos' and public.es_admin());
