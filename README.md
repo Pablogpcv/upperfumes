@@ -2,7 +2,7 @@
 
 Tienda web móvil de perfumes de diseñador y árabes, con envíos a toda Colombia.
 
-**Ver la página:** https://pablogpcv.github.io/upperfumes/
+**Ver la página:** https://upperfumes.com
 
 ## Estructura del proyecto
 
