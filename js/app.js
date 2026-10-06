@@ -912,7 +912,7 @@ function paper(i){const C=S.company;
   <div style="text-align:right"><span class="pp-stamp">${stName(i.estado)}</span></div>
   <div class="pp-foot">${esc(C.pie||"")}<br>Documento interno de venta. No reemplaza la factura electrónica DIAN.</div></div></div>`}
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
-function verFactura(id){
+function verFactura(id,keep){
   const i=S.invoices.find(x=>x.id===id);
   openSheet(`${espNote(i)}${paper(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
@@ -921,7 +921,7 @@ function verFactura(id){
   ${i.estado!=="anulada"?trackHTML(i):""}
   <div class="two" style="margin-top:10px">${i.estado!=="anulada"?`<button class="btn-line" style="margin:0" onclick="formEditFactura('${i.id}')">✏️ Editar factura</button>`:"<span></span>"}<button class="btn-line" style="margin:0;color:var(--bad);border-color:var(--bad)" onclick="borrarFactura('${i.id}')">🗑 Eliminar factura</button></div>
   ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
-  ${histHTML(i)}`);
+  ${histHTML(i)}`,!!keep);
   setTimeout(()=>prepShare(id),50);
 }
 async function attachFV(id,inp){const f=inp.files&&inp.files[0];if(!f)return;try{const b=await compress(f),pid="v"+Date.now();if(!await fotoPut(pid,b))return toast("No se pudo guardar la foto");S.invoices.find(x=>x.id===id).photoId=pid;save();verFactura(id);if(atab==="facturas")aFact();toast("Foto adjuntada")}catch(e){toast("No se pudo leer esa imagen")}}
@@ -997,10 +997,10 @@ function borrarFactura(id){const i=S.invoices.find(x=>x.id===id);
   S.invoices=S.invoices.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Factura "+id+" eliminada")}
 function trackHTML(i){const cur=envOf(i),ci=ENVIO.findIndex(e=>e[0]===cur),h=i.envioHist||[];
   const when=k=>{const e=h.slice().reverse().find(x=>x.estado===k);return e?fdt(e.fecha):""};
-  const steps=ENVIO.map((e,k)=>{const done=ci>=0&&k<=ci;return `<div style="flex:1;text-align:center;min-width:0"><div style="width:30px;height:30px;margin:0 auto 4px;border-radius:50%;display:grid;place-items:center;font-size:14px;border:1px solid ${done?"var(--gold)":"var(--line)"};background:${done?"rgba(201,162,92,.18)":"transparent"};opacity:${done?1:.45}">${e[2]}</div><small style="display:block;font-size:11px;color:${k===ci?"var(--gold)":"var(--muted)"};font-weight:${k===ci?600:400}">${e[1]}</small><small style="display:block;font-size:9.5px;color:var(--muted)">${done?when(e[0]):""}</small></div>`}).join("");
+  const steps=ENVIO.map((e,k)=>{const done=ci>=0&&k<=ci;return `<button type="button" class="trk-step${k===ci?" cur":""}" ${k===ci?'aria-current="step" disabled':""} title="${k===ci?"Estado actual":"Marcar como "+e[1].toLowerCase()}" onclick="envioRapido('${i.id}','${e[0]}')"><div class="trk-dot" style="border-color:${done?"var(--gold)":"var(--line)"};background:${done?"rgba(201,162,92,.18)":"transparent"};opacity:${done?1:.45}">${e[2]}</div><small style="display:block;font-size:11px;color:${k===ci?"var(--gold)":"var(--muted)"};font-weight:${k===ci?600:400}">${e[1]}</small><small style="display:block;font-size:9.5px;color:var(--muted)">${done?when(e[0]):""}</small></button>`}).join("");
   const next=ci>=0&&ci<ENVIO.length-1?ENVIO[ci+1]:null;
   return `<div class="panel" style="margin-top:14px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Seguimiento del pedido</b>${envPill(cur)}</div>
-  ${ci>=0?`<div style="display:flex;gap:4px">${steps}</div>`:`<p class="hint" style="margin:0">Pedido ${envName(cur).toLowerCase()} · ${when(cur)}</p>`}
+  ${ci>=0?`<div style="display:flex;gap:4px">${steps}</div><p class="hint" style="margin:8px 0 0;text-align:center;font-size:11px">Toca un paso para cambiar el estado</p>`:`<p class="hint" style="margin:0">Pedido ${envName(cur).toLowerCase()} · ${when(cur)}</p>`}
   ${i.guia||i.transp?`<p class="hint" style="margin:10px 0 0">🚚 ${esc(i.transp||"Transportadora")}${i.guia?` · Guía <b>${esc(i.guia)}</b>`:""}</p>`:""}
   ${next?`<button class="primary" style="margin-top:12px" onclick="formEnvio('${i.id}','${next[0]}')">${next[2]} Marcar como ${next[1].toLowerCase()}</button>`:""}
   <button class="ghost" style="margin:4px 0 0" onclick="formEnvio('${i.id}')">Cambiar estado del envío / guía</button>
@@ -1016,6 +1016,9 @@ function formEnvio(id,pre){const i=S.invoices.find(x=>x.id===id),cur=pre||envOf(
   <div><label for="nG">Número de guía</label><input class="f" id="nG" value="${esc(i.guia||"")}" placeholder="Opcional"></div></div>
   <label for="nN">Nota (opcional)</label><input class="f" id="nN" placeholder="Ej: entregado a portería">
   <button class="primary" onclick="saveEnvio('${id}')">Guardar</button><button class="ghost" onclick="verFactura('${id}')">Cancelar</button>`)}
+function envioRapido(id,e){const i=S.invoices.find(x=>x.id===id),prev=envOf(i);if(!i||e===prev)return;
+  i.envioHist=i.envioHist||[];i.envioHist.push({estado:e,fecha:ahora(),usuario:quien(),nota:""});i.envio=e;
+  addLog(i,[`Envío: ${envName(prev)} → ${envName(e)}`]);save();renderAdmin();toast("Envío: "+envName(e));verFactura(id,1)}
 function saveEnvio(id){const i=S.invoices.find(x=>x.id===id),e=$("nE").value,tr=$("nTr").value.trim(),g=$("nG").value.trim(),n=$("nN").value.trim(),prev=envOf(i);
   const ch=[];if(e!==prev)ch.push(`Envío: ${envName(prev)} → ${envName(e)}`);if(tr!==(i.transp||""))ch.push(`Transportadora: ${i.transp||"—"} → ${tr||"—"}`);if(g!==(i.guia||""))ch.push(`Guía: ${i.guia||"—"} → ${g||"—"}`);
   if(!ch.length&&!n){return verFactura(id)}
