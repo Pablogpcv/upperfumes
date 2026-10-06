@@ -716,3 +716,12 @@ html,body{overflow-x:clip}
 .srch-pr{color:var(--gold);font-size:13.5px;white-space:nowrap}
 .srch-all{display:block;width:100%;padding:13px;color:var(--gold);font-size:14px;letter-spacing:.04em;text-align:center}
 .srch-all:hover{background:var(--s2)}
+
+/* notas de factura */
+textarea.nota-in{resize:vertical;min-height:72px;line-height:1.45;font-family:inherit}
+.nota-box{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13.5px}
+.nota-box .nb-h{display:flex;align-items:center;gap:8px}.nota-box .nb-h b{color:var(--gold);font-weight:500;letter-spacing:.03em}
+.nota-box .nb-h span{color:var(--muted);font-size:12px;flex:1}.nota-box .nb-h .li-lk{margin:0}
+.nota-box p{margin:6px 0 0;color:var(--ink);white-space:normal}
+.pp-notas{margin-top:12px;padding:8px 10px;border:1px solid #e3dccb;border-radius:4px;font-size:11.5px;color:#333;line-height:1.45}
+.pp-notas h5{font-size:9.5px;color:#9a7b1f;letter-spacing:.08em;font-weight:600;margin:0 0 3px}
