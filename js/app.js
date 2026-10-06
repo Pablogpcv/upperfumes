@@ -1168,7 +1168,7 @@ const psFocus=k=>setTimeout(()=>{const i=$("ps_"+k);if(i)i.focus()},40);
 const fPr=(l,tipo)=>l.op&&l.price>0?l.price:listPrice(l.pid,tipo);
 function formFactura(){leadConv=null;lines=[];FV={blob:null,url:null};drawFactura()}
 function drawFactura(keep){
-  const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pendiente"};
+  const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pendiente",n:"",nv:false};
   const pr=l=>fPr(l,v.tipo);
   const tot=lines.reduce((a,l)=>a+pr(l)*l.qty,0);
   openSheet(`<h3 class="t">Nueva factura</h3>
@@ -1182,10 +1182,12 @@ function drawFactura(keep){
   ${v.e==="pagada"?`<div class="paid-box"><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select>
   <label>Foto del comprobante (opcional)</label>
   ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}</div>`:""}
+  <label for="vN">Notas adicionales (opcional)</label><textarea class="f nota-in" id="vN" rows="3" placeholder="Ej: entregar el viernes, abona la mitad el 15, va para regalo…">${esc(v.n||"")}</textarea>
+  <label class="chk"><input type="checkbox" id="vNv" ${v.nv?"checked":""}> Mostrar la nota en la factura del cliente</label>
   <div class="total"><span>Total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
   <button class="primary" onclick="saveFactura()">Crear factura</button>`,!!keep);
 }
-const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value});let FVM="Efectivo";
+const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value,n:$("vN")?$("vN").value:"",nv:$("vNv")?$("vNv").checked:false});let FVM="Efectivo";
 async function pickFV(inp){const f=inp.files&&inp.files[0];if(!f)return;try{FV.blob=await compress(f);FV.url=URL.createObjectURL(FV.blob);drawFactura(fv())}catch(e){toast("No se pudo leer esa imagen")}}
 let FVK=null;
 async function saveFactura(){
@@ -1196,6 +1198,7 @@ async function saveFactura(){
   for(const k in need){if(P(k).stock<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`}
   let nid;try{nid=await nuevoIdFactura()}catch(e){return $("err").textContent="No se pudo crear el número de factura: "+sbErr(e)}
   const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo);return{pid:l.pid,qty:l.qty,price:pr,lista:lp,especial:pr!==lp}})});
+  const nota=(v.n||"").trim();if(nota){inv.notas=nota;if(v.nv)inv.notaCliente=true;save()}
   if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
   atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada");verFactura(inv.id);
@@ -1210,12 +1213,22 @@ function paper(i){const C=S.company;
   <table class="pp-t"><thead><tr><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th></tr></thead><tbody>
   ${i.items.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.qty}</td><td class="r">${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")}</tbody></table>
   <div class="pp-total"><span>TOTAL</span><span>${cop(i.total)}</span></div>
+  ${i.notas&&i.notaCliente?`<div class="pp-notas"><h5>NOTAS</h5>${esc(i.notas).replace(/\n/g,"<br>")}</div>`:""}
   <div style="text-align:right"><span class="pp-stamp">${stName(i.estado)}</span></div>
   <div class="pp-foot">${esc(C.pie||"")}<br>Documento interno de venta. No reemplaza la factura electrónica DIAN.</div></div></div>`}
+const notaBox=i=>`<div class="nota-box" id="notaBox"><div class="nb-h"><b>Notas</b><span>${i.notas?(i.notaCliente?"salen en la factura del cliente":"solo las ves tú"):""}</span><button class="li-lk" onclick="editarNota('${i.id}')">${i.notas?"Editar":"Agregar nota"}</button></div>${i.notas?`<p>${esc(i.notas).replace(/\n/g,"<br>")}</p>`:""}</div>`;
+function editarNota(id){const i=S.invoices.find(x=>x.id===id);$("notaBox").innerHTML=`<label for="nE" style="margin-top:0">Notas</label><textarea class="f nota-in" id="nE" rows="3" placeholder="Algo a tener en cuenta en esta venta…">${esc(i.notas||"")}</textarea>
+  <label class="chk"><input type="checkbox" id="nEv" ${i.notaCliente?"checked":""}> Mostrar la nota en la factura del cliente</label>
+  <div class="two"><button class="btn-gold" style="margin:0" onclick="guardarNota('${id}')">Guardar nota</button><button class="btn-line" onclick="verFactura('${id}',1)">Cancelar</button></div>`;setTimeout(()=>{const t=$("nE");t.focus();t.selectionStart=t.value.length},40)}
+function guardarNota(id){const i=S.invoices.find(x=>x.id===id),n=$("nE").value.trim(),vis=$("nEv").checked&&!!n;
+  if(n===(i.notas||"")&&vis===!!i.notaCliente)return verFactura(id,1);
+  addLog(i,[!n?"Nota eliminada":!i.notas?"Nota agregada":n!==i.notas?"Nota editada":vis?"Nota visible en la factura del cliente":"Nota oculta para el cliente"]);
+  if(n)i.notas=n;else delete i.notas;if(vis)i.notaCliente=true;else delete i.notaCliente;
+  save();if(atab==="facturas")renderAdmin();verFactura(id,1);toast("Nota guardada")}
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
 function verFactura(id,keep){
   const i=S.invoices.find(x=>x.id===id);
-  openSheet(`${espNote(i)}${paper(i)}
+  openSheet(`${espNote(i)}${paper(i)}${notaBox(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===i.metodo?"selected":""}>${o}</option>`).join("")}</select>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button>`:""}
@@ -1339,7 +1352,7 @@ function invImage(id){const i=S.invoices.find(x=>x.id===id);
       return await new Promise((r,j)=>c.toBlob(b=>b?r(b):j(new Error("png")),"image/png"))}finally{box.remove()}})()}
 function prepShare(id){const i=S.invoices.find(x=>x.id===id);
   PRE[id]=Promise.all([invImage(id).catch(()=>null),i.photoId?fotoGet(i.photoId):null])}
-function invText(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}\n\n${C.pie||""}`}
+function invText(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
 function waLink(i){const to=String(i.tel||"").replace(/\D/g,"");return `https://wa.me/${to?(to.startsWith("57")?to:"57"+to):""}?text=${encodeURIComponent(invText(i))}`}
 async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
   if(!PRE[id])prepShare(id);
