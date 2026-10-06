@@ -697,7 +697,7 @@ function invList(){
   $("il").innerHTML=S.products.filter(p=>(p.brand+" "+p.name+" "+p.proveedor).toLowerCase().includes(q)).map(p=>{const mg=p.publico?Math.round((p.publico-p.compra)/p.publico*100):0;
    return `<div class="inv"><div class="inv-top"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.brand)} ${esc(p.name)}</b><small>${p.ml} ml · ${esc(p.cat)}</small></div><b class="${p.stock===0?"stock-out":p.stock<=3?"stock-low":""}">${p.stock} uds</b></div>
    <div class="inv-grid"><div><span>Compra</span><b>${cop(p.compra)}</b></div><div><span>Público</span><b>${cop(p.publico)}</b></div><div><span>Mayor</span><b>${cop(p.mayor)}</b></div></div>
-   <div class="inv-foot"><span>${esc(p.proveedor)} · margen ${mg}%${p.promo?` · promo −${p.promo}%`:""}</span><button onclick="formProducto(${p.id})">Editar</button></div></div>`}).join("");
+   <div class="inv-foot"><span>${esc(p.proveedor)} · ganancia ${cop(p.publico-p.compra)} (${mg}%)${p.mayor?` · al mayor ${cop(p.mayor-p.compra)}`:""}${p.promo?` · promo −${p.promo}%`:""}</span><button onclick="formProducto(${p.id})">Editar</button></div></div>`}).join("");
 }
 function formProducto(id){
   const p=id?P(id):{brand:"",name:"",ml:100,g:"Unisex",cat:"Árabes",conc:"Eau de Parfum",fam:"",stock:0,compra:0,publico:0,mayor:0,proveedor:"",promo:0};
@@ -746,12 +746,34 @@ let AI=null;(async()=>{try{if(!window.claude||!claude.use)return;const s=await c
 /* compras */
 const its=c=>c.items||[{pid:c.pid,qty:c.qty,costo:c.costo}];
 const pTotal=c=>its(c).reduce((a,x)=>a+x.qty*x.costo,0);
+let CQ="";
 function aCompras(){
   const t=S.purchases.reduce((a,c)=>a+pTotal(c),0);
   $("ab").innerHTML=`<div class="kpis"><div class="kpi"><span>Compras registradas</span><b>${S.purchases.length}</b></div><div class="kpi"><span>Total invertido</span><b class="g">${cop(t)}</b></div></div>
   <div class="toolbar"><button class="btn-line" onclick="formCompra()">Registrar compra</button></div>
-  ${S.purchases.length?S.purchases.map(c=>{const u=its(c).reduce((a,x)=>a+x.qty,0);return `<button class="row" style="width:100%;text-align:left" onclick="verCompra(${c.id})"><div class="grow"><b>${esc(c.proveedor)}${c.photoId?" 📷":""}</b><small>${c.fecha}${c.ref?" · Fact. "+esc(c.ref):""} · ${u} uds</small><small>${its(c).map(x=>esc(P(x.pid)?.name||"Eliminado")+" ×"+x.qty).join(", ")}</small></div><b style="font-weight:500">${cop(pTotal(c))}</b></button>`}).join(""):`<p class="empty">Registra la primera compra. Sube la foto de la factura del proveedor y marca qué perfumes llegaron; el stock se actualiza solo.</p>`}`;
-}
+  ${S.purchases.length?`<div class="search" style="margin:14px 0 4px;max-width:none"><input id="cq" class="f" placeholder="🔍 Buscar producto, proveedor o factura… (ej. mandarin sky)" value="${esc(CQ)}" oninput="CQ=this.value;comprasList()" autocomplete="off"></div>`:""}
+  <div id="cl"></div>`;
+  comprasList()}
+const cRow=c=>{const u=its(c).reduce((a,x)=>a+x.qty,0);return `<button class="row" style="width:100%;text-align:left" onclick="verCompra(${c.id})"><div class="grow"><b>${esc(c.proveedor)}${c.photoId?" 📷":""}</b><small>${c.fecha}${c.ref?" · Fact. "+esc(c.ref):""} · ${u} uds</small><small>${its(c).map(x=>esc(P(x.pid)?.name||"Eliminado")+" ×"+x.qty).join(", ")}</small></div><b style="font-weight:500">${cop(pTotal(c))}</b></button>`};
+function comprasList(){const el=$("cl");if(!el)return;
+  if(!S.purchases.length){el.innerHTML=`<p class="empty">Registra la primera compra. Sube la foto de la factura del proveedor y marca qué perfumes llegaron; el stock se actualiza solo.</p>`;return}
+  const q=norm(CQ).trim().split(/\s+/).filter(Boolean);
+  if(!q.length){el.innerHTML=S.purchases.map(cRow).join("");return}
+  const hit=t=>q.every(w=>norm(t).includes(w));
+  const pname=x=>{const p=P(x.pid);return p?p.brand+" "+p.name:"Eliminado"};
+  const lines=[];S.purchases.forEach(c=>its(c).forEach(x=>{if(hit(pname(x)))lines.push({c,x})}));
+  const comp=S.purchases.filter(c=>hit(c.proveedor+" "+(c.ref||"")+" "+its(c).map(pname).join(" ")));
+  let h="";
+  if(lines.length){
+    const byP={};lines.forEach(l=>(byP[l.x.pid]=byP[l.x.pid]||[]).push(l));
+    h+=Object.entries(byP).map(([pid,ls])=>{ls.sort((a,b)=>String(b.c.fecha).localeCompare(String(a.c.fecha))||b.c.id-a.c.id);
+      const cs=ls.map(l=>l.x.costo),mn=Math.min(...cs),mx=Math.max(...cs),uds=ls.reduce((a,l)=>a+l.x.qty,0),p=P(+pid);
+      return `<div class="panel" style="padding:12px;margin:10px 0"><div style="display:flex;gap:10px;align-items:center"><div class="thumb">${p?visual(p,26):""}</div><div class="grow"><b>${esc(p?p.brand+" "+p.name:"Producto eliminado")}</b><small>${ls.length} ${ls.length===1?"compra":"compras"} · ${uds} uds · último ${cop(cs[0])}${mn!==mx?` · más barato ${cop(mn)} · más caro ${cop(mx)}`:""}</small></div></div>
+      ${ls.map(l=>`<button class="row" style="width:100%;text-align:left;padding:8px 0" onclick="verCompra(${l.c.id})"><div class="grow"><small style="margin:0">${l.c.fecha} · ${esc(l.c.proveedor)}${l.c.ref?" · Fact. "+esc(l.c.ref):""}</small></div><span style="font-size:13px">${l.x.qty} × <b style="font-weight:500${l.x.costo===mn&&mn!==mx?";color:var(--good,#7bc47f)":l.x.costo===mx&&mn!==mx?";color:var(--bad)":""}">${cop(l.x.costo)}</b></span></button>`).join("")}</div>`}).join("");
+  }
+  const rest=comp.filter(c=>!lines.some(l=>l.c===c));
+  if(rest.length)h+=`<p class="hint" style="margin:12px 0 0">Compras de proveedor o factura que coinciden</p>`+rest.map(cRow).join("");
+  el.innerHTML=h||`<p class="empty">No hay compras que coincidan con “${esc(CQ)}”.</p>`}
 function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   openSheet(`<h3 class="t">${esc(c.proveedor)}</h3><p class="hint">${c.fecha}${c.ref?" · Factura "+esc(c.ref):""}</p>
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
