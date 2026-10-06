@@ -660,3 +660,13 @@ html,body{overflow-x:clip}
 .proms a.prom-emp{color:inherit;text-decoration:none;display:block;cursor:pointer;transition:opacity .2s}.proms a.prom-emp:hover{opacity:.85}.emp-cta{display:inline-block;color:var(--gold);font-weight:500;margin-top:4px;white-space:nowrap}
 .trk-step{flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;background:none;border:0;padding:4px 0;border-radius:10px;cursor:pointer;color:inherit;font:inherit;transition:background .15s}.trk-step:hover:not(:disabled){background:rgba(201,162,92,.08)}.trk-step:disabled{cursor:default}.trk-dot{width:30px;height:30px;margin:0 auto 4px;border-radius:50%;display:grid;place-items:center;font-size:14px;border:1px solid}
 .search.cq-box{max-width:none;margin:14px 0 6px;padding:7px 12px;font-size:14px}.search.cq-box input{font-size:14px;color:var(--ink)}
+.ver-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:200;background:var(--gold);color:var(--onGold);border:0;border-radius:99px;padding:10px 18px;font-weight:600;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.4);cursor:pointer;max-width:calc(100% - 32px)}
+.ph-card{padding:14px;margin:10px 0}.ph-head{display:flex;gap:10px;align-items:center}.ph-head b{font-size:15px}
+.ph-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0 6px}
+.ph-stats div{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:8px 10px}.ph-stats span{display:block;font-size:11px;color:var(--muted)}.ph-stats b{font-size:15px;font-weight:600}
+.ph-stats .best{border-color:var(--gold)}.ph-stats .best b{color:var(--gold)}
+.ph-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line2);padding:10px 4px;color:inherit;cursor:pointer;font:inherit}
+.ph-row:hover{background:rgba(201,162,92,.06)}.ph-row small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.ph-row.best b{color:var(--gold)}.ph-price{text-align:right}.ph-price b{font-size:15px;font-weight:600}.ph-price small{color:var(--muted)}
+.ph-tag{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:99px;padding:1px 7px;margin-left:4px;vertical-align:1px}
+.ph-name{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ph-name b{display:inline}
