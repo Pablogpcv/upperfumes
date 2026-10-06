@@ -484,6 +484,72 @@ function route(){const m=location.hash.match(/^#\/p\/(\d+)/);
   if(m&&P(m[1])){PD=+m[1];pdQ=1;pdImg=0;closeSheet();go("producto")}
   else if($("v-producto").classList.contains("active"))go("tienda")}
 addEventListener("hashchange",route);
+/* ===== Biblioteca de ingredientes para la pirámide olfativa =====
+   Cada nota de un perfume se busca aquí automáticamente por palabras clave y usa su imagen
+   (assets/img/notas/<clave>.webp). Ej: cualquier nota que diga "madera" usa maderas.webp.
+   Para agregar un ingrediente nuevo: sube su imagen a assets/img/notas/ y añade una línea [clave, [palabras]].
+   El orden importa: las más específicas van primero (ej. "pimienta rosa" antes que "pimienta"). */
+const NOTAS_IMG=[
+  ["madera-de-cedro",["cedro"]],
+  ["sandalo",["sandalo"]],
+  ["vetiver",["vetiver"]],
+  ["madera-de-guayaco",["guayaco"]],
+  ["maderas",["madera", "amaderad", "abedul", "pachuli"]],
+  ["pimienta-rosa",["pimienta rosa"]],
+  ["pimienta",["pimienta"]],
+  ["canela",["canela"]],
+  ["jengibre",["jengibre"]],
+  ["cardamomo",["cardamomo"]],
+  ["azafran",["azafran"]],
+  ["especias",["especia"]],
+  ["vainilla",["vainilla"]],
+  ["haba-tonka",["tonka"]],
+  ["datiles",["datil"]],
+  ["praline",["praline", "cacao", "chocolate", "caramelo"]],
+  ["ambar",["ambar"]],
+  ["oud",["oud", "incienso"]],
+  ["tabaco",["tabaco"]],
+  ["cuero",["cuero"]],
+  ["almizcle",["almizcle"]],
+  ["salvia",["salvia"]],
+  ["lavanda",["lavanda"]],
+  ["menta",["menta"]],
+  ["notas-aromaticas",["aromatic"]],
+  ["bergamota",["bergamota"]],
+  ["toronja",["toronja", "pomelo"]],
+  ["limon",["limon", "lima"]],
+  ["mandarina",["mandarina"]],
+  ["naranja",["naranja", "azahar"]],
+  ["yuzu",["yuzu"]],
+  ["citricos",["citric"]],
+  ["manzana",["manzana"]],
+  ["pera",["pera"]],
+  ["pina",["pina"]],
+  ["mango",["mango"]],
+  ["durazno",["durazno", "melocoton"]],
+  ["grosella-negra",["grosella negra", "casis"]],
+  ["frambuesa",["frambuesa"]],
+  ["zarzamora",["zarzamora", "mora"]],
+  ["frutos-rojos",["frutos rojos", "grosella", "fresa", "cereza", "frutas rojas"]],
+  ["coco",["coco"]],
+  ["sandia",["sandia"]],
+  ["frutas-tropicales",["tropical"]],
+  ["frutas-jugosas",["frutas jugosas", "frutal", "frutas"]],
+  ["rosa",["rosa"]],
+  ["flor-de-loto",["loto"]],
+  ["lirio-de-agua",["lirio"]],
+  ["flores-rojas",["flores rojas"]],
+  ["flores-blancas",["flores blancas", "flor blanca", "jazmin", "orquidea", "tuberosa", "gardenia", "flor"]],
+  ["sal-marina",["sal marina"]],
+  ["notas-marinas",["marin", "acuatic", "oceano", "mar"]],
+  ["crema-batida",["crema"]],
+  ["chicle",["chicle"]],
+  ["dulce-gourmand",["gourmand", "algodon de azucar", "dulce", "miel"]]
+];
+const nNorm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z ]/g," ").replace(/\s+/g," ").trim();
+const notaImg=n=>{const k=" "+nNorm(n);const m=NOTAS_IMG.find(([,ws])=>ws.some(w=>k.includes(" "+w)));   // la palabra debe empezar igual (así "tuberosa" no cuenta como "rosa")
+return m?`assets/img/notas/${m[0]}.webp`:""};
+function notasDe(p){return (p.notes||[]).map(x=>({n:x.n,e:x.e,img:notaImg(x.n)}))}
 const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón","El carácter del perfume, aparece después"],["Fondo","Lo que queda en la piel al final del día"]];
 function renderProducto(){
   const p=P(PD);if(!p)return go("tienda");
@@ -519,7 +585,7 @@ function renderProducto(){
     ${X.o?`<div class="pd-chars"><div><small>Ideal para</small><span>${X.o.map(esc).join(" · ")}</span></div><div><small>Clima</small><span>${esc(X.c)}</span></div><div><small>Intensidad</small><span class="int i-${slug(X.i)}"><i></i><i></i><i></i>${esc(X.i)}</span></div></div>`:""}
   </section>
   <section class="pd-sec"><h2>Pirámide olfativa</h2>
-    <div class="pyr">${(p.notes||[]).map((n,i)=>`<div><span class="nic">${n.e}</span><small>${LV3[i]?LV3[i][0]:"Nota"}</small><b>${esc(n.n)}</b><em>${LV3[i]?LV3[i][1]:""}</em></div>`).join("")}</div>
+    <div class="pyr">${notasDe(p).map((n,i)=>`<div>${n.img?`<img class="nimg" src="${n.img}" alt="" loading="lazy">`:`<span class="nic">${n.e||"✦"}</span>`}<small>${LV3[i]?LV3[i][0]:"Nota"}</small><b>${esc(n.n)}</b><em>${LV3[i]?LV3[i][1]:""}</em></div>`).join("")}</div>
   </section>
   <section class="pd-sec"><h2>Detalles</h2>
     <dl class="pd-dl"><div><dt>Marca</dt><dd>${esc(p.brand)}</dd></div><div><dt>Familia olfativa</dt><dd>${esc(p.fam||"")}</dd></div><div><dt>Concentración</dt><dd>${esc(p.conc)}</dd></div><div><dt>Presentación</dt><dd>${p.ml} ml</dd></div><div><dt>Género</dt><dd>${esc(p.g)}</dd></div><div><dt>Categoría</dt><dd>${esc(p.cat)}</dd></div></dl>
