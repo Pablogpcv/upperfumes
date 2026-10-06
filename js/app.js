@@ -550,6 +550,52 @@ const nNorm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLower
 const notaImg=n=>{const k=" "+nNorm(n);const m=NOTAS_IMG.find(([,ws])=>ws.some(w=>k.includes(" "+w)));   // la palabra debe empezar igual (así "tuberosa" no cuenta como "rosa")
 return m?`assets/img/notas/${m[0]}.webp`:""};
 function notasDe(p){return (p.notes||[]).map(x=>({n:x.n,e:x.e,img:notaImg(x.n)}))}
+/* ===== Descripción de cada ficha (el mismo texto que aparece en la imagen de la ficha) =====
+   Se muestra debajo del precio en la página del perfume. La clave es el nombre de la imagen en assets/img/fichas/. */
+const FICHA_DESC={
+"1-million": "Una fragancia audaz, seductora y sofisticada que combina notas especiadas, amaderadas y dulces, creando un aroma distintivo, moderno y masculino.",
+"212-nyc-men": "Una fragancia urbana, fresca y moderna que combina notas cítricas y especiadas con un fondo amaderado, creando un aroma energético, masculino y versátil.",
+"9pm-night-out": "Una fragancia vibrante y moderna que combina una apertura frutal llamativa con un fondo cálido y sensual. Su mezcla envolvente y sofisticada deja una estela profunda y duradera, ideal para la noche y ocasiones especiales.",
+"acqua-di-gio": "Una fragancia fresca, elegante y atemporal que combina notas cítricas y marinas con un fondo amaderado, creando un aroma limpio, masculino y sofisticado.",
+"amber-rouge": "Una fragancia intensa y sofisticada que combina notas orientales, dulces y amaderadas, creando un aroma elegante, cálido y envolvente.",
+"amethyst": "Una fragancia intensa y sofisticada, con notas florales, amaderadas y ambaradas, que crean un aroma envolvente, elegante y duradero.",
+"arabians-tonka": "Una fragancia intensa y envolvente, con acordes dulces, ambarados y amaderados, acompañados de un toque especiado y cálido.",
+"art-of-universe": "Una fragancia moderna y envolvente, con un carácter aromático, fresco y amaderado.",
+"atheeri": "Una fragancia femenina, elegante y envolvente, con un carácter floral, frutal y suave.",
+"badee-al-oud": "Una fragancia intensa y sofisticada, con notas amaderadas, especiadas y un fondo de oud, que crean un aroma poderoso, elegante y duradero.",
+"bharara-king": "Una fragancia cautivadora y moderna que combina una salida cítrica y fresca, un corazón frutal y una base cálida y dulce, creando un aroma sofisticado, masculino y duradero.",
+"cloud": "Una fragancia irresistiblemente dulce y golosa que evoca un mundo de placer y fantasía.",
+"club-de-nuit-oud": "Una fragancia intensa y sofisticada que combina acordes amaderados y especiados con un fondo cálido, profundo y envolvente.",
+"erba-pura": "Una fragancia cítrica, afrutada y moderna que combina notas vibrantes de frutas mediterráneas con un fondo amaderado y almizclado, creando un aroma exótico, fresco y sofisticado.",
+"honor-and-glory": "Una fragancia dulce y cremosa, con acordes frutales y gourmand que dejan una estela cálida y envolvente.",
+"invictus": "Una fragancia fresca, enérgica y masculina que combina notas marinas con un fondo amaderado, creando un aroma poderoso y vibrante, ideal para el hombre seguro de sí mismo.",
+"khamrah-dukhan": "Una fragancia cálida y envolvente que combina notas dulces, especiadas y amaderadas, creando un aroma sofisticado y adictivo.",
+"khamrah": "Una fragancia cálida y envolvente que combina notas dulces, especiadas y amaderadas, creando un aroma sofisticado y adictivo.",
+"l1212-rouge": "Una fragancia fresca y vibrante que combina notas frutales y amaderadas, creando un aroma energético, moderno y masculino, ideal para el día a día.",
+"le-male-elixir": "Una fragancia intensa y seductora que combina la calidez de especias, la dulzura de la vainilla y un fondo amaderado, creando un aroma irresistible, masculino y adictivo.",
+"leau-dissey-pour-homme": "Una fragancia icónica y atemporal que combina la frescura del agua con notas cítricas, especiadas y amaderadas, creando un aroma limpio, elegante y masculino.",
+"mandarin-sky": "Una fragancia fresca, moderna y vibrante que combina notas cítricas con un fondo amaderado, creando un aroma energizante, juvenil y sofisticado.",
+"nautica-voyage": "Una fragancia fresca y vigorizante con notas de manzana verde de manantial y loto acuático, evocando la aventura del mar.",
+"oud-saffron": "Una fragancia intensa y elegante que combina el carácter especiado del azafrán con acordes amaderados y un fondo cálido, profundo y sofisticado.",
+"santal-33": "Una fragancia icónica, sofisticada y envolvente que combina notas amaderadas, especiadas y ligeramente ahumadas, creando un aroma moderno, minimalista y adictivo.",
+"sauvage": "Una fragancia fresca, poderosa y magnética que combina notas cítricas vibrantes con un fondo amaderado y especiado, creando un aroma moderno, masculino y adictivo.",
+"shaheen-gold": "Una fragancia sofisticada y majestuosa que combina notas orientales, ambaradas y amaderadas, creando un aroma cálido, elegante y envolvente.",
+"silver-mountain-water": "Una fragancia fresca y sofisticada que combina notas cítricas y acuáticas con un fondo amaderado y almizclado, inspirada en la pureza de las montañas nevadas.",
+"sorbetto-rosso": "Una fragancia frutal y refrescante inspirada en el verano mediterráneo, con notas jugosas de sandía, sal marina y praliné.",
+"starry-nights": "Una fragancia brillante y cautivadora que combina notas frescas de manzana y bergamota con un elegante corazón floral y un fondo cálido de almizcle y ámbar.",
+"sublime": "Una fragancia dulce y envolvente, con notas frutales, frescas y avainilladas, que crean un aroma femenino, elegante y adictivo.",
+"sweet-like-candy": "Una fragancia irresistiblemente dulce y golosa que evoca un mundo de placer y fantasía.",
+"swiss-army-classic": "Una fragancia fresca, limpia y aromática, con un carácter verde y amaderado. Clásica, versátil y perfecta para el día a día.",
+"thank-u-next": "Una fragancia audaz, dulce y moderna que combina notas jugosas de frutas con un corazón floral y un fondo cremoso.",
+"toy-2-bubble-gum": "Una fragancia dulce y juguetona que combina notas vibrantes de chicle de rosa con un corazón floral exuberante y un toque cítrico y especiado. Cautivadora, moderna y llena de color.",
+"valentino-uomo-born-in-roma": "Una fragancia moderna y sofisticada que combina frescura aromática con una base amaderada. Diseñada para el hombre auténtico, urbano y seguro de sí mismo.",
+"versace-eros": "Una fragancia fresca, sensual y masculina que combina cítricos vibrantes, menta y manzana con un corazón aromático y una base cálida y amaderada.",
+"yara-candy": "Una fragancia dulce y juguetona, con notas frutales, avainilladas y gourmand, que crean un aroma femenino, moderno y adictivo.",
+"yara-elixir": "Una fragancia dulce y envolvente, con notas frutales, florales y avainilladas, que crean un aroma femenino, elegante y adictivo.",
+"yara-rosa": "Una fragancia femenina, delicada y envolvente, con notas frutales, florales y avainilladas, que crean un aroma moderno y seductor.",
+"yara-tous": "Una fragancia tropical, dulce y luminosa, con un carácter frutal y floral."
+};
+const fichaDe=p=>p.img&&SHEET[p.img]?SHEET[p.img].split("/").pop().replace(/\.[a-z]+$/,""):"";
 const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón","El carácter del perfume, aparece después"],["Fondo","Lo que queda en la piel al final del día"]];
 function renderProducto(){
   const p=P(PD);if(!p)return go("tienda");
@@ -570,7 +616,7 @@ function renderProducto(){
       <h1 class="pd-name">${esc(p.name)}</h1>
       <div class="pd-meta">${esc(p.conc)} · ${p.ml} ml · ${esc(p.g)}</div>
       <div class="pd-price"><b>${cop(pr)}</b>${p.promo?`<s>${cop(p.publico)}</s><span class="save">Ahorras ${cop(ahorro)}</span>`:""}</div>
-      <p class="pd-lead">${esc(p.desc||"")}</p>
+      <p class="pd-lead">${esc(FICHA_DESC[fichaDe(p)]||p.desc||"")}</p>
       <div class="pd-buy">
         <div class="pd-qrow"><span>Cantidad</span><div class="qty"><button aria-label="Quitar uno" onclick="pdQ=Math.max(1,pdQ-1);renderProducto()">−</button><span>${pdQ}</span><button aria-label="Agregar uno" onclick="pdQ=Math.min(${Math.max(1,p.stock)},pdQ+1);renderProducto()">+</button></div></div>
         <div class="pd-tot"><span>Total</span><b>${cop(pr*pdQ)}</b></div>
