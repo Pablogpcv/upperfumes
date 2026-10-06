@@ -389,7 +389,8 @@ function scene(p){
   <g transform="translate(118 233) scale(.85 -.3)" opacity=".18">${sh}</g>
   </svg>`;
 }
-const visual=(p,w)=>p.img&&IMG[p.img]?`<img src="${IMG[p.img]}" alt="${esc(p.brand+' '+p.name)}" loading="lazy">`:scene(p);
+const fotoDe=p=>p?(p.foto||(p.img&&IMG[p.img])||""):"";
+const visual=(p,w)=>fotoDe(p)?`<img src="${esc(fotoDe(p))}" alt="${esc(p.brand+' '+p.name)}" loading="lazy">`:scene(p);
 
 function go(t){
   if(t!=="producto"&&location.hash.startsWith("#/p/"))history.pushState(null,"",location.pathname+location.search);
@@ -447,7 +448,7 @@ function renderHome(){
   $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
   if($("volP"))$("volP").textContent=`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
   $("stats").innerHTML=`<div><b>${S.products.length}</b><span>referencias disponibles</span></div><div><b>${new Set(S.products.map(p=>p.brand)).size}</b><span>marcas</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
-  const pic=(cat,pref)=>{const p=P(pref)&&P(pref).img?P(pref):S.products.find(x=>x.cat===cat&&x.img&&IMG[x.img]);return p&&IMG[p.img]?IMG[p.img]:""};
+  const pic=(cat,pref)=>{const p=P(pref)&&fotoDe(P(pref))?P(pref):S.products.find(x=>x.cat===cat&&fotoDe(x));return fotoDe(p)};
   const cats=[
     {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:"assets/img/tienda/cat-arabes.webp",fn:"setF({cat:'Árabes'})"},
     {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:"assets/img/tienda/cat-disenador.webp",fn:"setF({cat:'Diseñador'})"},
@@ -676,7 +677,7 @@ const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón",
 function renderProducto(){
   const p=P(PD);if(!p)return go("tienda");
   const X=FICHA_TXT[p.id]||{},pr=price(p),ahorro=p.promo?p.publico-pr:0;
-  const imgs=[p.img&&IMG[p.img]&&{src:IMG[p.img],alt:p.brand+" "+p.name}].filter(Boolean);
+  const imgs=[fotoDe(p)&&{src:fotoDe(p),alt:p.brand+" "+p.name}].filter(Boolean);
   const cur=imgs[pdImg]||imgs[0];const main=imgs.length?`<img class="${pdImg===1?"sheetimg":""}" src="${cur.src}" alt="${esc(cur.alt)}">`:visual(p);
   const rel=S.products.filter(x=>x.id!==p.id&&(x.fam===p.fam||x.cat===p.cat&&x.g===p.g)).sort((a,b)=>(b.fam===p.fam)-(a.fam===p.fam)).slice(0,4);
   const msg=`Hola Upperfumes, me interesa el ${p.brand} ${p.name} (${p.ml} ml) de ${cop(pr)}.`;
@@ -925,22 +926,37 @@ function invList(){
    <div class="inv-grid"><div><span>Compra</span><b>${cop(p.compra)}</b></div><div><span>Público</span><b>${cop(p.publico)}</b></div><div><span>Mayor</span><b>${cop(p.mayor)}</b></div></div>
    <div class="inv-foot"><span>${esc(p.proveedor)} · ganancia ${cop(p.publico-p.compra)} (${mg}%)${p.mayor?` · al mayor ${cop(p.mayor-p.compra)}`:""}${p.promo?` · promo −${p.promo}%`:""}</span><button onclick="formProducto(${p.id})">Editar</button></div></div>`}).join("");
 }
-function formProducto(id){
+let PF={blob:null,url:null,quitar:false};
+function pickPF(inp){const f=inp.files&&inp.files[0];if(!f)return;compress(f,1400,.85).then(b=>{PF={blob:b,url:URL.createObjectURL(b),quitar:false};pfPrev()}).catch(()=>toast("No se pudo leer esa imagen"))}
+function pfPrev(){const el=$("pfBox");if(!el)return;const cur=PF.url||(!PF.quitar&&el.dataset.cur)||"";
+  el.innerHTML=cur?`<img src="${esc(cur)}" alt="Foto del producto" class="pf-img"><div class="pf-acts"><label class="btn-line fileb" style="margin:0">Cambiar foto<input type="file" accept="image/*" onchange="pickPF(this)"></label>${PF.url||el.dataset.own?`<button type="button" class="ghost" style="margin:0" onclick="PF={blob:null,url:null,quitar:true};pfPrev()">Quitar foto</button>`:""}</div>`
+  :`<label class="upload pf-up"><input type="file" accept="image/*" onchange="pickPF(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg><span>Subir foto del perfume</span><small>Toca para elegir una imagen o tomar una foto</small></label>`}
+function formProducto(id){PF={blob:null,url:null,quitar:false};
   const p=id?P(id):{brand:"",name:"",ml:100,g:"Unisex",cat:"Árabes",conc:"Eau de Parfum",fam:"",stock:0,compra:0,publico:0,mayor:0,proveedor:"",promo:0};
   openSheet(`<h3 class="t">${id?"Editar producto":"Nuevo producto"}</h3>
+  <label>Foto</label><div id="pfBox" class="pf-box" data-cur="${esc(fotoDe(p))}" data-own="${p.foto?1:""}"></div>
   <div class="two"><div><label>Marca</label><input class="f" id="pB" value="${esc(p.brand)}"></div><div><label>Nombre</label><input class="f" id="pN" value="${esc(p.name)}"></div></div>
   <div class="two"><div><label>Género</label><select class="f" id="pG">${["Femenino","Masculino","Unisex"].map(o=>`<option ${o===p.g?"selected":""}>${o}</option>`).join("")}</select></div><div><label>Categoría</label><select class="f" id="pC">${["Árabes","Diseñador"].map(o=>`<option ${o===p.cat?"selected":""}>${o}</option>`).join("")}</select></div></div>
   <div class="two"><div><label>Mililitros</label><input class="f" id="pM" inputmode="numeric" value="${p.ml}"></div><div><label>Stock</label><input class="f" id="pS" inputmode="numeric" value="${p.stock}"></div></div>
   <div class="two"><div><label>Precio de compra</label><input class="f" id="pCo" inputmode="numeric" value="${p.compra}"></div><div><label>Precio al público</label><input class="f" id="pPu" inputmode="numeric" value="${p.publico}"></div></div>
   <div class="two"><div><label>Precio al por mayor</label><input class="f" id="pMa" inputmode="numeric" value="${p.mayor}"></div><div><label>Promo (%)</label><input class="f" id="pPr" inputmode="numeric" value="${p.promo||0}"></div></div>
   <label>Dónde se compró (proveedor)</label><input class="f" id="pPv" value="${esc(p.proveedor)}">
-  <p class="err" id="err"></p><button class="primary" onclick="saveProducto(${id||0})">Guardar producto</button>`);
+  <p class="err" id="err"></p><button class="primary" id="pSave" onclick="saveProducto(${id||0})">Guardar producto</button>`);
+  pfPrev();
 }
-function saveProducto(id){
+async function subirFotoProducto(pid,blob){
+  if(!CLOUD)return await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)});
+  const path=`p${pid}-${Date.now()}.jpg`,{error}=await sb.storage.from("productos").upload(path,blob,{contentType:"image/jpeg",cacheControl:"31536000"});
+  if(error)throw error;return sb.storage.from("productos").getPublicUrl(path).data.publicUrl}
+async function saveProducto(id){
   const v={brand:$("pB").value.trim(),name:$("pN").value.trim(),g:$("pG").value,cat:$("pC").value,ml:num($("pM").value),stock:num($("pS").value),compra:num($("pCo").value),publico:num($("pPu").value),mayor:num($("pMa").value),promo:Math.min(90,num($("pPr").value)),proveedor:$("pPv").value.trim()||"Por definir"};
   if(!v.brand||!v.name)return $("err").textContent="Escribe la marca y el nombre.";
   if(!v.publico)return $("err").textContent="Escribe el precio al público.";
-  if(id)Object.assign(P(id),v);else S.products.push({...v,id:Math.max(...S.products.map(p=>p.id))+1,conc:"Eau de Parfum",fam:"",notes:[],desc:"",glass:["#2a2620","#8C6F1F"],shape:"square"});
+  const nid=id||Math.max(...S.products.map(p=>p.id))+1;
+  if(PF.blob){const b=$("pSave");b.disabled=true;b.textContent="Subiendo foto…";
+    try{v.foto=await subirFotoProducto(nid,PF.blob)}catch(e){b.disabled=false;b.textContent="Guardar producto";return $("err").textContent="No se pudo subir la foto: "+sbErr(e)}}
+  else if(PF.quitar)v.foto="";
+  if(id)Object.assign(P(id),v);else S.products.push({...v,id:nid,conc:"Eau de Parfum",fam:"",notes:[],desc:"",glass:["#2a2620","#8C6F1F"],shape:"square"});
   save();closeSheet();aInv();toast("Producto guardado");
 }
 /* fotos: se guardan en este dispositivo (IndexedDB) */
