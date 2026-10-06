@@ -561,6 +561,7 @@ body.has-cart .app{padding-bottom:156px}
 .pyr{display:grid;gap:10px}
 .pyr div{display:grid;grid-template-columns:52px 1fr;column-gap:14px;align-items:center;border:1px solid var(--line2);background:var(--s1);padding:12px 14px}
 .pyr .nic{grid-row:1/4;width:52px;height:52px;font-size:22px}
+.pyr .nimg{grid-row:1/4;width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--s2);border:2px solid var(--gold);padding:2px;box-shadow:0 8px 18px rgba(0,0,0,.45)}
 .pyr small{color:var(--gold);font-size:11.5px;letter-spacing:.06em}
 .pyr b{font-weight:500;font-size:15px}
 .pyr em{font-style:normal;color:var(--muted);font-size:12.5px}
@@ -670,3 +671,5 @@ html,body{overflow-x:clip}
 .ph-row.best b{color:var(--gold)}.ph-price{text-align:right}.ph-price b{font-size:15px;font-weight:600}.ph-price small{color:var(--muted)}
 .ph-tag{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:99px;padding:1px 7px;margin-left:4px;vertical-align:1px}
 .ph-name{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ph-name b{display:inline}
+
+@media (min-width:600px){.pyr .nimg{width:110px;height:110px;grid-row:auto;margin-bottom:6px}}
