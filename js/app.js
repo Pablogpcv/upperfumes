@@ -1209,7 +1209,7 @@ function drawFactura(keep){
   ${v.e==="pagada"?`<div class="paid-box"><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select>
   <label>Foto del comprobante (opcional)</label>
   ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}</div>`:""}
-  ${v.e!=="pagada"?`<label for="vV">Fecha de pago (si es a crédito, opcional)</label><input class="f" type="date" id="vV" min="${hoyL()}" value="${esc(v.vence||"")}">`:""}
+  ${v.e!=="pagada"?`<label for="vV">Fecha de pago (si es a crédito, opcional)</label>${campoFecha("vV",v.vence||"")}`:""}
   <label for="vN">Notas adicionales (opcional)</label><textarea class="f nota-in" id="vN" rows="3" placeholder="Ej: entregar el viernes, abona la mitad el 15, va para regalo…">${esc(v.n||"")}</textarea>
   <label class="chk"><input type="checkbox" id="vNv" ${v.nv?"checked":""}> Mostrar la nota en la factura del cliente</label>
   <div class="total"><span>Total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
@@ -1258,6 +1258,10 @@ function guardarNota(id){const i=S.invoices.find(x=>x.id===id),n=$("nE").value.t
   save();if(atab==="facturas")renderAdmin();verFactura(id,1);toast("Nota guardada")}
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
 const PMS={};
+/* campo de fecha: se puede escribir o elegir en el calendario; al tocarlo arranca en hoy */
+function campoFecha(id,val){return `<div class="fecha-f"><input class="f" type="date" id="${id}" value="${esc(val)}" onclick="abrirFecha(this)"><button type="button" class="fecha-ic" aria-label="Abrir calendario" onclick="abrirFecha($('${id}'))"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button></div>
+  <div class="fecha-q">${[["Hoy",0],["8 días",8],["15 días",15],["30 días",30]].map(([t,n])=>`<button type="button" class="chip" onclick="$('${id}').value=masDias(hoyL(),${n})">${t}</button>`).join("")}</div>`}
+function abrirFecha(el){if(!el.value)el.value=hoyL();try{el.showPicker()}catch(e){el.focus()}}
 function credBox(i){if(i.estado==="anulada"||(i.estado==="pagada"&&!(i.abonos||[]).length))return "";const v=venceInfo(i),pend=i.estado==="pendiente";
   return `<div class="cred-box" id="credBox">
   ${pend?`<div class="cb-h"><b>Fecha de pago</b>${i.vence?`<span>${fdate(i.vence)}</span>${v?`<span class="pill ${v.cls}">${v.txt}</span>`:""}`:`<span class="muted">Sin fecha</span>`}<button class="li-lk" onclick="editarVence('${i.id}')">${i.vence?"Cambiar":"Poner fecha"}</button></div>
@@ -1280,7 +1284,7 @@ function borrarAbono(id,aid){const i=S.invoices.find(x=>x.id===id),a=(i.abonos||
   i.abonos=i.abonos.filter(x=>x.id!==aid);const ch=[`Abono eliminado: ${cop(a.monto)} (${a.metodo}) del ${fdate(a.dia)}`];
   if(i.estado==="pagada"&&i.pagoAbonos&&saldo(i)>0){i.estado="pendiente";delete i.pagoAbonos;ch.push("Vuelve a pendiente")}
   addLog(i,ch);save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast("Abono eliminado")}
-function editarVence(id){const i=S.invoices.find(x=>x.id===id);$("credBox").querySelector(".cb-h").outerHTML=`<div class="cb-h"><b>Fecha de pago</b><input class="f" type="date" id="vcE" value="${i.vence||""}" style="flex:1;margin:0"><button class="li-lk" onclick="guardarVence('${id}')">Guardar</button>${i.vence?`<button class="li-lk" onclick="guardarVence('${id}',1)">Quitar</button>`:""}</div>`}
+function editarVence(id){const i=S.invoices.find(x=>x.id===id);$("credBox").querySelector(".cb-h").outerHTML=`<div class="cb-h"><b>Fecha de pago</b><div style="flex:1 1 100%">${campoFecha("vcE",i.vence||hoyL())}</div><button class="li-lk" onclick="guardarVence('${id}')">Guardar</button>${i.vence?`<button class="li-lk" onclick="guardarVence('${id}',1)">Quitar</button>`:""}</div>`}
 function guardarVence(id,quitar){const i=S.invoices.find(x=>x.id===id),v=quitar?"":$("vcE").value;if(!quitar&&!v)return toast("Elige una fecha");
   if(v===(i.vence||""))return verFactura(id,1);addLog(i,[v?(i.vence?`Fecha de pago: ${fdate(i.vence)} → ${fdate(v)}`:`Fecha de pago: ${fdate(v)}`):"Fecha de pago quitada"]);
   if(v)i.vence=v;else delete i.vence;save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast("Fecha guardada")}
