@@ -764,3 +764,5 @@ textarea.nota-in{resize:vertical;min-height:72px;line-height:1.45;font-family:in
 .fecha-f input::-webkit-calendar-picker-indicator{opacity:0;position:absolute;right:0;width:46px;height:100%;cursor:pointer}
 .fecha-ic{position:absolute;right:1px;top:1px;bottom:1px;width:44px;display:grid;place-items:center;color:var(--gold);pointer-events:none}
 .fecha-q{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}.fecha-q .chip{padding:5px 12px;font-size:12.5px}
+.pc-sum{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:6px;font-size:13px;color:var(--muted)}
+.pc-sum b{color:var(--gold);font-weight:500;font-size:16px;white-space:nowrap}
