@@ -1155,14 +1155,19 @@ async function saveCompra(){
 }
 /* facturas */
 let fFilter="todas";
-const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small>${(()=>{const v=venceInfo(i),ab=abonado(i);return v||(ab&&i.estado==="pendiente")?`<small class="cred-l">${v?`<span class="${v.cls==="bad"?"neg":""}">${v.n<0?v.txt:"Vence "+fcorta(i.vence)}</span>`:""}${ab&&i.estado==="pendiente"?`${v?" · ":""}Abonado ${Math.round(ab/i.total*100)}% · saldo ${cop(saldo(i))}`:""}</small>`:""})()}</div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
+/* por cobrar: sin pagar y ya enviadas/entregadas, o a crédito (con fecha de pago o abonos) */
+const porCobrar=i=>i.estado==="pendiente"&&(["enviado","entregado"].includes(envOf(i))||!!i.vence||!!(i.abonos||[]).length);
+const payPill=s=>s==="pendiente"?`<span class="pill warn">Sin pagar</span>`:statePill(s);
+const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small>${(()=>{const v=venceInfo(i),ab=abonado(i);return v||(ab&&i.estado==="pendiente")?`<small class="cred-l">${v?`<span class="${v.cls==="bad"?"neg":""}">${v.n<0?v.txt:"Vence "+fcorta(i.vence)}</span>`:""}${ab&&i.estado==="pendiente"?`${v?" · ":""}Abonado ${Math.round(ab/i.total*100)}% · saldo ${cop(saldo(i))}`:""}</small>`:""})()}</div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${payPill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
 let eFilter="todos";
 function aFact(){
-  const l=S.invoices.filter(i=>(fFilter==="todas"||i.estado===fFilter)&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
-  const cnt=k=>S.invoices.filter(i=>i.estado!=="anulada"&&envOf(i)===k).length;
+  let l=S.invoices.filter(i=>(fFilter==="todas"||(fFilter==="cobrar"?porCobrar(i):i.estado===fFilter))&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
+  if(fFilter==="cobrar")l=l.sort((a,b)=>(a.vence||"9999")<(b.vence||"9999")?-1:(a.vence||"9999")>(b.vence||"9999")?1:String(a.id).localeCompare(String(b.id)));
+  const cnt=k=>S.invoices.filter(i=>i.estado!=="anulada"&&envOf(i)===k).length,pc=S.invoices.filter(porCobrar);
   $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="verRegistro()">Registro de cambios</button></div>
-  <div class="chips" style="margin-top:12px">${[["todas","Todas"],["pendiente","Pendientes"],["pagada","Pagadas"],["anulada","Anuladas"]].map(([k,t])=>`<button class="chip" aria-pressed="${fFilter===k}" onclick="fFilter='${k}';aFact()">${t}</button>`).join("")}</div>
-  <p class="hint" style="margin:10px 0 4px">Envío</p><div class="chips">${[["todos","Todos",""],...envAll].map(([k,t])=>`<button class="chip" aria-pressed="${eFilter===k}" onclick="eFilter='${k}';aFact()">${t}${k!=="todos"?` (${cnt(k)})`:""}</button>`).join("")}</div>
+  <div class="chips" style="margin-top:12px">${[["todas","Todas"],["cobrar",`Por cobrar (${pc.length})`],["pendiente","Sin pagar"],["pagada","Pagadas"],["anulada","Anuladas"]].map(([k,t])=>`<button class="chip" aria-pressed="${fFilter===k}" onclick="fFilter='${k}';aFact()">${t}</button>`).join("")}</div>
+  <p class="hint" style="margin:10px 0 4px">Envío</p><div class="chips">${[["todos","Todos",""],...envAll].map(([k,t])=>`<button class="chip" aria-pressed="${eFilter===k}" onclick="eFilter='${k}';aFact()">${t}${k==="pendiente"?` (${cnt(k)})`:""}</button>`).join("")}</div>
+  ${fFilter==="cobrar"?`<div class="pc-sum"><span>${pc.length} factura${pc.length===1?"":"s"} entregada${pc.length===1?"":"s"} o a crédito sin pagar</span><b>${cop(pc.reduce((a,i)=>a+saldo(i),0))}</b></div>`:""}
   ${l.length?l.map(invRow).join(""):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
 }
 let lines=[],FV={blob:null,url:null};
