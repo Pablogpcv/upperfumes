@@ -1088,17 +1088,20 @@ function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   if(c.photoId)fotoGet(c.photoId).then(b=>{const el=$("cph");if(!el)return;if(b){el.src=URL.createObjectURL(b);el.hidden=false}else el.outerHTML=`<p class="hint">La foto aún no está en la nube. Se sube sola cuando se abra la página en el dispositivo donde se tomó.</p>`});
 }
 let CP=null;
-function formCompra(){CP={blob:null,url:null,proveedor:"",nuevo:false,items:{},fecha:today(),ref:"",q:"",miss:[],msg:""};drawCompra()}
+function formCompra(){CP={blob:null,url:null,proveedor:"",nuevo:false,items:{},order:[],fecha:today(),ref:"",q:"",miss:[],msg:""};drawCompra()}
+const cpOrder=()=>{CP.order=(CP.order||[]).filter(id=>CP.items[id]&&CP.items[id].qty>0);Object.keys(CP.items).forEach(k=>{if(CP.items[k].qty>0&&!CP.order.includes(+k))CP.order.push(+k)});return CP.order};
 function drawCompra(keep){
   openSheet(`<h3 class="t">Registrar compra</h3>
   <div class="step">1. Foto de la factura</div><div id="cpPhoto"></div>
-  <div class="step">2. Proveedor</div><div id="cpProv"></div>
+  <div class="step">2. Datos de la compra</div><div id="cpProv"></div>
+  <div class="two"><div><label for="cF">Fecha</label>${campoFecha("cF",CP.fecha,1)}</div><div><label for="cR">N° factura proveedor</label><input class="f" id="cR" value="${esc(CP.ref)}" placeholder="Opcional" oninput="CP.ref=this.value"></div></div>
   <div class="step">3. ¿Qué llegó?</div>
-  <div class="search" style="margin-bottom:0"><input placeholder="Buscar perfume" value="${esc(CP.q)}" oninput="CP.q=this.value;cpList()" aria-label="Buscar perfume"></div>
+  <div class="cp-search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="cpQ" placeholder="Buscar perfume por marca o nombre" autocomplete="off" value="${esc(CP.q)}" oninput="CP.q=this.value;cpList()" onkeydown="if(event.key==='Enter'){event.preventDefault();const b=document.querySelector('#cpList .cp-res');if(b)b.click()}" aria-label="Buscar perfume">${CP.q?`<button class="cp-x" onclick="CP.q='';$('cpQ').value='';cpList();$('cpQ').focus()" aria-label="Borrar búsqueda">×</button>`:""}</div>
   <div id="cpList"></div>
-  <div class="two"><div><label for="cF">Fecha</label><input class="f" id="cF" type="date" value="${CP.fecha}" onchange="CP.fecha=this.value"></div><div><label for="cR">N° factura proveedor</label><input class="f" id="cR" value="${esc(CP.ref)}" oninput="CP.ref=this.value"></div></div>
+  <div id="cpSel"></div>
   <div class="sumbar" id="cpSum"></div>`,keep);
-  cpPhoto();cpProv();cpList();cpSum();
+  $("cF").addEventListener("change",e=>CP.fecha=e.target.value);
+  cpPhoto();cpProv();cpList();cpSel();cpSum();
 }
 function cpPhoto(){
   $("cpPhoto").innerHTML=CP.url?`<img class="shot" src="${CP.url}" alt="Factura del proveedor">
@@ -1109,18 +1112,28 @@ function cpPhoto(){
 async function pickCompra(inp){const f=inp.files&&inp.files[0];if(!f)return;
   try{CP.blob=await compress(f);CP.url=URL.createObjectURL(CP.blob);CP.msg="";CP.miss=[];cpPhoto()}catch(e){toast("No se pudo leer esa imagen")}}
 function cpProv(){
-  $("cpProv").innerHTML=`<div class="chips wrap">${S.providers.map((p,i)=>`<button class="chip" aria-pressed="${!CP.nuevo&&CP.proveedor===p}" onclick="CP.nuevo=false;CP.proveedor=S.providers[${i}];cpProv()">${esc(p)}</button>`).join("")}
+  $("cpProv").innerHTML=`<label style="margin-top:0">Proveedor</label><div class="chips wrap">${S.providers.map((p,i)=>`<button class="chip" aria-pressed="${!CP.nuevo&&CP.proveedor===p}" onclick="CP.nuevo=false;CP.proveedor=S.providers[${i}];cpProv()">${esc(p)}</button>`).join("")}
   <button class="chip" aria-pressed="${CP.nuevo}" onclick="CP.nuevo=true;if(S.providers.includes(CP.proveedor))CP.proveedor='';cpProv();setTimeout(()=>$('npv')&&$('npv').focus(),0)">+ Nuevo proveedor</button></div>
   ${CP.nuevo?`<input class="f" id="npv" style="margin-top:8px" placeholder="Nombre del proveedor" value="${esc(CP.proveedor)}" oninput="CP.proveedor=this.value">`:""}`;
 }
+/* resultados de búsqueda: solo aparecen al escribir; tocar uno lo agrega a la compra */
 function cpList(){
-  const q=CP.q.toLowerCase(),it=id=>CP.items[id]||{qty:0,costo:P(id).compra};
-  const l=S.products.filter(p=>(p.brand+" "+p.name).toLowerCase().includes(q)).sort((a,b)=>(it(b.id).qty>0)-(it(a.id).qty>0));
-  $("cpList").innerHTML=l.map(p=>{const x=it(p.id);return `<div class="row ${x.qty?"sel":""}" style="padding-left:6px;padding-right:6px"><div class="thumb">${visual(p,26)}</div>
-   <div class="grow"><b>${esc(p.brand)} ${esc(p.name)}</b><small>${p.ml} ml · stock ${p.stock}</small>${x.qty?`<div class="cost"><span>Costo c/u</span><input class="f" inputmode="numeric" value="${x.costo}" aria-label="Costo ${esc(p.name)}" onchange="CP.items[${p.id}].costo=num(this.value);cpSum()"></div>`:""}</div>
-   <div class="qty"><button onclick="cpQ(${p.id},-1)" aria-label="Quitar">−</button><span>${x.qty}</span><button onclick="cpQ(${p.id},1)" aria-label="Agregar">+</button></div></div>`}).join("")||`<p class="empty">No está en el catálogo. Créalo en Inventario > Agregar producto.</p>`;
+  const t=norm(CP.q).split(/\s+/).filter(Boolean),box=$("cpList");
+  const x=document.querySelector(".cp-x");if(x&&!CP.q)x.remove();
+  if(!t.length){box.innerHTML="";return}
+  const l=S.products.filter(p=>{const h=norm(p.brand+" "+p.name);return t.every(w=>h.includes(w))}).slice(0,6);
+  box.innerHTML=`<div class="cp-drop">${l.map(p=>{const q=(CP.items[p.id]||{}).qty||0;return `<button class="cp-res" onclick="cpAdd(${p.id})"><span class="cp-th">${fotoDe(p)?`<img src="${esc(fotoDe(p))}" alt="">`:""}</span><span class="cp-tx"><small>${esc(p.brand)}${p.oculto?" · oculto":""}</small><b>${esc(p.name)}</b></span><span class="cp-add">${q?`En la compra: ${q}`:"+ Agregar"}</span></button>`}).join("")||`<p class="hint" style="padding:12px">No está en el inventario. Créalo en Inventario › Agregar producto.</p>`}</div>`;
 }
-function cpQ(id,d){const x=CP.items[id]||{qty:0,costo:P(id).compra};x.qty=Math.max(0,x.qty+d);CP.items[id]=x;cpList();cpSum()}
+function cpAdd(id){const x=CP.items[id]||{qty:0,costo:P(id).compra};x.qty++;CP.items[id]=x;cpOrder();
+  CP.q="";$("cpQ").value="";cpList();cpSel();cpSum();$("cpQ").focus();toast(`${P(id).name} agregado`)}
+function cpQ(id,d){const x=CP.items[id];if(!x)return;x.qty=Math.max(0,x.qty+d);cpOrder();cpSel();cpSum()}
+/* lo que lleva la compra: siempre visible, en el orden en que se agregó */
+function cpSel(){const ids=cpOrder();
+  $("cpSel").innerHTML=ids.length?`<div class="cp-sel"><div class="cp-sel-h"><b>En esta compra</b><span>${ids.length} referencia${ids.length>1?"s":""}</span></div>${ids.map(id=>{const p=P(id),x=CP.items[id];return `<div class="cp-it">
+    <span class="cp-th">${fotoDe(p)?`<img src="${esc(fotoDe(p))}" alt="">`:""}</span>
+    <div class="cp-mid"><b>${esc(p.brand)} ${esc(p.name)}</b><div class="cp-c"><span>Costo c/u</span><input class="f" inputmode="numeric" value="${x.costo||""}" placeholder="0" aria-label="Costo ${esc(p.name)}" oninput="CP.items[${id}].costo=num(this.value);this.closest('.cp-it').querySelector('.cp-sub').textContent=cop(CP.items[${id}].qty*CP.items[${id}].costo);cpSum()"></div></div>
+    <div class="cp-r"><div class="qty"><button onclick="cpQ(${id},-1)" aria-label="Quitar uno">−</button><span>${x.qty}</span><button onclick="cpQ(${id},1)" aria-label="Agregar uno">+</button></div><span class="cp-sub">${cop(x.qty*x.costo)}</span></div></div>`}).join("")}</div>`
+  :`<p class="hint cp-empty">Busca arriba y toca un perfume para agregarlo. Aquí verás todo lo que lleva la compra.</p>`}
 function cpSum(){const s=Object.values(CP.items).filter(x=>x.qty>0),u=s.reduce((a,x)=>a+x.qty,0),t=s.reduce((a,x)=>a+x.qty*x.costo,0);
   $("cpSum").innerHTML=`<div class="total" style="margin-top:0"><span>${u} uds · ${s.length} referencias</span><b>${cop(t)}</b></div><p class="err" id="err" style="margin-top:4px;min-height:0"></p><button class="primary" onclick="saveCompra()">Guardar compra</button>`}
 async function leerFactura(){
@@ -1148,7 +1161,7 @@ async function saveCompra(){
   if(!items.length)return err("Marca al menos un perfume con su cantidad.");
   if(items.some(i=>!i.costo))return err("Falta el costo de algún perfume.");
   let photoId=null;if(CP.blob){photoId="c"+Date.now();if(!await fotoPut(photoId,CP.blob)){photoId=null;toast("La foto no se pudo guardar")}}
-  S.purchases.unshift({id:Date.now(),fecha:CP.fecha||today(),proveedor:prov,ref:CP.ref.trim(),photoId,items});
+  S.purchases.unshift({id:Date.now(),fecha:($("cF")&&$("cF").value)||CP.fecha||today(),proveedor:prov,ref:CP.ref.trim(),photoId,items});
   items.forEach(i=>{const p=P(i.pid);p.stock+=i.qty;p.compra=i.costo;p.proveedor=prov});
   if(!S.providers.some(x=>x.toLowerCase()===prov.toLowerCase()))S.providers.push(prov);
   const u=items.reduce((a,i)=>a+i.qty,0);save();closeSheet();atab="compras";renderAdmin();toast(`Compra guardada · +${u} uds al inventario`);
@@ -1264,8 +1277,8 @@ function guardarNota(id){const i=S.invoices.find(x=>x.id===id),n=$("nE").value.t
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
 const PMS={};
 /* campo de fecha: se puede escribir o elegir en el calendario; al tocarlo arranca en hoy */
-function campoFecha(id,val){return `<div class="fecha-f"><input class="f" type="date" id="${id}" value="${esc(val)}" onclick="abrirFecha(this)"><button type="button" class="fecha-ic" aria-label="Abrir calendario" onclick="abrirFecha($('${id}'))"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button></div>
-  <div class="fecha-q">${[["Hoy",0],["8 días",8],["15 días",15],["30 días",30]].map(([t,n])=>`<button type="button" class="chip" onclick="$('${id}').value=masDias(hoyL(),${n})">${t}</button>`).join("")}</div>`}
+function campoFecha(id,val,sinAtajos){return `<div class="fecha-f"><input class="f" type="date" id="${id}" value="${esc(val)}" onclick="abrirFecha(this)"><button type="button" class="fecha-ic" aria-label="Abrir calendario" onclick="abrirFecha($('${id}'))"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button></div>
+  ${sinAtajos?"":`<div class="fecha-q">${[["Hoy",0],["8 días",8],["15 días",15],["30 días",30]].map(([t,n])=>`<button type="button" class="chip" onclick="const e=$('${id}');e.value=masDias(hoyL(),${n});e.dispatchEvent(new Event('change'))">${t}</button>`).join("")}</div>`}`}
 function abrirFecha(el){if(!el.value)el.value=hoyL();try{el.showPicker()}catch(e){el.focus()}}
 function credBox(i){if(i.estado==="anulada"||(i.estado==="pagada"&&!(i.abonos||[]).length))return "";const v=venceInfo(i),pend=i.estado==="pendiente";
   return `<div class="cred-box" id="credBox">
@@ -1576,8 +1589,8 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
   S.expenses.filter(e=>month(e.fecha)===cMonth).forEach(e=>r.push([e.fecha,"Gasto · "+e.cat,"",e.concepto,0,e.monto]));
   dl(`contabilidad-upperfumes-${cMonth}.csv`,r)}
 
-function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open")}
-function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open")}
+function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open");document.documentElement.classList.add("sheet-on")}   // el fondo queda quieto mientras la ventana está abierta
+function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
 renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
