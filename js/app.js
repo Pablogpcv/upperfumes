@@ -190,7 +190,7 @@ const SEED=[
 const KEY="upperfumes_v2";
 const CAT_VER=2; // súbelo cuando cambien precios del catálogo base
 const prices=p=>{const pub=p.pub||150000;return{publico:pub,mayor:Math.round(pub*0.77/1000)*1000,compra:Math.round(pub*0.53/1000)*1000}};
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};   // fecha local (en Colombia, no la de Londres)
 let S=load(KEY,null);
 if(!S){S={seq:1,products:SEED.map(p=>({...p,stock:10,...prices(p),proveedor:"Por definir",promo:[13,14,6].includes(p.id)?10:0})),
   users:[{name:"Admin Upperfumes",email:"admin@upperfumes.co",pass:"admin123",role:"admin"}],purchases:[],invoices:[],expenses:[]}}
@@ -223,7 +223,7 @@ if(CLOUD){let c=null;try{c=JSON.parse(localStorage.getItem(CAT_CACHE)||"null")}c
   if(Array.isArray(c)&&c.length)S.products=c.sort((a,b)=>a.id-b.id).map(filaProd);
   else document.documentElement.classList.add("precios-cargando")}
 let SNAP=null,syncT=null,syncing=false,syncAgain=false,PERFILES=[],cloudReady=!CLOUD,CLOUD_EMPTY=false,MIS=null;
-const ADM_KEYS=["purchases","expenses","providers","invLog","leads"];
+const ADM_KEYS=["purchases","expenses","providers","invLog","leads","config"];
 const pubOf=p=>{const o={...p};delete o.compra;delete o.proveedor;delete o.stock;return o};
 const privOf=p=>({compra:p.compra||0,proveedor:p.proveedor||"Por definir"});
 function snapshot(){const n={p:{},st:{},pv:{},f:{},a:{},emp:JSON.stringify(S.company)};
@@ -913,24 +913,47 @@ const envPill=k=>`<span class="pill ${k==="entregado"?"ok":k==="enviado"?"g":k==
 /* ---------- ADMIN ---------- */
 function renderAdmin(){
   const tabs=[["resumen","Resumen"],["inventario","Inventario"],["compras","Compras"],["facturas","Facturas"],["clientes","Clientes"],["contabilidad","Contabilidad"],["usuarios","Usuarios"],["empresa","Empresa"]];
-  $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>
+  $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>${avisoCobros()}
   <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" data-at="${k}" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin();refrescar()">${l}</button>`).join("")}</div><div id="ab"></div>`;
   ({resumen:aResumen,inventario:aInv,compras:aCompras,facturas:aFact,clientes:aClientes,contabilidad:aConta,usuarios:aUsers,empresa:aEmpresa})[atab]();
 }
 const month=d=>d.slice(0,7);
+/* ===== Crédito y abonos ===== */
+const hoyL=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};   // fecha local (Colombia)
+const masDias=(f,n)=>{const d=new Date(f+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const difDias=(a,b)=>Math.round((new Date(a+"T12:00:00")-new Date(b+"T12:00:00"))/864e5);
+const abonado=i=>(i.abonos||[]).reduce((a,x)=>a+x.monto,0);
+const saldo=i=>Math.max(0,i.total-abonado(i));
+const fcorta=d=>new Date(d+"T12:00:00").toLocaleDateString("es-CO",{day:"numeric",month:"short"});
+function venceInfo(i){if(!i.vence||i.estado!=="pendiente")return null;const n=difDias(i.vence,hoyL());
+  return {n,txt:n<0?`Vencida hace ${-n} día${n===-1?"":"s"}`:n===0?"Vence hoy":n===1?"Vence mañana":`Vence en ${n} días`,cls:n<0?"bad":n<=1?"warn":""}}
+function pagadaEn(i){const e=(i.log||[]).slice().reverse().find(x=>(x.cambios||[]).some(c=>/^Marcada como pagada|^Pagada con abonos/.test(c)));return e?e.fecha.slice(0,10):i.fecha}
+function recibido(m){let r=0;S.invoices.forEach(i=>{if(i.estado==="anulada")return;(i.abonos||[]).forEach(a=>{if(month(a.dia)===m)r+=a.monto});
+  if(i.estado==="pagada"){const resto=i.total-abonado(i);if(resto>0&&month(pagadaEn(i))===m)r+=resto}});return r}
+const cfg=k=>((S.config||[]).find(x=>x.id===k)||{});
+function setCfg(k,v){S.config=S.config||[];const x=S.config.find(c=>c.id===k);if(x)Object.assign(x,v);else S.config.push({id:k,...v})}
+const correosRec=()=>String(cfg("recordatorios").correos||"").split(/[\s,;]+/).filter(x=>/@/.test(x));
+const CAL_DESDE="admin.upperfumes@gmail.com";
+function calUrl(i){const d0=masDias(i.vence,-1),d=(d0<hoyL()?hoyL():d0).replace(/-/g,""),e=encodeURIComponent;
+  const det=`Mañana (${fdate(i.vence)}) vence el pago de la factura ${i.id} de ${i.cliente}.\nSaldo pendiente: ${cop(saldo(i))}${i.tel?`\nCelular: ${i.tel}`:""}\n\nVer en la página: https://upperfumes.com`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${e(`Cobro ${i.id} · ${i.cliente} · ${cop(saldo(i))}`)}&dates=${d}T090000/${d}T093000&ctz=America/Bogota&details=${e(det)}${correosRec().length?`&add=${e(correosRec().join(","))}`:""}&authuser=${e(CAL_DESDE)}`}
+function avisoCobros(){if(!isAdmin())return "";const l=S.invoices.map(i=>({i,v:venceInfo(i)})).filter(x=>x.v&&x.v.n<=1).sort((a,b)=>a.v.n-b.v.n);
+  if(!l.length)return "";return `<div class="cobro-av"><b>Cobros para tener en cuenta</b>${l.map(({i,v})=>`<button onclick="verFactura('${i.id}')"><span class="pill ${v.cls}">${v.txt}</span><span class="grow">${i.id} · ${esc(i.cliente)}</span><b>${cop(saldo(i))}</b></button>`).join("")}</div>`}
 function totals(m){
   const inv=S.invoices.filter(i=>i.estado==="pagada"&&(!m||month(i.fecha)===m));
   const ventas=inv.reduce((a,i)=>a+i.total,0), costo=inv.reduce((a,i)=>a+i.items.reduce((b,x)=>b+x.cost*x.qty,0),0);
   const gastos=S.expenses.filter(e=>!m||month(e.fecha)===m).reduce((a,e)=>a+e.monto,0);
   const compras=S.purchases.filter(c=>!m||month(c.fecha)===m).reduce((a,c)=>a+pTotal(c),0);
-  const cxc=S.invoices.filter(i=>i.estado==="pendiente").reduce((a,i)=>a+i.total,0);
-  return{ventas,costo,bruta:ventas-costo,gastos,neta:ventas-costo-gastos,compras,cxc,n:inv.length};
+  const cxc=S.invoices.filter(i=>i.estado==="pendiente").reduce((a,i)=>a+saldo(i),0);
+  const vendido=S.invoices.filter(i=>i.estado!=="anulada"&&(!m||month(i.fecha)===m)).reduce((a,i)=>a+i.total,0);
+  return{ventas,costo,bruta:ventas-costo,gastos,neta:ventas-costo-gastos,compras,cxc,n:inv.length,vendido,recibido:m?recibido(m):0};
 }
 function aResumen(){
   const m=month(today()),t=totals(m),valInv=S.products.reduce((a,p)=>a+p.stock*p.compra,0),low=S.products.filter(p=>p.stock<=3);
   $("ab").innerHTML=`<div class="kpis">
-   <div class="kpi"><span>Ventas del mes</span><b class="g">${cop(t.ventas)}</b></div><div class="kpi"><span>Utilidad neta del mes</span><b class="${t.neta<0?"neg":""}">${cop(t.neta)}</b></div>
-   <div class="kpi"><span>Por cobrar</span><b>${cop(t.cxc)}</b></div><div class="kpi"><span>Inventario a costo</span><b>${cop(valInv)}</b></div></div>
+   <div class="kpi"><span>Vendido del mes</span><b class="g">${cop(t.vendido)}</b><small>Todo lo facturado</small></div><div class="kpi"><span>Recibido del mes</span><b class="g">${cop(t.recibido)}</b><small>Plata que entró, con abonos</small></div>
+   <div class="kpi"><span>Por cobrar</span><b>${cop(t.cxc)}</b>${(()=>{const v=S.invoices.filter(i=>{const x=venceInfo(i);return x&&x.n<0}).length;return v?`<small style="color:var(--bad)">${v} vencida${v>1?"s":""}</small>`:""})()}</div><div class="kpi"><span>Utilidad neta del mes</span><b class="${t.neta<0?"neg":""}">${cop(t.neta)}</b></div>
+   <div class="kpi"><span>Inventario a costo</span><b>${cop(valInv)}</b></div></div>
    <div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="formCompra()">Registrar compra</button></div>
    ${CLOUD&&(()=>{try{return localStorage.getItem("upperfumes_local_backup")&&!localStorage.getItem("upperfumes_local_backup_subido")}catch(e){return false}})()?`<div class="panel" style="margin-top:12px;padding:12px"><b>Datos guardados en este navegador</b><p class="hint" style="margin:4px 0 8px">Antes las facturas y compras se guardaban solo en este dispositivo. Súbelas a la base de datos para que no se pierdan.</p><button class="btn-gold" style="margin:0" onclick="migrarLocal()">Subir datos de este navegador a la nube</button> <button class="ghost" style="margin:0" onclick="localStorage.setItem('upperfumes_local_backup_subido','1');renderAdmin()">No, ignorar</button></div>`:""}
    <div class="sh"><h2 style="font-size:19px">Stock bajo</h2><p>3 unidades o menos</p></div>
@@ -1132,7 +1155,7 @@ async function saveCompra(){
 }
 /* facturas */
 let fFilter="todas";
-const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small></div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
+const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small>${(()=>{const v=venceInfo(i),ab=abonado(i);return v||(ab&&i.estado==="pendiente")?`<small class="cred-l">${v?`<span class="${v.cls==="bad"?"neg":""}">${v.n<0?v.txt:"Vence "+fcorta(i.vence)}</span>`:""}${ab&&i.estado==="pendiente"?`${v?" · ":""}Abonado ${Math.round(ab/i.total*100)}% · saldo ${cop(saldo(i))}`:""}</small>`:""})()}</div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${statePill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
 let eFilter="todos";
 function aFact(){
   const l=S.invoices.filter(i=>(fFilter==="todas"||i.estado===fFilter)&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
@@ -1186,12 +1209,13 @@ function drawFactura(keep){
   ${v.e==="pagada"?`<div class="paid-box"><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select>
   <label>Foto del comprobante (opcional)</label>
   ${FV.url?`<img class="shot" src="${FV.url}" alt="Comprobante"><label class="btn-line fileb" style="margin-top:8px">Cambiar foto<input type="file" accept="image/*" onchange="pickFV(this)"></label>`:`<label class="upload"><input type="file" accept="image/*" onchange="pickFV(this)">📷 Subir foto (transferencia, recibo…)</label>`}</div>`:""}
+  ${v.e!=="pagada"?`<label for="vV">Fecha de pago (si es a crédito, opcional)</label><input class="f" type="date" id="vV" min="${hoyL()}" value="${esc(v.vence||"")}">`:""}
   <label for="vN">Notas adicionales (opcional)</label><textarea class="f nota-in" id="vN" rows="3" placeholder="Ej: entregar el viernes, abona la mitad el 15, va para regalo…">${esc(v.n||"")}</textarea>
   <label class="chk"><input type="checkbox" id="vNv" ${v.nv?"checked":""}> Mostrar la nota en la factura del cliente</label>
   <div class="total"><span>Total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
   <button class="primary" onclick="saveFactura()">Crear factura</button>`,!!keep);
 }
-const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value,n:$("vN")?$("vN").value:"",nv:$("vNv")?$("vNv").checked:false});let FVM="Efectivo";
+const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value,n:$("vN")?$("vN").value:"",nv:$("vNv")?$("vNv").checked:false,vence:$("vV")?$("vV").value:""});let FVM="Efectivo";
 async function pickFV(inp){const f=inp.files&&inp.files[0];if(!f)return;try{FV.blob=await compress(f);FV.url=URL.createObjectURL(FV.blob);drawFactura(fv())}catch(e){toast("No se pudo leer esa imagen")}}
 let FVK=null;
 async function saveFactura(){
@@ -1202,6 +1226,7 @@ async function saveFactura(){
   for(const k in need){if(P(k).stock<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`}
   let nid;try{nid=await nuevoIdFactura()}catch(e){return $("err").textContent="No se pudo crear el número de factura: "+sbErr(e)}
   const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo);return{pid:l.pid,qty:l.qty,price:pr,lista:lp,especial:pr!==lp}})});
+  if(v.vence&&v.e!=="pagada"){inv.vence=v.vence;save()}
   const nota=(v.n||"").trim();if(nota){inv.notas=nota;if(v.nv)inv.notaCliente=true;save()}
   if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
@@ -1213,10 +1238,12 @@ function paper(i){const C=S.company;
   const info=[C.nit&&"NIT/CC "+C.nit,C.telefono&&"Tel/WhatsApp "+C.telefono,C.email,[C.direccion,C.ciudad].filter(Boolean).join(", "),C.instagram&&"IG "+C.instagram].filter(Boolean);
   return `<div class="paper"><div class="pp-head"><div class="pp-logo"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div><b>${esc((C.nombre||"Upperfumes").toUpperCase())}</b><small>fragancias que te elevan</small></div></div><div class="pp-no"><small>FACTURA DE VENTA</small><b>${i.id}</b></div></div>
   <div class="pp-body"><div class="pp-cols"><div><h5>EMITIDA POR</h5><b>${esc(C.nombre||"Upperfumes")}</b><br>${info.map(esc).join("<br>")}</div>
-  <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}${[i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+esc(i.metodo)].filter(Boolean).map(x=>"<br>"+x).join("")}</div></div>
+  <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}${[i.vence&&i.estado==="pendiente"&&"Fecha de pago: "+fdate(i.vence),i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+esc(i.metodo)].filter(Boolean).map(x=>"<br>"+x).join("")}</div></div>
   <table class="pp-t"><thead><tr><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th></tr></thead><tbody>
   ${i.items.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.qty}</td><td class="r">${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")}</tbody></table>
   <div class="pp-total"><span>TOTAL</span><span>${cop(i.total)}</span></div>
+  ${(i.abonos||[]).length?`<div class="pp-ab"><h5>ABONOS</h5><table class="pp-t"><tbody>${i.abonos.map(a=>`<tr><td>${fdate(a.dia)}</td><td>${esc(a.metodo)}</td><td class="r">${cop(a.monto)}</td></tr>`).join("")}</tbody></table>
+  <div class="pp-ab-s"><span>Total abonado</span><span>${cop(abonado(i))}</span></div><div class="pp-ab-s fuerte"><span>SALDO PENDIENTE</span><span>${cop(saldo(i))}</span></div></div>`:""}
   ${i.notas&&i.notaCliente?`<div class="pp-notas"><h5>NOTAS</h5>${esc(i.notas).replace(/\n/g,"<br>")}</div>`:""}
   <div style="text-align:right"><span class="pp-stamp">${stName(i.estado)}</span></div>
   <div class="pp-foot">${esc(C.pie||"")}<br>Documento interno de venta. No reemplaza la factura electrónica DIAN.</div></div></div>`}
@@ -1231,9 +1258,35 @@ function guardarNota(id){const i=S.invoices.find(x=>x.id===id),n=$("nE").value.t
   save();if(atab==="facturas")renderAdmin();verFactura(id,1);toast("Nota guardada")}
 const espNote=i=>{const e=(i.items||[]).filter(x=>x.especial&&x.lista);return e.length?`<div class="esp-note"><p class="en-h"><b>🔒 Precio especial</b> · solo lo ves tú, no sale en la factura del cliente</p>${e.map(x=>`<div>${esc(x.name)}: ${cop(x.price)} <small>(normal ${cop(x.lista)})</small></div>`).join("")}</div>`:""};
 const PMS={};
+function credBox(i){if(i.estado==="anulada"||(i.estado==="pagada"&&!(i.abonos||[]).length))return "";const v=venceInfo(i),pend=i.estado==="pendiente";
+  return `<div class="cred-box" id="credBox">
+  ${pend?`<div class="cb-h"><b>Fecha de pago</b>${i.vence?`<span>${fdate(i.vence)}</span>${v?`<span class="pill ${v.cls}">${v.txt}</span>`:""}`:`<span class="muted">Sin fecha</span>`}<button class="li-lk" onclick="editarVence('${i.id}')">${i.vence?"Cambiar":"Poner fecha"}</button></div>
+  ${i.vence?`<a class="btn-line cal-b" target="_blank" rel="noopener" href="${calUrl(i)}" onclick="${correosRec().length?"":"toast('Agrega los correos para recordatorios en Empresa')"}">📅 Agregar al calendario (aviso el día antes)</a>`:""}`:""}
+  <div class="cb-ab"><b>Abonos</b>${(i.abonos||[]).length?i.abonos.map(a=>`<div class="ab-r"><span>${fcorta(a.dia)}</span><span>${esc(a.metodo)}</span><b>${cop(a.monto)}</b><button class="x" aria-label="Eliminar abono" onclick="borrarAbono('${i.id}',${a.id})">×</button></div>`).join(""):`<p class="hint" style="margin:4px 0 0">Aún no hay abonos.</p>`}</div>
+  <div class="cb-t"><div><span>Total</span><b>${cop(i.total)}</b></div><div><span>Abonado</span><b>${cop(abonado(i))}</b></div><div><span>Saldo</span><b class="g">${cop(saldo(i))}</b></div></div>
+  ${pend?`<div id="abForm"><button class="primary" style="margin-top:10px" onclick="formAbono('${i.id}')">Registrar abono</button></div>`:""}</div>`}
+function formAbono(id){const i=S.invoices.find(x=>x.id===id);$("abForm").innerHTML=`<div class="two" style="margin-top:10px"><div><label for="abM" style="margin-top:0">Monto</label><input class="f" id="abM" inputmode="numeric" value="${saldo(i)}"></div>
+  <div><label for="abP" style="margin-top:0">Método</label><select class="f" id="abP">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option>${o}</option>`).join("")}</select></div></div>
+  <p class="err" id="abE"></p><div class="two"><button class="btn-gold" style="margin:0" onclick="guardarAbono('${id}')">Guardar abono</button><button class="btn-line" onclick="verFactura('${id}',1)">Cancelar</button></div>`;
+  setTimeout(()=>{const e=$("abM");e.focus();e.select()},40)}
+function guardarAbono(id){const i=S.invoices.find(x=>x.id===id),m=num($("abM").value),met=$("abP").value;
+  if(m<=0)return $("abE").textContent="Escribe el monto del abono.";
+  if(m>saldo(i))return $("abE").textContent=`El abono es mayor que el saldo (${cop(saldo(i))}).`;
+  i.abonos=i.abonos||[];i.abonos.push({id:Date.now(),fecha:ahora(),dia:hoyL(),monto:m,metodo:met,usuario:quien()});
+  const ch=[`Abono de ${cop(m)} (${met}) · saldo ${cop(saldo(i))}`];
+  if(saldo(i)<=0&&i.estado==="pendiente"){i.estado="pagada";i.metodo=met;i.pagoAbonos=true;ch.push("Pagada con abonos")}
+  addLog(i,ch);save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast(i.estado==="pagada"?"Abono registrado · factura pagada":"Abono registrado")}
+function borrarAbono(id,aid){const i=S.invoices.find(x=>x.id===id),a=(i.abonos||[]).find(x=>x.id===aid);if(!a)return;
+  i.abonos=i.abonos.filter(x=>x.id!==aid);const ch=[`Abono eliminado: ${cop(a.monto)} (${a.metodo}) del ${fdate(a.dia)}`];
+  if(i.estado==="pagada"&&i.pagoAbonos&&saldo(i)>0){i.estado="pendiente";delete i.pagoAbonos;ch.push("Vuelve a pendiente")}
+  addLog(i,ch);save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast("Abono eliminado")}
+function editarVence(id){const i=S.invoices.find(x=>x.id===id);$("credBox").querySelector(".cb-h").outerHTML=`<div class="cb-h"><b>Fecha de pago</b><input class="f" type="date" id="vcE" value="${i.vence||""}" style="flex:1;margin:0"><button class="li-lk" onclick="guardarVence('${id}')">Guardar</button>${i.vence?`<button class="li-lk" onclick="guardarVence('${id}',1)">Quitar</button>`:""}</div>`}
+function guardarVence(id,quitar){const i=S.invoices.find(x=>x.id===id),v=quitar?"":$("vcE").value;if(!quitar&&!v)return toast("Elige una fecha");
+  if(v===(i.vence||""))return verFactura(id,1);addLog(i,[v?(i.vence?`Fecha de pago: ${fdate(i.vence)} → ${fdate(v)}`:`Fecha de pago: ${fdate(v)}`):"Fecha de pago quitada"]);
+  if(v)i.vence=v;else delete i.vence;save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast("Fecha guardada")}
 function verFactura(id,keep){
   const i=S.invoices.find(x=>x.id===id);
-  openSheet(`${espNote(i)}${paper(i)}${notaBox(i)}
+  openSheet(`${espNote(i)}${paper(i)}${notaBox(i)}${credBox(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm" onchange="PMS['${i.id}']=this.value;$('pmMore').hidden=!this.value"><option value="" ${PMS[i.id]?"":"selected"} disabled>Selecciona el método de pago</option>${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===PMS[i.id]?"selected":""}>${o}</option>`).join("")}</select><div id="pmMore" ${PMS[i.id]?"":"hidden"}>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button></div>`:""}
@@ -1355,7 +1408,7 @@ function invImage(id){const i=S.invoices.find(x=>x.id===id);
       return await new Promise((r,j)=>c.toBlob(b=>b?r(b):j(new Error("png")),"image/png"))}finally{box.remove()}})()}
 function prepShare(id){const i=S.invoices.find(x=>x.id===id);
   PRE[id]=Promise.all([invImage(id).catch(()=>null),i.photoId?fotoGet(i.photoId):null])}
-function invText(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
+function invText(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${(i.abonos||[]).length?`\n\nAbonos:\n${i.abonos.map(a=>`• ${fdate(a.dia)} · ${a.metodo}: ${cop(a.monto)}`).join("\n")}\nTotal abonado: ${cop(abonado(i))}\n*Saldo pendiente: ${cop(saldo(i))}*`:""}${i.vence&&i.estado==="pendiente"?`\nFecha de pago: ${fdate(i.vence)}`:""}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
 function waLink(i){const to=String(i.tel||"").replace(/\D/g,"");return `https://wa.me/${to?(to.startsWith("57")?to:"57"+to):""}?text=${encodeURIComponent(invText(i))}`}
 async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
   if(!PRE[id])prepShare(id);
@@ -1379,6 +1432,9 @@ function aEmpresa(){const C=S.company,f=(k,l,ph,t)=>`<label for="e_${k}">${l}</l
   $("ab").innerHTML=`<div class="sh"><h2 style="font-size:19px">Datos de la empresa</h2><p>Aparecen en las facturas y en el botón de WhatsApp de la tienda.</p></div><div class="panel">
   ${f("nombre","Nombre comercial","Upperfumes")}${f("nit","NIT o cédula","")}${f("telefono","Teléfono / WhatsApp","300 559 8061",'inputmode="tel"')}${f("email","Correo","","type=email")}${f("direccion","Dirección","")}${f("ciudad","Ciudad","")}${f("instagram","Instagram","@upperfumes")}${f("pie","Mensaje al pie de la factura","")}
   <button class="primary" onclick="saveEmpresa()">Guardar datos</button></div>
+  <div class="sh"><h2 style="font-size:19px">Recordatorios de cobro</h2><p>El botón "Agregar al calendario" de cada factura a crédito crea el evento desde ${CAL_DESDE} e invita a estos correos. Solo los ven los administradores.</p></div><div class="panel">
+  <label for="e_rec">Correos que reciben la invitación (separados por coma)</label><input class="f" id="e_rec" type="email" multiple placeholder="correo1@gmail.com, correo2@gmail.com" value="${esc(correosRec().join(", "))}">
+  <button class="primary" onclick="setCfg('recordatorios',{correos:$('e_rec').value.trim()});save();toast('Correos guardados')">Guardar correos</button></div>
   <div class="sh"><h2 style="font-size:19px">Proveedores</h2></div>${S.providers.length?S.providers.map((p,i)=>`<div class="row"><div class="grow"><b>${esc(p)}</b></div><button class="x" aria-label="Quitar ${esc(p)}" onclick="if(confirm('¿Quitar este proveedor de la lista?')){S.providers.splice(${i},1);save();aEmpresa()}">×</button></div>`).join(""):`<p class="empty">Los proveedores se agregan al registrar compras.</p>`}
   <button class="ghost" onclick="logout()">Cerrar sesión</button>`}
 function saveEmpresa(){["nombre","nit","telefono","email","direccion","ciudad","instagram","pie"].forEach(k=>S.company[k]=$("e_"+k).value.trim());save();toast("Datos guardados")}
