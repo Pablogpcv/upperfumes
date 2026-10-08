@@ -1172,6 +1172,14 @@ let fFilter="todas";
 const porCobrar=i=>i.estado==="pendiente";
 const payPill=s=>s==="pendiente"?`<span class="pill warn">Sin pagar</span>`:statePill(s);
 const invRow=i=>`<button class="row" style="width:100%;text-align:left" onclick="verFactura('${i.id}')"><div class="grow"><b>${i.id} · ${esc(i.cliente)}${i.photoId?" 📷":""}</b><small>${i.fecha} · ${i.tipo==="mayor"?"Por mayor":"Detal"}${i.origen==="web"?" · pedido web":""}${i.editada?" · editada":""}</small>${(()=>{const v=venceInfo(i),ab=abonado(i);return v||(ab&&i.estado==="pendiente")?`<small class="cred-l">${v?`<span class="${v.cls==="bad"?"neg":""}">${v.n<0?v.txt:"Vence "+fcorta(i.vence)}</span>`:""}${ab&&i.estado==="pendiente"?`${v?" · ":""}Abonado ${Math.round(ab/i.total*100)}% · saldo ${cop(saldo(i))}`:""}</small>`:""})()}</div><div style="text-align:right"><b style="font-weight:500">${cop(i.total)}</b><br>${payPill(i.estado)}${i.estado!=="anulada"?" "+envPill(envOf(i)):""}</div></button>`;
+/* agrupar facturas por fecha: Hoy, Ayer, Esta semana, Semana pasada y luego por mes */
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+function grupoFecha(f){const h=hoyL(),d=difDias(h,f);if(d<=0)return "Hoy";if(d===1)return "Ayer";
+  const lunes=x=>{const t=new Date(x+"T12:00:00"),w=(t.getDay()+6)%7;t.setDate(t.getDate()-w);return t.toISOString().slice(0,10)};
+  const lh=lunes(h),lf=lunes(f);if(lf===lh)return "Esta semana";if(lf===masDias(lh,-7))return "Semana pasada";
+  const m=+f.slice(5,7)-1,y=f.slice(0,4);return MESES[m]+(y===h.slice(0,4)?"":" "+y)}
+function porFecha(l){const g=[];l.slice().sort((a,b)=>a.fecha<b.fecha?1:a.fecha>b.fecha?-1:String(b.id).localeCompare(String(a.id))).forEach(i=>{const k=grupoFecha(i.fecha);let x=g[g.length-1];if(!x||x.k!==k)g.push(x={k,l:[]});x.l.push(i)});
+  return g.map(x=>`<div class="fg-h"><b>${x.k}</b><span>${x.l.length} factura${x.l.length>1?"s":""} · ${cop(x.l.filter(i=>i.estado!=="anulada").reduce((a,i)=>a+i.total,0))}</span></div>${x.l.map(invRow).join("")}`).join("")}
 let eFilter="todos";
 function aFact(){
   let l=S.invoices.filter(i=>(fFilter==="todas"||(fFilter==="cobrar"?porCobrar(i):i.estado===fFilter))&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
@@ -1181,7 +1189,7 @@ function aFact(){
   <div class="chips" style="margin-top:12px">${[["todas","Todas"],["cobrar",`Por cobrar (${pc.length})`],["pagada","Pagadas"],["anulada","Anuladas"]].map(([k,t])=>`<button class="chip" aria-pressed="${fFilter===k}" onclick="fFilter='${k}';aFact()">${t}</button>`).join("")}</div>
   <p class="hint" style="margin:10px 0 4px">Envío</p><div class="chips">${[["todos","Todos",""],...envAll].map(([k,t])=>`<button class="chip" aria-pressed="${eFilter===k}" onclick="eFilter='${k}';aFact()">${t}${k==="pendiente"?` (${cnt(k)})`:""}</button>`).join("")}</div>
   ${fFilter==="cobrar"?`<div class="pc-sum"><span>${pc.length} factura${pc.length===1?"":"s"} sin pagar</span><b>${cop(pc.reduce((a,i)=>a+saldo(i),0))}</b></div>`:""}
-  ${l.length?l.map(invRow).join(""):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
+  ${l.length?(fFilter==="cobrar"?l.map(invRow).join(""):porFecha(l)):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
 }
 let lines=[],FV={blob:null,url:null};
 /* ===== Buscador de productos para facturas ===== */
