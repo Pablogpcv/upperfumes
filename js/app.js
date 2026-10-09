@@ -1050,7 +1050,7 @@ const cRow=c=>{const u=its(c).reduce((a,x)=>a+x.qty,0);return `<button class="ro
 function comprasList(){const el=$("cl");if(!el)return;
   if(!S.purchases.length){el.innerHTML=`<p class="empty">Registra la primera compra. Sube la foto de la factura del proveedor y marca qué perfumes llegaron; el stock se actualiza solo.</p>`;return}
   const q=norm(CQ).trim().split(/\s+/).filter(Boolean);
-  if(!q.length){el.innerHTML=S.purchases.map(cRow).join("");return}
+  if(!q.length){el.innerHTML=porFecha(S.purchases,cRow,x=>x.reduce((a,c)=>a+pTotal(c),0),["compra","compras"]);return}
   const hit=t=>q.every(w=>norm(t).includes(w));
   const pname=x=>{const p=P(x.pid);return p?p.brand+" "+p.name:"Eliminado"};
   const lines=[];S.purchases.forEach(c=>its(c).forEach(x=>{if(hit(pname(x)))lines.push({c,x})}));
@@ -1178,8 +1178,8 @@ function grupoFecha(f){const h=hoyL(),d=difDias(h,f);if(d<=0)return "Hoy";if(d==
   const lunes=x=>{const t=new Date(x+"T12:00:00"),w=(t.getDay()+6)%7;t.setDate(t.getDate()-w);return t.toISOString().slice(0,10)};
   const lh=lunes(h),lf=lunes(f);if(lf===lh)return "Esta semana";if(lf===masDias(lh,-7))return "Semana pasada";
   const m=+f.slice(5,7)-1,y=f.slice(0,4);return MESES[m]+(y===h.slice(0,4)?"":" "+y)}
-function porFecha(l){const g=[];l.slice().sort((a,b)=>a.fecha<b.fecha?1:a.fecha>b.fecha?-1:String(b.id).localeCompare(String(a.id))).forEach(i=>{const k=grupoFecha(i.fecha);let x=g[g.length-1];if(!x||x.k!==k)g.push(x={k,l:[]});x.l.push(i)});
-  return g.map(x=>`<div class="fg-h"><b>${x.k}</b><span>${x.l.length} factura${x.l.length>1?"s":""} · ${cop(x.l.filter(i=>i.estado!=="anulada").reduce((a,i)=>a+i.total,0))}</span></div>${x.l.map(invRow).join("")}`).join("")}
+function porFecha(l,row,tot,nom){row=row||invRow;tot=tot||(x=>x.filter(i=>i.estado!=="anulada").reduce((a,i)=>a+i.total,0));nom=nom||["factura","facturas"];const g=[];l.slice().sort((a,b)=>a.fecha<b.fecha?1:a.fecha>b.fecha?-1:String(b.id).localeCompare(String(a.id))).forEach(i=>{const k=grupoFecha(i.fecha);let x=g[g.length-1];if(!x||x.k!==k)g.push(x={k,l:[]});x.l.push(i)});
+  return g.map(x=>`<div class="fg-h"><b>${x.k}</b><span>${x.l.length} ${nom[x.l.length>1?1:0]} · ${cop(tot(x.l))}</span></div>${x.l.map(row).join("")}`).join("")}
 let eFilter="todos";
 function aFact(){
   let l=S.invoices.filter(i=>(fFilter==="todas"||(fFilter==="cobrar"?porCobrar(i):i.estado===fFilter))&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
