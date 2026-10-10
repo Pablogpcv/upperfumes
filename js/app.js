@@ -1438,7 +1438,10 @@ function invImage(id){const i=S.invoices.find(x=>x.id===id);
       return await new Promise((r,j)=>c.toBlob(b=>b?r(b):j(new Error("png")),"image/png"))}finally{box.remove()}})()}
 function prepShare(id){const i=S.invoices.find(x=>x.id===id);
   PRE[id]=Promise.all([invImage(id).catch(()=>null),i.photoId?fotoGet(i.photoId):null])}
-function invText(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${(i.abonos||[]).length?`\n\nAbonos:\n${i.abonos.map(a=>`• ${fdate(a.dia)} · ${a.metodo}: ${cop(a.monto)}`).join("\n")}\nTotal abonado: ${cop(abonado(i))}\n*Saldo pendiente: ${cop(saldo(i))}*`:""}${i.vence&&i.estado==="pendiente"?`\nFecha de pago: ${fdate(i.vence)}`:""}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
+/* mensaje al enviar la factura: si hay uno guardado en Empresa (solo admins), se usa ese */
+function invText(i){const mf=String(cfg("mensajeFactura").texto||"").trim();if(mf)return mf;
+  return invTextDetalle(i)}
+function invTextDetalle(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${(i.abonos||[]).length?`\n\nAbonos:\n${i.abonos.map(a=>`• ${fdate(a.dia)} · ${a.metodo}: ${cop(a.monto)}`).join("\n")}\nTotal abonado: ${cop(abonado(i))}\n*Saldo pendiente: ${cop(saldo(i))}*`:""}${i.vence&&i.estado==="pendiente"?`\nFecha de pago: ${fdate(i.vence)}`:""}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
 function waLink(i){const to=String(i.tel||"").replace(/\D/g,"");return `https://wa.me/${to?(to.startsWith("57")?to:"57"+to):""}?text=${encodeURIComponent(invText(i))}`}
 async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
   if(!PRE[id])prepShare(id);
@@ -1462,6 +1465,10 @@ function aEmpresa(){const C=S.company,f=(k,l,ph,t)=>`<label for="e_${k}">${l}</l
   $("ab").innerHTML=`<div class="sh"><h2 style="font-size:19px">Datos de la empresa</h2><p>Aparecen en las facturas y en el botón de WhatsApp de la tienda.</p></div><div class="panel">
   ${f("nombre","Nombre comercial","Upperfumes")}${f("nit","NIT o cédula","")}${f("telefono","Teléfono / WhatsApp","300 559 8061",'inputmode="tel"')}${f("email","Correo","","type=email")}${f("direccion","Dirección","")}${f("ciudad","Ciudad","")}${f("instagram","Instagram","@upperfumes")}${f("pie","Mensaje al pie de la factura","")}
   <button class="primary" onclick="saveEmpresa()">Guardar datos</button></div>
+  <div class="sh"><h2 style="font-size:19px">Mensaje al enviar factura</h2><p>Es el texto que acompaña la imagen de la factura en WhatsApp. Si lo dejas vacío, se envía el detalle de los productos. Solo lo ven los administradores.</p></div><div class="panel">
+  <label for="e_mf">Mensaje</label><textarea class="f nota-in" id="e_mf" rows="8" placeholder="Muchas gracias por su compra…">${esc(cfg("mensajeFactura").texto||"")}</textarea>
+  <p class="hint" style="margin:6px 0 0">Para negrilla en WhatsApp usa asteriscos: *texto*</p>
+  <button class="primary" onclick="setCfg('mensajeFactura',{texto:$('e_mf').value});save();toast('Mensaje guardado')">Guardar mensaje</button></div>
   <div class="sh"><h2 style="font-size:19px">Recordatorios de cobro</h2><p>El botón "Agregar al calendario" de cada factura a crédito crea el evento desde ${CAL_DESDE} e invita a estos correos. Solo los ven los administradores.</p></div><div class="panel">
   <label for="e_rec">Correos que reciben la invitación (separados por coma)</label><input class="f" id="e_rec" type="email" multiple placeholder="correo1@gmail.com, correo2@gmail.com" value="${esc(correosRec().join(", "))}">
   <button class="primary" onclick="setCfg('recordatorios',{correos:$('e_rec').value.trim()});save();toast('Correos guardados')">Guardar correos</button></div>
