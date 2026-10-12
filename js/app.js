@@ -524,6 +524,17 @@ addEventListener("hashchange",route);
    Para agregar un ingrediente nuevo: sube su imagen a assets/img/notas/ y añade una línea [clave, [palabras]].
    El orden importa: las más específicas van primero (ej. "pimienta rosa" antes que "pimienta"). */
 const NOTAS_IMG=[
+  ["flor-de-tamarindo",["tamarindo"]],
+  ["peonia",["peonia"]],
+  ["cafe",["cafe"]],
+  ["bourbon",["bourbon", "whisky"]],
+  ["malvavisco",["malvavisco", "marshmallow"]],
+  ["galletas",["galleta"]],
+  ["pistacho",["pistacho"]],
+  ["avellana",["avellana"]],
+  ["platano",["platano", "banano"]],
+  ["litchi",["litchi", "lichi"]],
+  ["higo",["higo"]],
   ["madera-de-cedro",["cedro"]],
   ["sandalo",["sandalo"]],
   ["vetiver",["vetiver"]],
@@ -536,19 +547,19 @@ const NOTAS_IMG=[
   ["cardamomo",["cardamomo"]],
   ["azafran",["azafran"]],
   ["especias",["especia"]],
-  ["vainilla",["vainilla"]],
+  ["vainilla",["vainilla", "avainill"]],
   ["haba-tonka",["tonka"]],
   ["datiles",["datil"]],
-  ["praline",["praline", "cacao", "chocolate", "caramelo"]],
-  ["ambar",["ambar"]],
-  ["oud",["oud", "incienso"]],
+  ["praline",["praline", "cacao", "chocolate", "caramelo", "frutos secos"]],
+  ["ambar",["ambar", "calid"]],
+  ["oud",["oud", "incienso", "ahumad", "oriental"]],
   ["tabaco",["tabaco"]],
   ["cuero",["cuero"]],
-  ["almizcle",["almizcle"]],
+  ["almizcle",["almizcl"]],
   ["salvia",["salvia"]],
   ["lavanda",["lavanda"]],
   ["menta",["menta"]],
-  ["notas-aromaticas",["aromatic"]],
+  ["notas-aromaticas",["aromatic", "frescas", "verdes"]],
   ["bergamota",["bergamota"]],
   ["toronja",["toronja", "pomelo"]],
   ["limon",["limon", "lima"]],
@@ -567,8 +578,8 @@ const NOTAS_IMG=[
   ["frutos-rojos",["frutos rojos", "grosella", "fresa", "cereza", "frutas rojas"]],
   ["coco",["coco"]],
   ["sandia",["sandia"]],
-  ["frutas-tropicales",["tropical"]],
-  ["frutas-jugosas",["frutas jugosas", "frutal", "frutas"]],
+  ["frutas-tropicales",["tropical", "exotic"]],
+  ["frutas-jugosas",["frutas jugosas", "frutal", "frutas", "afrutad"]],
   ["rosa",["rosa"]],
   ["flor-de-loto",["loto"]],
   ["lirio-de-agua",["lirio"]],
@@ -576,7 +587,7 @@ const NOTAS_IMG=[
   ["flores-blancas",["flores blancas", "flor blanca", "jazmin", "orquidea", "tuberosa", "gardenia", "flor"]],
   ["sal-marina",["sal marina"]],
   ["notas-marinas",["marin", "acuatic", "oceano", "mar"]],
-  ["crema-batida",["crema"]],
+  ["crema-batida",["crema", "cremos"]],
   ["chicle",["chicle"]],
   ["dulce-gourmand",["gourmand", "algodon de azucar", "dulce", "miel"]]
 ];
@@ -641,6 +652,17 @@ const NOTAS_TXT={
 "crema-batida": "Dulce, aireada y cremosa. Aporta un toque goloso y suave.",
 "chicle": "Dulce y juguetón, como un chicle de fresa. Divertido y juvenil.",
 "dulce-gourmand": "Notas de postre como caramelo, azúcar y miel. Golosas y adictivas.",
+"flor-de-tamarindo": "Flor exótica con un matiz agridulce y afrutado. Le da un contraste original y sensual.",
+"peonia": "Flor rosada, fresca y delicada, con un toque empolvado. Romántica y muy femenina.",
+"cafe": "Café recién tostado, intenso y ligeramente amargo. Aporta calidez y un toque adictivo.",
+"bourbon": "Acorde licoroso de whisky, cálido y avainillado. Le da profundidad y un aire sofisticado.",
+"malvavisco": "Dulce, suave y esponjoso como un masmelo. Tierno, goloso y juguetón.",
+"galletas": "Galletas recién horneadas, mantequillosas y doradas. Reconfortante y golosa.",
+"pistacho": "Fruto seco tostado, cremoso y ligeramente salado. Le da un toque gourmand original.",
+"avellana": "Fruto seco tostado y cálido, con un matiz dulce. Aporta suavidad y carácter.",
+"platano": "Plátano maduro, cremoso y dulce. Le da un toque tropical y goloso.",
+"litchi": "Fruta exótica, jugosa y floral. Aporta frescura dulce y luminosa.",
+"higo": "Fruta verde y lechosa, entre dulce y vegetal. Le da un aire mediterráneo y elegante.",
 "_violeta": "Hoja verde y fresca con un matiz floral suave. Le da un aire elegante.",
 "_almendra": "Dulce y suave, con un toque de mazapán. Cálida y reconfortante.",
 "_champana": "Burbujeante y chispeante, ligeramente afrutada. Aporta un aire festivo.",
@@ -700,7 +722,7 @@ const NOMBRES=new Set(["1-million", "212-nyc-men", "9pm-night-out", "acqua-di-gi
 const LV3=[["Salida","Lo primero que hueles, los primeros minutos"],["Corazón","El carácter del perfume, aparece después"],["Fondo","Lo que queda en la piel al final del día"]];
 function renderProducto(){
   const p=P(PD);if(!p)return go("tienda");
-  const X=FICHA_TXT[p.id]||{},pr=price(p),ahorro=p.promo?p.publico-pr:0;
+  const X=FICHA_TXT[p.id]||p.detalle||{},pr=price(p),ahorro=p.promo?p.publico-pr:0;
   const imgs=[fotoDe(p)&&{src:fotoDe(p),alt:p.brand+" "+p.name}].filter(Boolean);
   const cur=imgs[pdImg]||imgs[0];const main=imgs.length?`<img class="${pdImg===1?"sheetimg":""}" src="${cur.src}" alt="${esc(cur.alt)}">`:visual(p);
   const rel=VIS().filter(x=>x.id!==p.id&&(x.fam===p.fam||x.cat===p.cat&&x.g===p.g)).sort((a,b)=>(b.fam===p.fam)-(a.fam===p.fam)).slice(0,4);
