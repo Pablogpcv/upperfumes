@@ -1559,16 +1559,12 @@ function cuLiq(){const D=liqData(),all=S.purchases.filter(cuIn).sort((a,b)=>(a.f
    :`<p class="cu-st">Capital por recuperar</p><table class="cu-t"><tr><th></th><th>Juan</th><th>Camilo</th></tr><tr><td>Falta por cobrar o vender</td><td style="color:var(--warn)">${cop(PR.Juan)}</td><td style="color:var(--warn)">${cop(PR.Camilo)}</td></tr></table>`}</div>`}
 function cuMes(){cMonth=cMonth||month(today());const inM=f=>month(f||"")===cMonth,D=liqData(),iv=S.invoices.filter(i=>i.estado!=="anulada"&&inM(i.fecha)),ids=new Set(iv.map(i=>i.id));
   const ven=iv.reduce((a,i)=>a+i.total,0),cob=iv.reduce((a,i)=>a+cobradoF(i),0),cos=D.lines.filter(x=>ids.has(x.f)).reduce((a,x)=>a+x.costo,0),ex=S.expenses.filter(e=>inM(e.fecha)),gT=ex.reduce((a,e)=>a+e.monto,0),bru=ven-cos,net=bru-gT;
-  const dv=S.purchases.filter(c=>c.liq&&inM(c.liq)&&c.pago!=="Nequi").reduce((a,c)=>a+pTotal(c),0),gpg=ex.filter(e=>e.pagado||e.pago==="Nequi").reduce((a,e)=>a+e.monto,0),q=cob-dv-gpg;
   const l=(t,v,cls="")=>`<div class="${cls}"><span>${t}</span><span>${v}</span></div>`;
   return `<label for="cm">Mes</label><input class="f" type="month" id="cm" value="${cMonth}" onchange="cMonth=this.value;aConta()">
   <div class="cu-k cu-k3"><div><span>Vendido (${iv.length} facturas)</span><b>${cop(ven)}</b></div><div><span>Cobrado (lo que tenemos)</span><b style="color:var(--ok)">${cop(cob)}</b></div><div><span>Por cobrar</span><b style="color:var(--bad)">${cop(ven-cob)}</b></div></div>
   <div class="sh"><h2 style="font-size:19px">Resultado del mes</h2></div>
   <div class="pl">${l("Vendido",cop(ven))}${l("Costo de lo vendido","− "+cop(cos))}${l("<b>Utilidad bruta</b>","<b>"+cop(bru)+"</b>")}${l("Gastos del mes","− "+cop(gT))}${l("Utilidad neta",cop(net),"t")}</div>
   <p class="hint">Margen ${ven?Math.round(net/ven*100):0}% · cada socio ${cop(net/2)} · incluye lo que falta por cobrar</p>
-  <div class="sh"><h2 style="font-size:19px">Cuenta de fin de mes</h2></div>
-  <div class="pl">${l("Cobrado",cop(cob))}${l("Capital devuelto a Juan / Camilo","− "+cop(dv))}${l("Gastos pagados","− "+cop(gpg))}${l("Debió quedar",cop(q),"t")}</div>
-  <p class="hint">Plata del negocio: compras nuevas pagadas con Nequi y lo que no se ha devuelto. Compárala con el Nequi.</p>
   <div class="sh"><h2 style="font-size:19px">Gastos del mes</h2></div>
   ${ex.length?ex.map(e=>`<div class="row"><div class="grow"><b>${esc(e.concepto)}</b><small>${cuF(e.fecha)} · puso ${esc(e.pago||"—")} · <span style="color:var(--${e.pagado||e.pago==="Nequi"?"ok":"warn"})">${e.pagado||e.pago==="Nequi"?"pagado":"pendiente"}</span></small></div><span>${cop(e.monto)}</span></div>`).join(""):`<p class="empty">No hay gastos en este mes.</p>`}
   <p class="hint">Los gastos se registran en Liquidación → Por liquidar.</p>
