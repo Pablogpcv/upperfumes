@@ -934,7 +934,7 @@ const envPill=k=>`<span class="pill ${k==="entregado"?"ok":k==="enviado"?"g":k==
 
 /* ---------- ADMIN ---------- */
 function renderAdmin(){
-  const tabs=[["resumen","Resumen"],["inventario","Inventario"],["compras","Compras"],["facturas","Facturas"],["clientes","Clientes"],["contabilidad","Contabilidad"],["usuarios","Usuarios"],["empresa","Empresa"]];
+  const tabs=[["resumen","Resumen"],["inventario","Inventario"],["compras","Compras"],["facturas","Facturas"],["clientes","Clientes"],["contabilidad","Cuentas"],["usuarios","Usuarios"],["empresa","Empresa"]];
   $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>${avisoCobros()}
   <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" data-at="${k}" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin();refrescar()">${l}</button>`).join("")}</div><div id="ab"></div>`;
   ({resumen:aResumen,inventario:aInv,compras:aCompras,facturas:aFact,clientes:aClientes,contabilidad:aConta,usuarios:aUsers,empresa:aEmpresa})[atab]();
@@ -1498,26 +1498,81 @@ function aEmpresa(){const C=S.company,f=(k,l,ph,t)=>`<label for="e_${k}">${l}</l
   <button class="ghost" onclick="logout()">Cerrar sesión</button>`}
 function saveEmpresa(){["nombre","nit","telefono","email","direccion","ciudad","instagram","pie"].forEach(k=>S.company[k]=$("e_"+k).value.trim());save();toast("Datos guardados")}
 /* contabilidad */
-let cMonth=null;
+/* ---------- CUENTAS (liquidación entre socios + resumen del mes) ---------- */
+let cMonth=null,CU={v:"liq",w:"P",d1:"",d2:""};
+const cuF=d=>d?d.slice(8,10)+"/"+d.slice(5,7):"";
+const SOCIOS=["Juan","Camilo","Nequi"];
+const cobradoF=i=>i.estado==="anulada"?0:i.estado==="pagada"?i.total:Math.min(i.total,abonado(i));
+/* Cada perfume vendido se asigna a la compra más antigua que tenga ese perfume (FIFO). */
+function liqData(){
+  const comp=S.purchases.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id),slots=[];
+  comp.forEach(c=>its(c).forEach(x=>slots.push({c:c.id,pid:x.pid,costo:x.costo,q:x.qty})));
+  const inv=S.invoices.filter(i=>i.estado!=="anulada").slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id))),lines=[];
+  inv.forEach(i=>{const sum=i.items.reduce((a,x)=>a+x.price*x.qty,0)||1,k=i.total/sum,fr=i.total?cobradoF(i)/i.total:1;
+    i.items.forEach(x=>{for(let u=0;u<x.qty;u++){const s=slots.find(s=>s.pid===x.pid&&s.q>0);if(s)s.q--;
+      lines.push({f:i.id,cl:i.cliente,n:x.name||(P(x.pid)?(P(x.pid).brand+" "+P(x.pid).name):"Producto"),c:s?s.c:null,costo:s?s.costo:(x.cost||0),p:x.price*k,fr})}})});
+  return{lines,stock:slots.filter(s=>s.q>0)}}
+function cuCompra(c,D){const L=D.lines.filter(x=>x.c===c.id),inv=pTotal(c),vend=L.reduce((a,x)=>a+x.p,0),cos=L.reduce((a,x)=>a+x.costo,0),cob=L.reduce((a,x)=>a+x.p*x.fr,0);
+  return{L,inv,vend,gan:vend-cos,cob,deb:vend-cob,stock:D.stock.filter(s=>s.c===c.id)}}
+const cuSel=(v,on)=>`<select class="cu-sel" onchange="${on}">${v?"":`<option value="">Elegir</option>`}${SOCIOS.map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select>`;
+const cuIn=c=>(!CU.d1||c.fecha>=CU.d1)&&(!CU.d2||c.fecha<=CU.d2);
+function cuRango(n){const h=today();if(n==="q"){const d=+h.slice(8);CU.d1=h.slice(0,8)+(d<=15?"01":"16");CU.d2=d<=15?h.slice(0,8)+"15":h.slice(0,8)+"31"}else if(n==="m"){CU.d1=h.slice(0,8)+"01";CU.d2=h.slice(0,8)+"31"}else{CU.d1="";CU.d2=""}aConta()}
+function setPago(id,v){const c=S.purchases.find(x=>x.id===id);if(!c)return;c.pago=v;save();aConta()}
+function liqCompra(id,on){const c=S.purchases.find(x=>x.id===id);if(!c)return;if(on){if(!c.pago)return toast("Primero elige quién pagó la compra");c.liq=today()}else delete c.liq;save();aConta();toast(on?"Compra liquidada":"Compra devuelta a por liquidar")}
+function gastoPago(id,v){const e=S.expenses.find(x=>x.id===id);if(!e)return;e.pago=v;save();aConta()}
+function gastoPagado(id,on){const e=S.expenses.find(x=>x.id===id);if(!e)return;if(on)e.pagado=today();else delete e.pagado;save();aConta()}
+function addGasto(){const c=$("cuGn").value.trim(),m=num($("cuGm").value),p=$("cuGp").value;if(!c||!m)return toast("Escribe concepto y monto");if(!p)return toast("Elige quién pagó");
+  S.expenses.unshift({id:Date.now(),concepto:c,cat:"Otros",monto:m,fecha:today(),pago:p});save();aConta();toast("Gasto registrado")}
+function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;S.expenses=S.expenses.filter(x=>x.id!==id);save();aConta()}
 function aConta(){
-  cMonth=cMonth||month(today());const t=totals(cMonth);
-  const ms=[];const d=new Date(cMonth+"-01T12:00:00");for(let k=5;k>=0;k--){const x=new Date(d);x.setMonth(d.getMonth()-k);ms.push(x.toISOString().slice(0,7))}
-  const data=ms.map(m=>{const r=totals(m);return{m,i:r.ventas,e:r.costo+r.gastos}}),mx=Math.max(1,...data.map(x=>Math.max(x.i,x.e)));
-  const mn=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-  const exp=S.expenses.filter(e=>month(e.fecha)===cMonth);
-  $("ab").innerHTML=`<label for="cm">Mes</label><input class="f" type="month" id="cm" value="${cMonth}" onchange="cMonth=this.value;aConta()">
-  <div class="sh" style="margin-top:18px"><h2 style="font-size:19px">Estado de resultados</h2></div>
-  <div class="pl"><div><span>Ventas (${t.n} facturas pagadas)</span><span>${cop(t.ventas)}</span></div><div><span>Costo de lo vendido</span><span>− ${cop(t.costo)}</span></div><div><span>Utilidad bruta</span><b style="font-weight:500">${cop(t.bruta)}</b></div><div><span>Gastos operativos</span><span>− ${cop(t.gastos)}</span></div><div class="t"><span>Utilidad neta</span><span style="${t.neta<0?"color:var(--bad)":""}">${cop(t.neta)}</span></div></div>
-  <div class="kpis"><div class="kpi"><span>Compras de inventario</span><b>${cop(t.compras)}</b></div><div class="kpi"><span>Cuentas por cobrar</span><b>${cop(t.cxc)}</b></div></div>
-  <div class="sh"><h2 style="font-size:19px">Últimos 6 meses</h2></div>
-  <div class="bars">${data.map(x=>`<div class="col"><div class="pair"><div class="bi" style="height:${x.i/mx*100}%" title="Ventas ${cop(x.i)}"></div><div class="be" style="height:${x.e/mx*100}%" title="Costos y gastos ${cop(x.e)}"></div></div><span>${mn[+x.m.slice(5)-1]}</span></div>`).join("")}</div>
-  <div class="legend"><span><i style="background:var(--gold)"></i>Ventas</span><span><i style="background:var(--muted)"></i>Costos y gastos</span></div>
-  <div class="sh"><h2 style="font-size:19px">Gastos del mes</h2><p>Envíos, publicidad, empaques, arriendo y otros</p></div>
-  <div class="toolbar" style="margin-top:0"><button class="btn-line" onclick="formGasto()">Registrar gasto</button><button class="btn-line" onclick="exportConta()">Exportar CSV</button></div>
-  ${exp.length?exp.map(e=>`<div class="row"><div class="grow"><b>${esc(e.concepto)}</b><small>${e.fecha} · ${esc(e.cat)}</small></div><span>${cop(e.monto)}</span><button class="x" aria-label="Eliminar gasto" onclick="if(confirm('¿Eliminar este gasto?')){S.expenses=S.expenses.filter(x=>x.id!==${e.id});save();aConta()}">×</button></div>`).join(""):`<p class="empty">No hay gastos registrados en este mes.</p>`}`;
-}
-function formGasto(){openSheet(`<h3 class="t">Registrar gasto</h3><label>Concepto</label><input class="f" id="gC" placeholder="Ej: envío Servientrega"><div class="two"><div><label>Categoría</label><select class="f" id="gK">${["Envíos","Publicidad","Empaques","Arriendo","Servicios","Comisiones","Otros"].map(o=>`<option>${o}</option>`).join("")}</select></div><div><label>Monto</label><input class="f" id="gM" inputmode="numeric"></div></div><label>Fecha</label><input class="f" type="date" id="gF" value="${today()}"><p class="err" id="err"></p><button class="primary" onclick="saveGasto()">Guardar gasto</button>`)}
-function saveGasto(){const c=$("gC").value.trim(),m=num($("gM").value);if(!c||!m)return $("err").textContent="Escribe concepto y monto.";S.expenses.unshift({id:Date.now(),concepto:c,cat:$("gK").value,monto:m,fecha:$("gF").value||today()});save();closeSheet();aConta();toast("Gasto registrado")}
+  const tabs=`<div class="chips cu-tabs"><button class="chip" aria-pressed="${CU.v==="liq"}" onclick="CU.v='liq';aConta()">Liquidación</button><button class="chip" aria-pressed="${CU.v==="mes"}" onclick="CU.v='mes';aConta()">Resumen del mes</button></div>`;
+  $("ab").innerHTML=tabs+(CU.v==="mes"?cuMes():cuLiq())}
+function cuLiq(){const D=liqData(),all=S.purchases.filter(cuIn).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id),
+  num_=new Map(S.purchases.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id).map((c,k)=>[c.id,k+1])),
+  nP=all.filter(c=>!c.liq).length,ks=all.filter(c=>CU.w==="L"?c.liq:!c.liq);
+  const card=c=>{const r=cuCompra(c,D),lq=!!c.liq,who=c.pago||"",F={};r.L.forEach(x=>{const o=F[x.f]||(F[x.f]={f:x.f,cl:x.cl,n:[],v:0,ab:0});o.n.push(x.n);o.v+=x.p;o.ab+=x.p*x.fr});
+    const extra=Math.max(0,r.cob-r.inv),brk=`<p class="cu-h">Cobrado <b>${cop(r.cob)}</b> = ${cop(Math.min(r.cob,r.inv))} capital ${lq?"devuelto a":"para"} ${who||"quien pagó"}${extra?` + <b class="cu-g">${cop(extra)} ganancia</b>`:""}${r.deb?`<br>Falta cobrar ${cop(r.deb)}: todo es ganancia.`:""}</p>`;
+    return `<div class="cu-card"><div class="cu-hd"><span><b>Compra ${num_.get(c.id)}</b> <small>· ${cuF(c.fecha)} · <span style="color:var(--${lq?"ok":"warn"})">${lq?"Liquidada":"Por liquidar"}</span></small><small class="cu-prov">${esc(c.proveedor||"")}</small></span><label class="cu-pg">Pagó ${cuSel(who,`setPago(${c.id},this.value)`)}</label></div>
+    <div class="cu-k"><div><span>Invertido</span><b>${cop(r.inv)}</b></div><div><span>Vendido</span><b>${cop(r.vend)}</b></div><div><span>Ganancia</span><b class="cu-g">${cop(r.gan)}</b></div><div><span>Cobrado</span><b style="color:var(--ok)">${cop(r.cob)}</b></div><div><span>Les deben</span><b style="${r.deb>0?"color:var(--bad)":""}">${cop(r.deb)}</b></div></div>
+    <details class="cu-det"><summary>Ver detalle</summary>
+    ${r.L.length?`<table class="cu-t"><tr><th>Factura</th><th>Venta</th><th>Abonado</th><th>Debe</th></tr>${Object.values(F).map(o=>`<tr><td><button class="cu-a" onclick="verFactura('${o.f}')">${esc(o.f)}</button> · ${esc(o.cl||"")}<small>${o.n.map(esc).join(", ")}</small></td><td>${cop(o.v)}</td><td style="color:var(--ok)">${cop(o.ab)}</td><td style="${o.v-o.ab>0.5?"color:var(--bad)":""}">${cop(o.v-o.ab)}</td></tr>`).join("")}</table>`:`<p class="cu-h">Aún no se ha vendido nada de esta compra.</p>`}
+    ${r.stock.length?`<p class="cu-h">Sin vender: ${r.stock.map(s=>{const p=P(s.pid);return esc(p?p.name:"Producto")+(s.q>1?" ×"+s.q:"")}).join(", ")}</p>`:""}
+    <div class="cu-foot">${lq?brk+`<button class="ghost" onclick="liqCompra(${c.id},false)">Volver a por liquidar</button>`
+      :r.cob>=r.inv-0.5?brk+`<button class="primary" onclick="liqCompra(${c.id},true)">Marcar como liquidada</button>`
+      :`<p class="cu-h">Faltan <b style="color:var(--warn)">${cop(r.inv-r.cob)}</b> para cubrir lo invertido. Se puede liquidar cuando se cobre.</p>`}</div></details></div>`};
+  const ex=S.expenses.filter(e=>cuIn(e)),gp=ex.filter(e=>!e.pagado),gd=ex.filter(e=>e.pagado),sm=l=>cop(l.reduce((a,e)=>a+e.monto,0));
+  const gas=CU.w==="L"?`<details class="cu-card cu-gas"><summary>Gastos pagados${gd.length?` · ${gd.length} (${sm(gd)})`:""}</summary>${gd.length?gd.map(e=>`<div class="cu-gr"><span>${esc(e.concepto)} <small>· se le pagó a ${esc(e.pago||"—")} · ${cuF(e.fecha)}</small></span><span>${cop(e.monto)} <button class="chip" onclick="gastoPagado(${e.id},false)">Deshacer</button></span></div>`).join(""):`<p class="cu-h">No hay gastos pagados en estas fechas.</p>`}</details>`
+   :`<details class="cu-card cu-gas"><summary>Gastos${gp.length?` · ${gp.length} pendiente${gp.length>1?"s":""} (${sm(gp)})`:""}</summary>
+   ${gp.map(e=>`<div class="cu-gr"><span>${esc(e.concepto)} <small>· ${cuF(e.fecha)}</small></span><span>${cuSel(e.pago||"",`gastoPago(${e.id},this.value)`)} ${cop(e.monto)} <button class="chip" onclick="gastoPagado(${e.id},true)">Pagado</button><button class="x" aria-label="Eliminar gasto" onclick="borrarGasto(${e.id})">×</button></span></div>`).join("")}
+   ${gd.length?`<p class="cu-h">${gd.length} ya pagado${gd.length>1?"s":""}: se ven en Liquidadas y en el Resumen del mes.</p>`:""}
+   <div class="cu-add"><input class="f" id="cuGn" placeholder="Concepto"><input class="f" id="cuGm" inputmode="numeric" placeholder="Monto">${cuSel("","").replace('class="cu-sel"','class="cu-sel" id="cuGp"')}<button class="chip" onclick="addGasto()">+ Agregar</button></div></details>`;
+  let V=0,I=0,C=0;const PR={Juan:0,Camilo:0};ks.forEach(c=>{const r=cuCompra(c,D);V+=r.vend;I+=r.inv;C+=r.cob;if(!c.liq&&PR[c.pago]!=null)PR[c.pago]+=Math.max(0,r.inv-r.cob)});
+  const l=(t,v,st="")=>`<div><span>${t}</span><b style="${st}">${v}</b></div>`;
+  return `<div class="cu-card"><div class="two"><div><label for="cuD1">Desde</label><input class="f" type="date" id="cuD1" value="${CU.d1}" onchange="CU.d1=this.value;aConta()"></div><div><label for="cuD2">Hasta</label><input class="f" type="date" id="cuD2" value="${CU.d2}" onchange="CU.d2=this.value;aConta()"></div></div>
+   <div class="fecha-q"><button class="chip" onclick="cuRango('q')">Esta quincena</button><button class="chip" onclick="cuRango('m')">Este mes</button><button class="chip" onclick="cuRango('t')">Todo</button></div></div>
+   <div class="chips cu-tabs"><button class="chip" aria-pressed="${CU.w==="P"}" onclick="CU.w='P';aConta()">Por liquidar (${nP})</button><button class="chip" aria-pressed="${CU.w==="L"}" onclick="CU.w='L';aConta()">Liquidadas (${all.length-nP})</button></div>
+   ${ks.length?ks.map(card).join(""):`<p class="empty">No hay compras ${CU.w==="L"?"liquidadas":"por liquidar"} en estas fechas.</p>`}
+   ${gas}
+   <div class="sh"><h2 style="font-size:19px">Total · ${CU.w==="L"?"Liquidadas":"Por liquidar"}</h2></div>
+   <div class="cu-card cu-tot"><div class="pl">${l("Vendido (a nuestro precio)",cop(V))}${l("Lo que pagamos por esos perfumes",cop(I))}${l("Cobrado",cop(C),"color:var(--ok)")}${l("Por cobrar",cop(V-C),"color:var(--bad)")}</div>
+   ${CU.w==="L"?`<div class="cu-gt"><span>Ganancia total<small>vendido − lo que pagamos</small></span><b>${cop(V-I)}</b></div>`
+   :`<p class="cu-st">Capital por recuperar</p><table class="cu-t"><tr><th></th><th>Juan</th><th>Camilo</th></tr><tr><td>Falta por cobrar o vender</td><td style="color:var(--warn)">${cop(PR.Juan)}</td><td style="color:var(--warn)">${cop(PR.Camilo)}</td></tr></table>`}</div>`}
+function cuMes(){cMonth=cMonth||month(today());const inM=f=>month(f||"")===cMonth,D=liqData(),iv=S.invoices.filter(i=>i.estado!=="anulada"&&inM(i.fecha)),ids=new Set(iv.map(i=>i.id));
+  const ven=iv.reduce((a,i)=>a+i.total,0),cob=iv.reduce((a,i)=>a+cobradoF(i),0),cos=D.lines.filter(x=>ids.has(x.f)).reduce((a,x)=>a+x.costo,0),ex=S.expenses.filter(e=>inM(e.fecha)),gT=ex.reduce((a,e)=>a+e.monto,0),bru=ven-cos,net=bru-gT;
+  const dv=S.purchases.filter(c=>c.liq&&inM(c.liq)&&c.pago!=="Nequi").reduce((a,c)=>a+pTotal(c),0),gpg=ex.filter(e=>e.pagado||e.pago==="Nequi").reduce((a,e)=>a+e.monto,0),q=cob-dv-gpg;
+  const l=(t,v,cls="")=>`<div class="${cls}"><span>${t}</span><span>${v}</span></div>`;
+  return `<label for="cm">Mes</label><input class="f" type="month" id="cm" value="${cMonth}" onchange="cMonth=this.value;aConta()">
+  <div class="cu-k cu-k3"><div><span>Vendido (${iv.length} facturas)</span><b>${cop(ven)}</b></div><div><span>Cobrado (lo que tenemos)</span><b style="color:var(--ok)">${cop(cob)}</b></div><div><span>Por cobrar</span><b style="color:var(--bad)">${cop(ven-cob)}</b></div></div>
+  <div class="sh"><h2 style="font-size:19px">Resultado del mes</h2></div>
+  <div class="pl">${l("Vendido",cop(ven))}${l("Costo de lo vendido","− "+cop(cos))}${l("<b>Utilidad bruta</b>","<b>"+cop(bru)+"</b>")}${l("Gastos del mes","− "+cop(gT))}${l("Utilidad neta",cop(net),"t")}</div>
+  <p class="hint">Margen ${ven?Math.round(net/ven*100):0}% · cada socio ${cop(net/2)} · incluye lo que falta por cobrar</p>
+  <div class="sh"><h2 style="font-size:19px">Cuenta de fin de mes</h2></div>
+  <div class="pl">${l("Cobrado",cop(cob))}${l("Capital devuelto a Juan / Camilo","− "+cop(dv))}${l("Gastos pagados","− "+cop(gpg))}${l("Debió quedar",cop(q),"t")}</div>
+  <p class="hint">Plata del negocio: compras nuevas pagadas con Nequi y lo que no se ha devuelto. Compárala con el Nequi.</p>
+  <div class="sh"><h2 style="font-size:19px">Gastos del mes</h2></div>
+  ${ex.length?ex.map(e=>`<div class="row"><div class="grow"><b>${esc(e.concepto)}</b><small>${cuF(e.fecha)} · puso ${esc(e.pago||"—")} · <span style="color:var(--${e.pagado||e.pago==="Nequi"?"ok":"warn"})">${e.pagado||e.pago==="Nequi"?"pagado":"pendiente"}</span></small></div><span>${cop(e.monto)}</span></div>`).join(""):`<p class="empty">No hay gastos en este mes.</p>`}
+  <p class="hint">Los gastos se registran en Liquidación → Por liquidar.</p>
+  <div class="toolbar"><button class="btn-line" onclick="exportConta()">Exportar CSV</button></div>`}
 /* usuarios */
 async function setRol(id,rol){const u=S.users.find(x=>x.id===id);if(!u)return;
   if(!confirm(rol==="admin"?`¿Dar acceso de ADMINISTRADOR a ${u.name} (${u.email})? Podrá ver y editar facturas, costos y todo el panel.`:`¿Quitarle el acceso de administrador a ${u.name}?`))return;
