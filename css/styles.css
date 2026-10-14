@@ -26,7 +26,8 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .icons{display:flex;gap:6px}
 .dnav{display:none}
 .badge[hidden]{display:none}
-.xclose{display:none}
+.xclose{display:grid;place-items:center;position:sticky;top:0;margin:-2px -8px 0 auto;width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid var(--line);color:var(--gold);font-size:22px;line-height:1;z-index:5}
+.xclose+div{margin-top:-36px}
 .ib{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);color:var(--gold);position:relative}
 .ib svg{width:19px;height:19px}
 .badge{position:absolute;top:-3px;right:-3px;background:var(--gold);color:var(--onGold);font-size:11px;font-weight:600;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;padding:0 5px}
