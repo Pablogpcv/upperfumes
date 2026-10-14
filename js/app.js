@@ -1690,7 +1690,7 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
   dl(`contabilidad-upperfumes-${cMonth}.csv`,r)}
 
 function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open");document.documentElement.classList.add("sheet-on")}   // el fondo queda quieto mientras la ventana está abierta
-function closeSheet(){$("sheet").classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
+function closeSheet(){const sh=$("sheet");sh.style.transform="";sh.style.transition="";sh.classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
 renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
@@ -1742,3 +1742,11 @@ renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot(
 })();
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeSearch()}});
 
+
+/* Cerrar ventanas: tecla Esc, tocar la barrita o deslizar hacia abajo en el celular */
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("sheet")&&$("sheet").classList.contains("open"))closeSheet()});
+(function(){const sh=$("sheet");if(!sh)return;let y0=null,dy=0,drag=false;
+  const g=sh.querySelector(".grab");if(g)g.addEventListener("click",closeSheet);
+  sh.addEventListener("touchstart",e=>{const onGrab=e.target.closest(".grab");if(sh.scrollTop>0&&!onGrab){y0=null;return}y0=e.touches[0].clientY;dy=0;drag=false},{passive:true});
+  sh.addEventListener("touchmove",e=>{if(y0==null)return;dy=e.touches[0].clientY-y0;if(dy>8&&sh.scrollTop<=0){drag=true;sh.style.transition="none";sh.style.transform=`translate(-50%,${dy}px)`}else if(dy<0){y0=null;sh.style.transform="";sh.style.transition=""}},{passive:true});
+  sh.addEventListener("touchend",()=>{if(y0==null)return;y0=null;sh.style.transition="";if(drag&&dy>110)closeSheet();else sh.style.transform="";drag=false})})();
