@@ -823,3 +823,6 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .cu-gt small{display:block;color:var(--muted);font-size:11.5px}.cu-gt b{color:var(--gold);font-size:20px;font-weight:500}
 .cu-st{color:var(--gold);font-size:14px;margin-top:12px}
 .cu-add .chip{white-space:nowrap;padding:8px 14px}
+
+/* cerrar rápido: la animación de salida es casi instantánea */
+.sheet:not(.open),.scrim:not(.open){transition-duration:.08s!important}
