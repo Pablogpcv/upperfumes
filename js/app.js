@@ -1358,7 +1358,8 @@ function verFactura(id,keep){
   <div class="two" style="margin-top:10px">${i.estado!=="anulada"?`<button class="btn-line" style="margin:0" onclick="formEditFactura('${i.id}')">✏️ Editar factura</button>`:"<span></span>"}<button class="btn-line" style="margin:0;color:var(--bad);border-color:var(--bad)" onclick="borrarFactura('${i.id}')">🗑 Eliminar factura</button></div>
   ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
   ${histHTML(i)}`,!!keep);
-  setTimeout(()=>prepShare(id),50);
+  /* La imagen para compartir se prepara solo en celular y cuando el celular está libre; en PC se genera al tocar el botón. Así la ventana no se traba al abrir o cerrar. */
+  delete PRE[id];if(matchMedia("(pointer:coarse)").matches)setTimeout(()=>{if(!$("sheet").classList.contains("open"))return;(window.requestIdleCallback||setTimeout)(()=>{if($("sheet").classList.contains("open")&&!PRE[id])prepShare(id)},{timeout:2000})},700);
 }
 async function attachFV(id,inp){const f=inp.files&&inp.files[0];if(!f)return;try{const b=await compress(f),pid="v"+Date.now();if(!await fotoPut(pid,b))return toast("No se pudo guardar la foto");S.invoices.find(x=>x.id===id).photoId=pid;save();verFactura(id);if(atab==="facturas")aFact();toast("Foto adjuntada")}catch(e){toast("No se pudo leer esa imagen")}}
 function setEstado(id,e){const i=S.invoices.find(x=>x.id===id);
