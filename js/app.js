@@ -1068,7 +1068,7 @@ function aCompras(){
   ${S.purchases.length?`<div class="search cq-box"><span aria-hidden="true">🔍</span><input id="cq" placeholder="Buscar producto, proveedor o factura" value="${esc(CQ)}" oninput="CQ=this.value;comprasList()" autocomplete="off" aria-label="Buscar en compras"></div>`:""}
   <div id="cl"></div>`;
   comprasList()}
-const cRow=c=>{const u=its(c).reduce((a,x)=>a+x.qty,0);return `<button class="row" style="width:100%;text-align:left" onclick="verCompra(${c.id})"><div class="grow"><b>${esc(c.proveedor)}${c.photoId?" 📷":""}</b><small>${c.fecha}${c.ref?" · Fact. "+esc(c.ref):""} · ${u} uds</small><small>${its(c).map(x=>esc(P(x.pid)?.name||"Eliminado")+" ×"+x.qty).join(", ")}</small></div><b style="font-weight:500">${cop(pTotal(c))}</b></button>`};
+const cRow=c=>{const u=its(c).reduce((a,x)=>a+x.qty,0);return `<button class="row" style="width:100%;text-align:left" onclick="verCompra(${c.id})"><div class="grow"><b>${esc(c.proveedor)}${c.photoId?" 📷":""}</b><small>${c.fecha}${c.ref?" · Fact. "+esc(c.ref):""} · ${u} uds${c.pago?" · Pagó "+esc(c.pago):""}</small><small>${its(c).map(x=>esc(P(x.pid)?.name||"Eliminado")+" ×"+x.qty).join(", ")}</small></div><b style="font-weight:500">${cop(pTotal(c))}</b></button>`};
 function comprasList(){const el=$("cl");if(!el)return;
   if(!S.purchases.length){el.innerHTML=`<p class="empty">Registra la primera compra. Sube la foto de la factura del proveedor y marca qué perfumes llegaron; el stock se actualiza solo.</p>`;return}
   const q=norm(CQ).trim().split(/\s+/).filter(Boolean);
@@ -1103,6 +1103,7 @@ function borrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return;
   S.purchases=S.purchases.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Compra eliminada · inventario ajustado")}
 function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   openSheet(`<h3 class="t">${esc(c.proveedor)}</h3><p class="hint">${c.fecha}${c.ref?" · Factura "+esc(c.ref):""}</p>
+  <label>¿Quién pagó?</label><div class="fecha-q">${SOCIOS.map(o=>`<button type="button" class="chip" aria-pressed="${c.pago===o}" onclick="setPago(${c.id},'${o}');verCompra(${c.id})">${o}</button>`).join("")}</div>
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
   ${its(c).map(x=>`<div class="row"><div class="thumb">${P(x.pid)?visual(P(x.pid),26):""}</div><div class="grow"><b>${esc(P(x.pid)?.name||"Producto eliminado")}</b><small>${x.qty} × ${cop(x.costo)}</small></div><span>${cop(x.qty*x.costo)}</span></div>`).join("")}
   <div class="total"><span>Total</span><b>${cop(pTotal(c))}</b></div>
@@ -1110,13 +1111,14 @@ function verCompra(id){const c=S.purchases.find(x=>x.id===id);
   if(c.photoId)fotoGet(c.photoId).then(b=>{const el=$("cph");if(!el)return;if(b){el.src=URL.createObjectURL(b);el.hidden=false}else el.outerHTML=`<p class="hint">La foto aún no está en la nube. Se sube sola cuando se abra la página en el dispositivo donde se tomó.</p>`});
 }
 let CP=null;
-function formCompra(){CP={blob:null,url:null,proveedor:"",nuevo:false,items:{},order:[],fecha:today(),ref:"",q:"",miss:[],msg:""};drawCompra()}
+function formCompra(){CP={blob:null,url:null,proveedor:"",nuevo:false,items:{},order:[],fecha:today(),ref:"",pago:"",q:"",miss:[],msg:""};drawCompra()}
 const cpOrder=()=>{CP.order=(CP.order||[]).filter(id=>CP.items[id]&&CP.items[id].qty>0);Object.keys(CP.items).forEach(k=>{if(CP.items[k].qty>0&&!CP.order.includes(+k))CP.order.push(+k)});return CP.order};
 function drawCompra(keep){
   openSheet(`<h3 class="t">Registrar compra</h3>
   <div class="step">1. Foto de la factura</div><div id="cpPhoto"></div>
   <div class="step">2. Datos de la compra</div><div id="cpProv"></div>
   <div class="two"><div><label for="cF">Fecha</label>${campoFecha("cF",CP.fecha,1)}</div><div><label for="cR">N° factura proveedor</label><input class="f" id="cR" value="${esc(CP.ref)}" placeholder="Opcional" oninput="CP.ref=this.value"></div></div>
+  <label>¿Quién pagó?</label><div class="fecha-q" id="cpPago">${SOCIOS.map(o=>`<button type="button" class="chip" aria-pressed="${CP.pago===o}" onclick="CP.pago='${o}';document.querySelectorAll('#cpPago .chip').forEach(b=>b.setAttribute('aria-pressed',b.textContent==='${o}'))">${o}</button>`).join("")}</div>
   <div class="step">3. ¿Qué llegó?</div>
   <div class="cp-search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="cpQ" placeholder="Buscar perfume por marca o nombre" autocomplete="off" value="${esc(CP.q)}" oninput="CP.q=this.value;cpList()" onkeydown="if(event.key==='Enter'){event.preventDefault();const b=document.querySelector('#cpList .cp-res');if(b)b.click()}" aria-label="Buscar perfume">${CP.q?`<button class="cp-x" onclick="CP.q='';$('cpQ').value='';cpList();$('cpQ').focus()" aria-label="Borrar búsqueda">×</button>`:""}</div>
   <div id="cpList"></div>
@@ -1180,10 +1182,11 @@ Asigna una línea a un id solo si es claramente el mismo perfume. Si el precio e
 async function saveCompra(){
   const items=Object.entries(CP.items).filter(([,v])=>v.qty>0).map(([k,v])=>({pid:+k,qty:v.qty,costo:v.costo})),prov=(CP.proveedor||"").trim(),err=m=>$("err").textContent=m;
   if(!prov)return err("Elige o escribe el proveedor.");
+  if(!CP.pago)return err("Elige quién pagó la compra.");
   if(!items.length)return err("Marca al menos un perfume con su cantidad.");
   if(items.some(i=>!i.costo))return err("Falta el costo de algún perfume.");
   let photoId=null;if(CP.blob){photoId="c"+Date.now();if(!await fotoPut(photoId,CP.blob)){photoId=null;toast("La foto no se pudo guardar")}}
-  S.purchases.unshift({id:Date.now(),fecha:($("cF")&&$("cF").value)||CP.fecha||today(),proveedor:prov,ref:CP.ref.trim(),photoId,items});
+  S.purchases.unshift({id:Date.now(),fecha:($("cF")&&$("cF").value)||CP.fecha||today(),proveedor:prov,ref:CP.ref.trim(),pago:CP.pago,photoId,items});
   items.forEach(i=>{const p=P(i.pid);p.stock+=i.qty;p.compra=i.costo;p.proveedor=prov});
   if(!S.providers.some(x=>x.toLowerCase()===prov.toLowerCase()))S.providers.push(prov);
   const u=items.reduce((a,i)=>a+i.qty,0);save();closeSheet();atab="compras";renderAdmin();toast(`Compra guardada · +${u} uds al inventario`);
@@ -1517,7 +1520,7 @@ function cuCompra(c,D){const L=D.lines.filter(x=>x.c===c.id),inv=pTotal(c),vend=
 const cuSel=(v,on)=>`<select class="cu-sel" onchange="${on}">${v?"":`<option value="">Elegir</option>`}${SOCIOS.map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select>`;
 const cuIn=c=>(!CU.d1||c.fecha>=CU.d1)&&(!CU.d2||c.fecha<=CU.d2);
 function cuRango(n){const h=today();if(n==="q"){const d=+h.slice(8);CU.d1=h.slice(0,8)+(d<=15?"01":"16");CU.d2=d<=15?h.slice(0,8)+"15":h.slice(0,8)+"31"}else if(n==="m"){CU.d1=h.slice(0,8)+"01";CU.d2=h.slice(0,8)+"31"}else{CU.d1="";CU.d2=""}aConta()}
-function setPago(id,v){const c=S.purchases.find(x=>x.id===id);if(!c)return;c.pago=v;save();aConta()}
+function setPago(id,v){const c=S.purchases.find(x=>x.id===id);if(!c)return;c.pago=v;save();if(atab==="contabilidad")aConta();else renderAdmin()}
 function liqCompra(id,on){const c=S.purchases.find(x=>x.id===id);if(!c)return;if(on){if(!c.pago)return toast("Primero elige quién pagó la compra");c.liq=today()}else delete c.liq;save();aConta();toast(on?"Compra liquidada":"Compra devuelta a por liquidar")}
 function gastoPago(id,v){const e=S.expenses.find(x=>x.id===id);if(!e)return;e.pago=v;save();aConta()}
 function gastoPagado(id,on){const e=S.expenses.find(x=>x.id===id);if(!e)return;if(on)e.pagado=today();else delete e.pagado;save();aConta()}
