@@ -1744,7 +1744,6 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeS
 
 
 /* Cerrar ventanas: tecla Esc, tocar la barrita o deslizar hacia abajo en el celular */
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("sheet")&&$("sheet").classList.contains("open"))closeSheet()});
 (function(){const sh=$("sheet");if(!sh)return;let y0=null,dy=0,drag=false;
   const g=sh.querySelector(".grab");if(g)g.addEventListener("click",closeSheet);
   sh.addEventListener("touchstart",e=>{const onGrab=e.target.closest(".grab");if(sh.scrollTop>0&&!onGrab){y0=null;return}y0=e.touches[0].clientY;dy=0;drag=false},{passive:true});
