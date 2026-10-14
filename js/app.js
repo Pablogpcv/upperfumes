@@ -1206,16 +1206,25 @@ function grupoFecha(f){const h=hoyL(),d=difDias(h,f);if(d<=0)return "Hoy";if(d==
 function porFecha(l,row,tot,nom){row=row||invRow;tot=tot||(x=>x.filter(i=>i.estado!=="anulada").reduce((a,i)=>a+i.total,0));nom=nom||["factura","facturas"];const g=[];l.slice().sort((a,b)=>a.fecha<b.fecha?1:a.fecha>b.fecha?-1:String(b.id).localeCompare(String(a.id))).forEach(i=>{const k=grupoFecha(i.fecha);let x=g[g.length-1];if(!x||x.k!==k)g.push(x={k,l:[]});x.l.push(i)});
   return g.map(x=>`<div class="fg-h"><b>${x.k}</b><span>${x.l.length} ${nom[x.l.length>1?1:0]} · ${cop(tot(x.l))}</span></div>${x.l.map(row).join("")}`).join("")}
 let eFilter="todos";
+let FQ="";
 function aFact(){
-  let l=S.invoices.filter(i=>(fFilter==="todas"||(fFilter==="cobrar"?porCobrar(i):i.estado===fFilter))&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
-  if(fFilter==="cobrar")l=l.sort((a,b)=>(a.vence||"9999")<(b.vence||"9999")?-1:(a.vence||"9999")>(b.vence||"9999")?1:String(a.id).localeCompare(String(b.id)));
   const cnt=k=>S.invoices.filter(i=>i.estado!=="anulada"&&envOf(i)===k).length,pc=S.invoices.filter(porCobrar);
-  $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="verRegistro()">Registro de cambios</button></div>
+  $("ab").innerHTML=`<div class="search cq-box"><span aria-hidden="true">🔍</span><input id="fq" type="search" placeholder="Buscar factura, cliente, celular o perfume" value="${esc(FQ)}" oninput="FQ=this.value;factList()" autocomplete="off" aria-label="Buscar factura"></div>
+  <div class="toolbar"><button class="btn-line" onclick="formFactura()">Nueva factura</button><button class="btn-line" onclick="verRegistro()">Registro de cambios</button></div>
   <div class="chips" style="margin-top:12px">${[["todas","Todas"],["cobrar",`Por cobrar (${pc.length})`],["pagada","Pagadas"],["anulada","Anuladas"]].map(([k,t])=>`<button class="chip" aria-pressed="${fFilter===k}" onclick="fFilter='${k}';aFact()">${t}</button>`).join("")}</div>
   <p class="hint" style="margin:10px 0 4px">Envío</p><div class="chips">${[["todos","Todos",""],...envAll].map(([k,t])=>`<button class="chip" aria-pressed="${eFilter===k}" onclick="eFilter='${k}';aFact()">${t}${k==="pendiente"?` (${cnt(k)})`:""}</button>`).join("")}</div>
-  ${fFilter==="cobrar"?`<div class="pc-sum"><span>${pc.length} factura${pc.length===1?"":"s"} sin pagar</span><b>${cop(pc.reduce((a,i)=>a+saldo(i),0))}</b></div>`:""}
-  ${l.length?(fFilter==="cobrar"?l.map(invRow).join(""):porFecha(l)):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`;
+  <div id="fvl"></div>`;
+  factList();
 }
+function factList(){const el=$("fvl");if(!el)return;
+  const q=norm(FQ).trim().split(/\s+/).filter(Boolean);
+  if(q.length){const r=S.invoices.filter(i=>{const n=String(i.id).replace(/\D/g,"").replace(/^0+/,""),t=norm(i.id+" "+n+" "+(i.cliente||"")+" "+(i.tel||"")+" "+(i.items||[]).map(x=>x.name||(P(x.pid)?P(x.pid).brand+" "+P(x.pid).name:"")).join(" "));return q.every(w=>t.includes(w))}).sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+    el.innerHTML=r.length?`<p class="hint" style="margin:10px 0 2px">${r.length} resultado${r.length===1?"":"s"} en todas las facturas</p>`+r.map(invRow).join(""):`<p class="empty">No hay facturas que coincidan con "${esc(FQ)}".</p>`;return}
+  let l=S.invoices.filter(i=>(fFilter==="todas"||(fFilter==="cobrar"?porCobrar(i):i.estado===fFilter))&&(eFilter==="todos"||(i.estado!=="anulada"&&envOf(i)===eFilter)));
+  if(fFilter==="cobrar")l=l.sort((a,b)=>(a.vence||"9999")<(b.vence||"9999")?-1:(a.vence||"9999")>(b.vence||"9999")?1:String(a.id).localeCompare(String(b.id)));
+  const pc=S.invoices.filter(porCobrar);
+  el.innerHTML=`${fFilter==="cobrar"?`<div class="pc-sum"><span>${pc.length} factura${pc.length===1?"":"s"} sin pagar</span><b>${cop(pc.reduce((a,i)=>a+saldo(i),0))}</b></div>`:""}
+  ${l.length?(fFilter==="cobrar"?l.map(invRow).join(""):porFecha(l)):`<p class="empty">No hay facturas en esta vista. Los pedidos de la tienda llegan aquí como pendientes.</p>`}`}
 let lines=[],FV={blob:null,url:null};
 /* ===== Buscador de productos para facturas ===== */
 const norm=t=>String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
