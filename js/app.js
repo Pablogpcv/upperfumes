@@ -1655,14 +1655,22 @@ function drawLead(){
   openSheet(`<h3 class="t">${LF.id?"Editar interesado":"Nuevo interesado"}</h3>
   <div class="two"><div><label for="lN">Nombre</label><input class="f" id="lN" value="${esc(LF.nombre)}"></div><div><label for="lT">Celular</label><input class="f" id="lT" inputmode="tel" value="${esc(LF.tel)}"></div></div>
   <label for="lM">¿Cómo llegó?</label><select class="f" id="lM">${MEDIOS.map(o=>`<option ${o===LF.medio?"selected":""}>${o}</option>`).join("")}</select>
-  <label>Perfumes que le interesan</label><div class="pick">${S.products.map(p=>`<button class="chip" aria-pressed="${LF.pids.includes(p.id)}" onclick="lfRead();lfTog(${p.id})">${esc(p.name)}</button>`).join("")}</div>
+  <label for="lQ">Perfumes que le interesan</label><div id="lfSel" class="pick"></div>
+  <div class="cp-search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="lQ" placeholder="Buscar perfume por marca o nombre" autocomplete="off" oninput="lfList()" onkeydown="if(event.key==='Enter'){event.preventDefault();const b=document.querySelector('#lfRes button');if(b)b.click()}" aria-label="Buscar perfume"></div>
+  <div id="lfRes" class="lf-res"></div>
   <label for="lNo">Nota</label><input class="f" id="lNo" placeholder="Ej: busca algo dulce para regalar" value="${esc(LF.nota)}">
   <label class="chk"><input type="checkbox" id="lOk" ${LF.ok?"checked":""}> Autorizó que le escribamos con ofertas (Ley 1581)</label>
   <p class="err" id="err"></p><button class="primary" onclick="saveLead()">Guardar</button>
   ${LF.id?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Eliminar este interesado?'))delLead(${LF.id})">Eliminar</button>`:""}`,true);
+  lfSel();
 }
 function lfRead(){LF.nombre=$("lN").value;LF.tel=$("lT").value;LF.medio=$("lM").value;LF.nota=$("lNo").value;LF.ok=$("lOk").checked}
-function lfTog(id){const i=LF.pids.indexOf(id);i<0?LF.pids.push(id):LF.pids.splice(i,1);drawLead()}
+function lfTog(id){const i=LF.pids.indexOf(id);i<0?LF.pids.push(id):LF.pids.splice(i,1);lfSel();lfList()}
+function lfSel(){const el=$("lfSel");if(!el)return;el.innerHTML=LF.pids.length?LF.pids.map(id=>{const p=P(id);return `<button type="button" class="chip" aria-pressed="true" onclick="lfTog(${id})" aria-label="Quitar ${esc(p?p.name:"")}">${esc(p?p.name:"Producto")} ✕</button>`}).join(""):`<p class="hint" style="margin:0">Aún no has agregado perfumes.</p>`}
+function lfList(){const el=$("lfRes");if(!el)return;const q=norm($("lQ").value).trim().split(/\s+/).filter(Boolean);
+  if(!q.length){el.innerHTML="";return}
+  const r=S.products.filter(p=>!LF.pids.includes(p.id)&&q.every(w=>norm(p.brand+" "+p.name).includes(w))).slice(0,8);
+  el.innerHTML=r.length?r.map(p=>`<button type="button" class="lf-it" onclick="lfTog(${p.id});$('lQ').value='';lfList();$('lQ').focus()"><span><b>${esc(p.name)}</b><small>${esc(p.brand)}</small></span><span class="lf-add">+ Agregar</span></button>`).join(""):`<p class="hint">No encontré perfumes con ese nombre.</p>`}
 function saveLead(){
   lfRead();if(!LF.nombre.trim())return $("err").textContent="Escribe el nombre.";
   S.leads=S.leads||[];const d={nombre:LF.nombre.trim(),tel:LF.tel.trim(),medio:LF.medio,pids:LF.pids,nota:LF.nota.trim(),ok:LF.ok};
