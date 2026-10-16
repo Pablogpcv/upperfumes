@@ -826,3 +826,10 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 
 /* cerrar rápido: la animación de salida es casi instantánea */
 .sheet:not(.open),.scrim:not(.open){transition-duration:.08s!important}
+
+/* interesados: buscador de perfumes */
+.lf-res{margin-top:6px}
+.lf-it{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line2)}
+.lf-it:hover{background:var(--s2)}.lf-it b{font-weight:500;display:block}.lf-it small{color:var(--muted);font-size:12px}
+.lf-add{color:var(--gold);font-size:13px;white-space:nowrap}
+#lfSel{margin-bottom:8px}
