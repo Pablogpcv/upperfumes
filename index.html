@@ -23,7 +23,7 @@
 <meta name="twitter:image" content="https://upperfumes.com/assets/img/tienda/compartir.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=46">
+<link rel="stylesheet" href="css/styles.css?v=47">
 </head>
 <body>
 <div class="app">
@@ -136,12 +136,12 @@
   <button data-tab="cuenta" onclick="go('cuenta')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Cuenta</button>
 </nav>
 <div class="cartbar" id="cartbar" hidden role="region" aria-label="Carrito"></div>
-<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div class="scrim" id="scrim" onclick="if(!window.SLOCK)closeSheet()"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><button class="xclose" onclick="closeSheet()" aria-label="Cerrar">×</button><div id="sb"></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
-<script src="js/app.js?v=64"></script>
+<script src="js/app.js?v=65"></script>
 </body>
 </html>
