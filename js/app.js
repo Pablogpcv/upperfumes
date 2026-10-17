@@ -1701,8 +1701,9 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
   S.expenses.filter(e=>month(e.fecha)===cMonth).forEach(e=>r.push([e.fecha,"Gasto · "+e.cat,"",e.concepto,0,e.monto]));
   dl(`contabilidad-upperfumes-${cMonth}.csv`,r)}
 
-function openSheet(h,keep){const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open");document.documentElement.classList.add("sheet-on")}   // el fondo queda quieto mientras la ventana está abierta
-function closeSheet(){const sh=$("sheet");sh.style.transform="";sh.style.transition="";sh.classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
+function openSheet(h,keep){SLOCK=false;if($("agFab"))$("agFab").hidden=true;const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open");document.documentElement.classList.add("sheet-on")}   // el fondo queda quieto mientras la ventana está abierta
+var SLOCK=false;
+function closeSheet(){if($("aN")&&AG&&!AG.enviado){try{agRead()}catch(e){}}SLOCK=false;setTimeout(agFab,350);const sh=$("sheet");sh.style.transform="";sh.style.transition="";sh.classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
 renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
@@ -1757,8 +1758,8 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeS
 
 /* Cerrar ventanas: tecla Esc, tocar la barrita o deslizar hacia abajo en el celular */
 (function(){const sh=$("sheet");if(!sh)return;let y0=null,dy=0,drag=false;
-  const g=sh.querySelector(".grab");if(g)g.addEventListener("click",closeSheet);
-  sh.addEventListener("touchstart",e=>{const onGrab=e.target.closest(".grab");if(sh.scrollTop>0&&!onGrab){y0=null;return}y0=e.touches[0].clientY;dy=0;drag=false},{passive:true});
+  const g=sh.querySelector(".grab");if(g)g.addEventListener("click",()=>{if(!SLOCK)closeSheet()});
+  sh.addEventListener("touchstart",e=>{if(SLOCK){y0=null;return}const onGrab=e.target.closest(".grab");if(sh.scrollTop>0&&!onGrab){y0=null;return}y0=e.touches[0].clientY;dy=0;drag=false},{passive:true});
   sh.addEventListener("touchmove",e=>{if(y0==null)return;dy=e.touches[0].clientY-y0;if(dy>8&&sh.scrollTop<=0){drag=true;sh.style.transition="none";sh.style.transform=`translate(-50%,${dy}px)`}else if(dy<0){y0=null;sh.style.transform="";sh.style.transition=""}},{passive:true});
   sh.addEventListener("touchend",()=>{if(y0==null)return;y0=null;sh.style.transition="";if(drag&&dy>110)closeSheet();else sh.style.transform="";drag=false})})();
 
@@ -1769,12 +1770,12 @@ const fDia=d=>d?new Date(d+"T12:00:00").toLocaleDateString("es-CO",{weekday:"lon
 const lugar=v=>[v.dir,v.barrio,v.mun].filter(Boolean).join(", ");
 const pNames=l=>(l.pids||[]).filter(id=>P(id)).map(id=>P(id).name);
 const primer=n=>{const w=String(n||"").trim().split(" ")[0]||"";return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()};
-let VSEL=null,RT=null,RSTOP=null,AG=null;
+var AG=null,RSTOP=null;let VSEL=null,RT=null;
 const visitas=()=>(S.leads||[]).filter(l=>l.visita&&!l.visita.ruta).sort((a,b)=>(a.visita.fecha||"9").localeCompare(b.visita.fecha||"9")||FRANJAS.indexOf(a.visita.franja)-FRANJAS.indexOf(b.visita.franja));
 const rutaActiva=()=>(S.rutas||[]).find(r=>r.estado==="curso");
-const linkAgendar=l=>`https://upperfumes.com/?agendar=${l?l.id:"1"}${l?`&n=${encodeURIComponent(primer(l.nombre))}${l.tel?`&t=${encodeURIComponent(String(l.tel).replace(/\D/g,""))}`:""}`:""}`;
+const linkAgendar=l=>l?`https://upperfumes.com/?agendar=${l.id}&n=${encodeURIComponent(primer(l.nombre))}${l.tel?`&t=${encodeURIComponent(String(l.tel).replace(/\D/g,""))}`:""}`:"https://upperfumes.com/agendar";
 function invitarMsg(l){return `Hola ${primer(l.nombre)}, soy ${primer(session&&session.name)||"Juan"} de *${S.company.nombre||"Upperfumes"}*.\n\nQueremos llevarte tus muestras y darte una *asesoría personalizada* para encontrar tu fragancia ideal.\n\nAgenda tu visita aquí, toma 1 minuto:\n${linkAgendar(l)}`}
-function copiarLinkAgendar(){const u=linkAgendar(null);(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Link copiado: pégalo en Instagram o WhatsApp")).catch(()=>prompt("Copia este link:",u))}
+function copiarLinkAgendar(){const u=linkAgendar(null);(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Link copiado: pégalo en el sticker de enlace de tu historia")).catch(()=>prompt("Copia este link:",u))}
 
 /* lista de visitas (Clientes → Visitas) */
 function vList(){
@@ -1783,7 +1784,7 @@ function vList(){
   VSEL=VSEL.filter(id=>V.some(l=>l.id===id));
   let last=null;
   $("cl").innerHTML=`${R?`<button class="vi-ruta" onclick="verRuta()"><span><b>🗺️ Ruta en curso · ${esc(fDia(R.fecha))}</b><small>${R.paradas.filter(p=>p.est&&p.est!=="camino").length} de ${R.paradas.length} visitadas · lleva ${esc(R.lleva||"")}</small></span><span class="lf-add">Abrir ›</span></button>`:""}
-  <div class="toolbar" style="margin-top:${R?10:0}px"><button class="btn-line" onclick="copiarLinkAgendar()">Copiar link para agendar</button></div>
+  <div class="toolbar" style="margin-top:${R?10:0}px"><button class="btn-line" onclick="copiarLinkAgendar()">Copiar link para historias de Instagram</button></div>
   ${V.length?`<p class="hint" style="margin:4px 0 0">Ya vienen marcadas las del día más próximo. Desmarca las que no vas a visitar.</p>`+V.map(l=>{const v=l.visita,h=v.fecha!==last?`<div class="vi-dia">${esc(fDia(v.fecha))}</div>`:"";last=v.fecha;
     return h+`<div class="row vi-row"><input type="checkbox" class="vi-chk" ${VSEL.includes(l.id)?"checked":""} onchange="vTog(${l.id})" aria-label="Incluir a ${esc(l.nombre)} en la ruta">
     <div class="grow"><b>${esc(l.nombre)}</b>${v.conf?'<span class="pill ok" style="margin-left:6px">Confirmada</span>':v.nuevo?'<span class="pill g" style="margin-left:6px">Nueva</span>':""}
@@ -1796,8 +1797,8 @@ function vList(){
 function vTog(id){const i=VSEL.indexOf(id);i<0?VSEL.push(id):VSEL.splice(i,1);vList()}
 function invitarLead(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;window.open(waTo(l.tel,invitarMsg(l)),"_blank");l.invitado=today();save();if($("cl")&&ctab==="interesados")lList()}
 function confVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l||!l.visita)return;const v=l.visita;
-  window.open(waTo(l.tel,`¡Listo ${primer(l.nombre)}! Confirmamos tu visita:\nFecha: ${fDia(v.fecha)} · ${String(v.franja||"").toLowerCase()}\nDirección: ${lugar(v)}\nMuestras: ${pNames(l).join(", ")||"las que elijas"}${v.ases?"\nY te llevamos opciones según tus gustos":""}\n\nEl día de la visita te avisamos cuando vayamos en camino.`),"_blank");
-  v.conf=true;v.nuevo=false;save();vList();toast("Visita confirmada")}
+  window.open(waTo(l.tel,`¡Listo ${primer(l.nombre)}! Confirmamos tu visita:\nFecha: ${fDia(v.fecha)} · ${String(v.franja||"").toLowerCase()}\nDirección: ${lugar(v)}\nMuestras: ${pNames(l).join(", ")||"las que elijas"}${v.ases?"\nY te llevamos opciones según tus gustos":""}\n\nEl día de la visita te avisamos cuando vayamos en camino.\n\n¿Necesitas cambiar la fecha o algún dato? Hazlo aquí:\n${linkModificar(l)}`),"_blank");
+  v.conf=true;v.nuevo=false;delete v.antes;save();renderAcc();toast("Visita confirmada")}
 function editVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita||{};
   openSheet(`<h3 class="t">Visita de ${esc(l.nombre)}</h3>
   <div class="two"><div><label for="vF">Fecha</label>${campoFecha("vF",v.fecha||today(),1)}</div><div><label for="vH">Hora</label><select class="f" id="vH">${FRANJAS.map(x=>`<option ${x===v.franja?"selected":""}>${x}</option>`).join("")}</select></div></div>
@@ -1807,7 +1808,7 @@ function editVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;co
   <p class="err" id="err"></p><button class="primary" onclick="guardarVisita(${id})">Guardar</button>
   <button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Quitar esta visita? El cliente sigue en Interesados.'))quitarVisita(${id})">Quitar visita</button>`)}
 function guardarVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita=l.visita||{},antes=(v.fecha||"")+(v.franja||"");
-  Object.assign(v,{fecha:$("vF").value,franja:$("vH").value,dir:$("vD").value.trim(),barrio:$("vB").value.trim(),mun:$("vM").value,gusto:$("vG").value.trim(),nuevo:false});
+  Object.assign(v,{fecha:$("vF").value,franja:$("vH").value,dir:$("vD").value.trim(),barrio:$("vB").value.trim(),mun:$("vM").value,gusto:$("vG").value.trim(),nuevo:false,antes:undefined});
   if(!v.fecha||!v.dir)return $("err").textContent="Falta la fecha o la dirección.";
   const cambio=antes!==v.fecha+v.franja;save();closeSheet();renderAcc();toast("Visita actualizada");
   if(cambio&&l.tel&&confirm(`¿Le avisamos a ${primer(l.nombre)} el cambio por WhatsApp?`))window.open(waTo(l.tel,`Hola ${primer(l.nombre)}, te escribimos de *${S.company.nombre||"Upperfumes"}*. Movimos tu visita para el ${fDia(v.fecha)} en la ${String(v.franja).toLowerCase()}. ¿Te queda bien?`),"_blank")}
@@ -1879,11 +1880,19 @@ function resumenRuta(id){const r=(S.rutas||[]).find(x=>x.id===id);if(!r)return;c
   ${r.paradas.map(p=>`<div class="row"><div class="grow"><b style="font-weight:500">${esc(p.nombre)}</b><small>${esc(p.mun||"")}${p.fv?` · <a href="#" style="color:var(--gold)" onclick="event.preventDefault();verFactura('${p.fv}')">${p.fv}</a>`:""}${p.est==="pensar"&&p.seg?` · escribirle el ${esc(fDia(p.seg))}`:""}</small></div><span class="pill ${p.est==="compro"?"ok":p.est==="pensar"?"warn":"bad"}">${{compro:"Compró",pensar:"Lo va a pensar",reprog:"Reprogramar",pendiente:"No se visitó"}[p.est]||p.est}</span></div>`).join("")}`)}
 
 /* formulario público para agendar: upperfumes.com/?agendar=... */
-function abrirAgendar(){const q=new URLSearchParams(location.search);
-  AG={k:q.get("agendar")!=="1"?q.get("agendar"):"",nombre:q.get("n")||"",tel:q.get("t")||"",dir:"",barrio:"",mun:"Bello",fecha:hoyL(),franja:"",pids:[],ases:true,gusto:"",ok:true,q:""};drawAgendar()}
+function abrirAgendar(){const q=new URLSearchParams(location.search),g=k=>q.get(k)||"";
+  AG={k:g("agendar")!=="1"?g("agendar"):"",mod:q.has("mod"),nombre:g("n"),tel:g("t"),dir:g("d"),barrio:g("b"),mun:g("m")||"Bello",fecha:g("f")&&g("f")>=hoyL()?g("f"):hoyL(),franja:g("h"),
+    pids:g("p")?g("p").split(".").map(Number).filter(n=>P(n)):[],ases:q.has("mod")?q.get("a")==="1":true,gusto:"",ok:true,q:""};
+  try{const b=JSON.parse(localStorage.getItem("ag_borrador")||"null");if(b&&b.k===AG.k&&!b.enviado&&!AG.mod)Object.assign(AG,b)}catch(e){}
+  drawAgendar()}
+function agGuardarBorrador(){try{localStorage.setItem("ag_borrador",JSON.stringify(AG))}catch(e){}}
+function agFab(){let b=$("agFab");const show=AG&&!AG.enviado&&!$("sheet").classList.contains("open");
+  if(!b){if(!show)return;b=document.createElement("button");b.id="agFab";b.className="ag-fab";b.setAttribute("aria-label","Volver a agendar mi visita");b.innerHTML=`<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Agendar</span>`;b.onclick=drawAgendar;document.body.appendChild(b)}
+  b.hidden=!show}
+const linkModificar=l=>{const v=l.visita||{},e=encodeURIComponent;return `https://upperfumes.com/?agendar=${l.id}&mod=1&n=${e(primer(l.nombre))}&t=${e(String(l.tel||"").replace(/\D/g,""))}&f=${e(v.fecha||"")}&h=${e(v.franja||"")}&d=${e(v.dir||"")}&b=${e(v.barrio||"")}&m=${e(v.mun||"")}&a=${v.ases?1:0}${(l.pids||[]).length?`&p=${l.pids.join(".")}`:""}`}
 function drawAgendar(){const A=AG,min=hoyL();
   openSheet(`<div class="ag-hd"><span class="serif">UPPERFUMES</span><small>Asesoría personalizada · Te llevamos las muestras</small></div>
-  <h3 class="t" style="text-align:center">${A.nombre?`Hola ${esc(A.nombre)} ✨ `:""}agenda tu visita</h3>
+  <h3 class="t" style="text-align:center">${A.mod?`${A.nombre?esc(A.nombre)+", m":"M"}odifica tu visita`:`${A.nombre?`Hola ${esc(A.nombre)} ✨ `:""}agenda tu visita`}</h3>
   <div class="two"><div><label for="aN">Nombre</label><input class="f" id="aN" value="${esc(A.nombre)}" autocomplete="name"></div><div><label for="aT">Celular</label><input class="f" id="aT" inputmode="tel" value="${esc(A.tel)}" autocomplete="tel"></div></div>
   <label for="aD">Dirección</label><input class="f" id="aD" placeholder="Ej: Cra 50 #38-20, apto 301" value="${esc(A.dir)}" autocomplete="street-address">
   <div class="two"><div><label for="aB">Barrio</label><input class="f" id="aB" placeholder="Ej: Niquía" value="${esc(A.barrio)}"></div><div><label for="aM">Municipio</label><select class="f" id="aM">${ZONAS.map(z=>`<option ${z===A.mun?"selected":""}>${z}</option>`).join("")}</select></div></div>
@@ -1893,8 +1902,8 @@ function drawAgendar(){const A=AG,min=hoyL();
   <label class="chk"><input type="checkbox" id="aA" ${A.ases?"checked":""}> Quiero asesoría: recomiéndenme según mis gustos</label>
   <label for="aG">Cuéntanos qué te gusta (opcional)</label><input class="f" id="aG" placeholder="Ej: dulce, para la noche, que dure mucho" value="${esc(A.gusto)}">
   <label class="chk"><input type="checkbox" id="aO" ${A.ok?"checked":""}> Autorizo a ${esc(S.company.nombre||"Upperfumes")} a contactarme por WhatsApp (Ley 1581)</label>
-  <p class="err" id="err"></p><button class="primary" id="aBtn" onclick="enviarAgendar()">Agendar mi visita</button>`,true);agSel()}
-function agRead(){if(!$("aN"))return;Object.assign(AG,{nombre:$("aN").value,tel:$("aT").value,dir:$("aD").value,barrio:$("aB").value,mun:$("aM").value,fecha:$("aF").value,ases:$("aA").checked,gusto:$("aG").value,ok:$("aO").checked})}
+  <p class="err" id="err"></p><button class="primary" id="aBtn" onclick="enviarAgendar()">${A.mod?"Guardar cambios":"Agendar mi visita"}</button>${A.mod?`<button class="ghost" style="color:var(--bad)" onclick="cancelarAgendar()">Cancelar mi visita</button>`:""}`,true);SLOCK=true;agSel();agGuardarBorrador()}
+function agRead(){if(!$("aN"))return;setTimeout(agGuardarBorrador,0);Object.assign(AG,{nombre:$("aN").value,tel:$("aT").value,dir:$("aD").value,barrio:$("aB").value,mun:$("aM").value,fecha:$("aF").value,ases:$("aA").checked,gusto:$("aG").value,ok:$("aO").checked})}
 function agTog(id){const i=AG.pids.indexOf(id);i<0?AG.pids.push(id):AG.pids.splice(i,1);agSel();agList()}
 function agSel(){const el=$("aSel");if(el)el.innerHTML=AG.pids.length?AG.pids.map(id=>`<button type="button" class="chip" aria-pressed="true" onclick="agTog(${id})">${esc(P(id)?P(id).name:"")} ✕</button>`).join(""):`<p class="hint" style="margin:0">Aún no has elegido perfumes.</p>`}
 function agList(){const el=$("aRes");if(!el)return;const q=norm($("aQ").value).trim().split(/\s+/).filter(Boolean);if(!q.length){el.innerHTML="";return}
@@ -1904,17 +1913,24 @@ async function enviarAgendar(){agRead();const A=AG,err=m=>$("err").textContent=m
   if(!A.nombre.trim())return err("Escribe tu nombre.");if(String(A.tel).replace(/\D/g,"").length<10)return err("Escribe tu celular.");
   if(!A.dir.trim())return err("Escribe tu dirección.");if(!A.fecha)return err("Escoge el día.");if(!A.franja)return err("Escoge a qué hora.");
   if(!A.pids.length&&!A.ases)return err("Escoge un perfume o pide asesoría.");if(!A.ok)return err("Necesitamos tu autorización para escribirte.");
-  const data={k:A.k||null,nombre:A.nombre.trim().slice(0,60),tel:A.tel.trim().slice(0,20),dir:A.dir.trim().slice(0,120),barrio:A.barrio.trim().slice(0,60),mun:A.mun,fecha:A.fecha,franja:A.franja,pids:A.pids.slice(0,10),ases:A.ases,gusto:A.gusto.trim().slice(0,200),ok:true};
+  const data={mod:!!A.mod,k:A.k||null,nombre:A.nombre.trim().slice(0,60),tel:A.tel.trim().slice(0,20),dir:A.dir.trim().slice(0,120),barrio:A.barrio.trim().slice(0,60),mun:A.mun,fecha:A.fecha,franja:A.franja,pids:A.pids.slice(0,10),ases:A.ases,gusto:A.gusto.trim().slice(0,200),ok:true};
   $("aBtn").disabled=true;
   if(CLOUD){const {error}=await sb.from("solicitudes").insert({data});if(error){$("aBtn").disabled=false;return err("No se pudo enviar. Revisa tu conexión e intenta de nuevo.")}}
   else{S.leads=S.leads||[];agAplicar([{data,creado:new Date().toISOString()}]);save()}
-  history.replaceState(null,"",location.pathname+location.hash);
-  openSheet(`<div style="text-align:center;padding:30px 0"><div style="font-size:44px">✨</div><h3 class="t">¡Listo, ${esc(primer(A.nombre))}!</h3><p class="hint">Recibimos tu solicitud para el ${esc(fDia(A.fecha))} en la ${A.franja.toLowerCase()}.<br>Te escribimos por WhatsApp para confirmar.</p><button class="primary" onclick="closeSheet()">Ver el catálogo</button></div>`)}
+  history.replaceState(null,"",location.pathname+location.hash);AG.enviado=true;try{localStorage.removeItem("ag_borrador")}catch(e){}
+  openSheet(`<div style="text-align:center;padding:30px 0"><div style="font-size:44px">✨</div><h3 class="t">¡Listo, ${esc(primer(A.nombre))}!</h3><p class="hint">${A.mod?"Guardamos los cambios de tu visita":"Recibimos tu solicitud"} para el ${esc(fDia(A.fecha))} en la ${A.franja.toLowerCase()}.<br>Te escribimos por WhatsApp para confirmar.</p><button class="primary" onclick="closeSheet()">Ver el catálogo</button></div>`)}
+async function cancelarAgendar(){if(!confirm("¿Seguro que quieres cancelar tu visita?"))return;agRead();const A=AG,data={cancelar:true,k:A.k||null,nombre:String(A.nombre).trim().slice(0,60),tel:String(A.tel).trim().slice(0,20)};
+  if(CLOUD){const {error}=await sb.from("solicitudes").insert({data});if(error)return $("err").textContent="No se pudo enviar. Intenta de nuevo."}
+  else{S.leads=S.leads||[];agAplicar([{data,creado:new Date().toISOString()}]);save()}
+  history.replaceState(null,"",location.pathname+location.hash);AG.enviado=true;try{localStorage.removeItem("ag_borrador")}catch(e){}
+  openSheet(`<div style="text-align:center;padding:30px 0"><h3 class="t">Visita cancelada</h3><p class="hint">Gracias por avisarnos, ${esc(primer(A.nombre))}. Cuando quieras, agenda de nuevo.</p><button class="primary" onclick="closeSheet()">Ver el catálogo</button></div>`)}
 function agAplicar(rows){rows.forEach(r=>{const d=r.data||{};let l=d.k?(S.leads||[]).find(x=>String(x.id)===String(d.k)):null;
   if(!l&&d.tel)l=(S.leads||[]).find(x=>phoneKey(x.tel)&&phoneKey(x.tel)===phoneKey(d.tel));
+  if(d.cancelar){if(l){const v=l.visita;l.cancelo={fecha:today(),antes:v?`${fDia(v.fecha)} · ${String(v.franja||"").toLowerCase()}`:""};delete l.visita}return}
   if(!l){l={id:Date.now()+Math.floor(Math.random()*1000),nombre:d.nombre||"Cliente",tel:d.tel||"",medio:"Formulario",pids:[],nota:"",ok:!!d.ok,fecha:today()};S.leads.unshift(l)}
+  const prev=l.visita&&l.visita.fecha?`${fDia(l.visita.fecha)} · ${String(l.visita.franja||"").toLowerCase()}`:"",ruta=l.visita&&l.visita.ruta;delete l.cancelo;
   l.nombre=d.nombre||l.nombre;l.tel=d.tel||l.tel;l.ok=l.ok||!!d.ok;l.pids=l.pids||[];(d.pids||[]).forEach(p=>{if(P(p)&&!l.pids.includes(p))l.pids.push(p)});
-  l.visita={dir:d.dir||"",barrio:d.barrio||"",mun:d.mun||"",fecha:d.fecha||"",franja:d.franja||"",ases:!!d.ases,gusto:d.gusto||"",nuevo:true,conf:false,recibida:r.creado||""};delete l.seg})}
+  l.visita={dir:d.dir||"",barrio:d.barrio||"",mun:d.mun||"",fecha:d.fecha||"",franja:d.franja||"",ases:!!d.ases,gusto:d.gusto||"",nuevo:true,conf:false,recibida:r.creado||""};if(d.mod&&prev)l.visita.antes=prev;if(ruta)l.visita.ruta=ruta;delete l.seg})}
 let solBusy=false;
 async function importarSolicitudes(){if(!CLOUD||!isAdmin()||solBusy)return;solBusy=true;
   try{const {data:ids}=await sb.from("solicitudes").select("id");if(ids&&ids.length){
@@ -1923,6 +1939,10 @@ async function importarSolicitudes(){if(!CLOUD||!isAdmin()||solBusy)return;solBu
   catch(e){console.warn("solicitudes",e)}solBusy=false}
 if(new URLSearchParams(location.search).has("agendar"))setTimeout(abrirAgendar,700);
 
-function avisoVisitas(){if(!isAdmin())return "";const l=(S.leads||[]).filter(x=>x.visita&&x.visita.nuevo&&!x.visita.ruta);if(!l.length)return "";
-  return `<div class="cobro-av"><b>📅 Nuevas visitas para revisar (${l.length})</b>${l.map(x=>`<button onclick="revisarVisita(${x.id})"><span class="pill g">Nueva</span><span class="grow">${esc(x.nombre)} · ${esc(fDia(x.visita.fecha))} · ${esc(x.visita.franja||"")}</span><b>Revisar ›</b></button>`).join("")}</div>`}
+function avisoVisitas(){if(!isAdmin())return "";const l=(S.leads||[]).filter(x=>x.visita&&x.visita.nuevo&&!x.visita.ruta),c=(S.leads||[]).filter(x=>x.cancelo);if(!l.length&&!c.length)return "";
+  return `<div class="cobro-av"><b>📅 Visitas para revisar (${l.length+c.length})</b>${l.map(x=>`<button onclick="revisarVisita(${x.id})"><span class="pill ${x.visita.antes?"warn":"g"}">${x.visita.antes?"Cambió":"Nueva"}</span><span class="grow">${esc(x.nombre)} · ${x.visita.antes?`antes ${esc(x.visita.antes)} → ahora `:""}${esc(fDia(x.visita.fecha))} · ${esc(x.visita.franja||"")}</span><b>Revisar ›</b></button>`).join("")}
+  ${c.map(x=>`<button onclick="vistoCancelo(${x.id})"><span class="pill bad">Canceló</span><span class="grow">${esc(x.nombre)} canceló su visita${x.cancelo.antes?` (${esc(x.cancelo.antes)})`:""}</span><b>Entendido</b></button>`).join("")}</div>`}
+function vistoCancelo(id){const l=(S.leads||[]).find(x=>x.id===id);if(l)delete l.cancelo;save();renderAcc()}
 function revisarVisita(id){atab="clientes";ctab="visitas";VSEL=null;renderAcc();setTimeout(()=>editVisita(id),50)}
+
+document.addEventListener("click",e=>{if(e.target&&e.target.id==="scrim"&&SLOCK){e.stopImmediatePropagation()}},true);
