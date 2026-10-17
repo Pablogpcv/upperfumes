@@ -833,3 +833,18 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .lf-it:hover{background:var(--s2)}.lf-it b{font-weight:500;display:block}.lf-it small{color:var(--muted);font-size:12px}
 .lf-add{color:var(--gold);font-size:13px;white-space:nowrap}
 #lfSel{margin-bottom:8px}
+
+/* visitas con muestras y rutas */
+.vi-ruta{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;border:1px solid var(--gold);background:rgba(212,175,55,.08);padding:12px}
+.vi-ruta small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.vi-dia{font-size:12.5px;color:var(--gold);margin:16px 0 0;padding-bottom:4px;border-bottom:1px solid var(--line)}.vi-dia::first-letter{text-transform:uppercase}
+.vi-row{align-items:flex-start}.vi-chk{width:20px;height:20px;accent-color:var(--gold);margin-top:3px;flex:none}
+.vi-acc{display:flex;flex-direction:column;gap:6px}.vi-acc .btn-line{margin:0;padding:6px 10px;font-size:13px;white-space:nowrap}.vi-acc .vi-ed{border-color:var(--line);color:var(--muted)}
+.vi-stops{margin-top:12px}.vi-stop{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line)}.vi-stop small{display:block;color:var(--muted);font-size:12.5px}
+.vi-stop.done{opacity:.6}
+.vi-n{width:28px;height:28px;border-radius:50%;background:var(--gold);color:var(--onGold);display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}.vi-n.h{background:var(--s2);color:var(--gold);border:1px solid var(--gold)}
+.vi-mv{color:var(--muted);font-size:17px;padding:2px 6px}
+.vi-btns{display:flex;gap:8px;margin-top:8px}.vi-btns .btn-line{margin:0;padding:7px 10px;font-size:13px;flex:1}
+.vi-res{display:flex;flex-direction:column;gap:6px;margin-top:8px}.vi-res .btn-line{margin:0;padding:8px;font-size:13px;text-align:left}
+.ag-hd{text-align:center;margin:4px 0 6px}.ag-hd span{color:var(--gold);letter-spacing:4px;font-size:16px;display:block}.ag-hd small{color:var(--muted);font-size:12.5px}
+.primary:disabled{opacity:.4;cursor:not-allowed}
