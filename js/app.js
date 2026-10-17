@@ -1808,6 +1808,7 @@ function editVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;co
   <p class="err" id="err"></p><button class="primary" onclick="guardarVisita(${id})">Guardar</button>
   <button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Quitar esta visita? El cliente sigue en Interesados.'))quitarVisita(${id})">Quitar visita</button>`)}
 function guardarVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita=l.visita||{},antes=(v.fecha||"")+(v.franja||"");
+  if($("vF").value&&$("vF").value<hoyL()&&$("vF").value!==v.fecha)return $("err").textContent="La fecha no puede ser anterior a hoy.";
   Object.assign(v,{fecha:$("vF").value,franja:$("vH").value,dir:$("vD").value.trim(),barrio:$("vB").value.trim(),mun:$("vM").value,gusto:$("vG").value.trim(),nuevo:false,antes:undefined});
   if(!v.fecha||!v.dir)return $("err").textContent="Falta la fecha o la dirección.";
   const cambio=antes!==v.fecha+v.franja;save();closeSheet();renderAcc();toast("Visita actualizada");
@@ -1911,7 +1912,7 @@ function agList(){const el=$("aRes");if(!el)return;const q=norm($("aQ").value).t
   el.innerHTML=r.length?r.map(p=>`<button type="button" class="lf-it" onclick="agTog(${p.id});$('aQ').value='';agList()"><span><b>${esc(p.name)}</b><small>${esc(p.brand)}</small></span><span class="lf-add">+ Agregar</span></button>`).join(""):`<p class="hint">No lo encontramos. Escríbelo en "qué te gusta".</p>`}
 async function enviarAgendar(){agRead();const A=AG,err=m=>$("err").textContent=m;
   if(!A.nombre.trim())return err("Escribe tu nombre.");if(String(A.tel).replace(/\D/g,"").length<10)return err("Escribe tu celular.");
-  if(!A.dir.trim())return err("Escribe tu dirección.");if(!A.fecha)return err("Escoge el día.");if(!A.franja)return err("Escoge a qué hora.");
+  if(!A.dir.trim())return err("Escribe tu dirección.");if(!A.fecha)return err("Escoge el día.");if(A.fecha<hoyL())return err("Escoge una fecha de hoy en adelante.");if(!A.franja)return err("Escoge a qué hora.");
   if(!A.pids.length&&!A.ases)return err("Escoge un perfume o pide asesoría.");if(!A.ok)return err("Necesitamos tu autorización para escribirte.");
   const data={mod:!!A.mod,k:A.k||null,nombre:A.nombre.trim().slice(0,60),tel:A.tel.trim().slice(0,20),dir:A.dir.trim().slice(0,120),barrio:A.barrio.trim().slice(0,60),mun:A.mun,fecha:A.fecha,franja:A.franja,pids:A.pids.slice(0,10),ases:A.ases,gusto:A.gusto.trim().slice(0,200),ok:true};
   $("aBtn").disabled=true;
