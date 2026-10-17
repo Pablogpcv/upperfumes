@@ -285,3 +285,20 @@ create policy "productos admin borrar" on storage.objects for delete to authenti
 drop policy if exists "catalogo publico" on public.productos;
 create policy "catalogo publico" on public.productos for select
   using (coalesce((data->>'oculto')::boolean, false) = false or public.es_admin());
+
+-- Solicitudes de visita (formulario público upperfumes.com/?agendar=...)
+-- Cualquiera puede ENVIAR una solicitud; solo los administradores la leen y la borran al pasarla a Visitas.
+create table if not exists public.solicitudes (
+  id bigint generated always as identity primary key,
+  creado timestamptz not null default now(),
+  data jsonb not null check (pg_column_size(data) < 4000)
+);
+alter table public.solicitudes enable row level security;
+drop policy if exists "enviar solicitud" on public.solicitudes;
+create policy "enviar solicitud" on public.solicitudes for insert to anon, authenticated with check (true);
+drop policy if exists "admin lee solicitudes" on public.solicitudes;
+create policy "admin lee solicitudes" on public.solicitudes for select to authenticated using (public.es_admin());
+drop policy if exists "admin borra solicitudes" on public.solicitudes;
+create policy "admin borra solicitudes" on public.solicitudes for delete to authenticated using (public.es_admin());
+grant insert on public.solicitudes to anon, authenticated;
+grant select, delete on public.solicitudes to authenticated;
