@@ -935,7 +935,7 @@ const envPill=k=>`<span class="pill ${k==="entregado"?"ok":k==="enviado"?"g":k==
 /* ---------- ADMIN ---------- */
 function renderAdmin(){
   const tabs=[["resumen","Resumen"],["inventario","Inventario"],["compras","Compras"],["facturas","Facturas"],["clientes","Clientes"],["contabilidad","Cuentas"],["usuarios","Usuarios"],["empresa","Empresa"]];
-  $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>${avisoCobros()}
+  $("acc").innerHTML=`<div class="sh"><h2>Administración</h2><p>${esc(session.name)}</p></div>${avisoVisitas()}${avisoCobros()}
   <div class="atabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" data-at="${k}" aria-selected="${atab===k}" onclick="atab='${k}';renderAdmin();refrescar()">${l}</button>`).join("")}</div><div id="ab"></div>`;
   ({resumen:aResumen,inventario:aInv,compras:aCompras,facturas:aFact,clientes:aClientes,contabilidad:aConta,usuarios:aUsers,empresa:aEmpresa})[atab]();
 }
@@ -1768,12 +1768,12 @@ const FRANJAS=["Mañana","Tarde","Noche"];
 const fDia=d=>d?new Date(d+"T12:00:00").toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"short"}):"Sin fecha";
 const lugar=v=>[v.dir,v.barrio,v.mun].filter(Boolean).join(", ");
 const pNames=l=>(l.pids||[]).filter(id=>P(id)).map(id=>P(id).name);
-const primer=n=>String(n||"").trim().split(" ")[0];
+const primer=n=>{const w=String(n||"").trim().split(" ")[0]||"";return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()};
 let VSEL=null,RT=null,RSTOP=null,AG=null;
 const visitas=()=>(S.leads||[]).filter(l=>l.visita&&!l.visita.ruta).sort((a,b)=>(a.visita.fecha||"9").localeCompare(b.visita.fecha||"9")||FRANJAS.indexOf(a.visita.franja)-FRANJAS.indexOf(b.visita.franja));
 const rutaActiva=()=>(S.rutas||[]).find(r=>r.estado==="curso");
 const linkAgendar=l=>`https://upperfumes.com/?agendar=${l?l.id:"1"}${l?`&n=${encodeURIComponent(primer(l.nombre))}${l.tel?`&t=${encodeURIComponent(String(l.tel).replace(/\D/g,""))}`:""}`:""}`;
-function invitarMsg(l){return `Hola ${primer(l.nombre)} 👋 Soy ${primer(session&&session.name)||"Juan"} de *${S.company.nombre||"Upperfumes"}* ✨\n\nQueremos llevarte tus muestras y darte una *asesoría personalizada* para encontrar tu fragancia ideal.\n\nAgenda tu visita aquí, toma 1 minuto 👇\n${linkAgendar(l)}`}
+function invitarMsg(l){return `Hola ${primer(l.nombre)}, soy ${primer(session&&session.name)||"Juan"} de *${S.company.nombre||"Upperfumes"}* ✨\n\nQueremos llevarte tus muestras y darte una *asesoría personalizada* para encontrar tu fragancia ideal.\n\n➤ Agenda tu visita aquí, toma 1 minuto:\n${linkAgendar(l)}`}
 function copiarLinkAgendar(){const u=linkAgendar(null);(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Link copiado: pégalo en Instagram o WhatsApp")).catch(()=>prompt("Copia este link:",u))}
 
 /* lista de visitas (Clientes → Visitas) */
@@ -1794,9 +1794,9 @@ function vList(){
   ${H.length?`<div class="sh"><h2 style="font-size:17px">Rutas anteriores</h2></div>`+H.map(r=>{const c=r.paradas.filter(p=>p.est==="compro").length;return `<button class="row" style="width:100%;text-align:left" onclick="resumenRuta(${r.id})"><div class="grow"><b style="font-weight:500">${esc(fDia(r.fecha))}</b><small>${r.paradas.length} visitas · ${c} compraron</small></div><span class="lf-add">Ver ›</span></button>`}).join(""):""}`;
 }
 function vTog(id){const i=VSEL.indexOf(id);i<0?VSEL.push(id):VSEL.splice(i,1);vList()}
-function invitarLead(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;window.open(waTo(l.tel,invitarMsg(l)),"_blank");l.invitado=today();save();lList()}
+function invitarLead(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;window.open(waTo(l.tel,invitarMsg(l)),"_blank");l.invitado=today();save();if($("cl")&&ctab==="interesados")lList()}
 function confVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l||!l.visita)return;const v=l.visita;
-  window.open(waTo(l.tel,`¡Listo ${primer(l.nombre)}! ✨ Confirmamos tu visita:\n📅 ${fDia(v.fecha)} · ${String(v.franja||"").toLowerCase()}\n📍 ${lugar(v)}\n🧴 Muestras: ${pNames(l).join(", ")||"las que elijas"}${v.ases?"\n💬 Y te llevamos opciones según tus gustos":""}\n\nEl día de la visita te avisamos cuando vayamos en camino 🚗`),"_blank");
+  window.open(waTo(l.tel,`¡Listo ${primer(l.nombre)}! ✨ Confirmamos tu visita:\n⏰ ${fDia(v.fecha)} · ${String(v.franja||"").toLowerCase()}\n➤ ${lugar(v)}\n✔ Muestras: ${pNames(l).join(", ")||"las que elijas"}${v.ases?"\n✔ Y te llevamos opciones según tus gustos":""}\n\nEl día de la visita te avisamos cuando vayamos en camino.`),"_blank");
   v.conf=true;v.nuevo=false;save();vList();toast("Visita confirmada")}
 function editVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita||{};
   openSheet(`<h3 class="t">Visita de ${esc(l.nombre)}</h3>
@@ -1807,10 +1807,10 @@ function editVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;co
   <p class="err" id="err"></p><button class="primary" onclick="guardarVisita(${id})">Guardar</button>
   <button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Quitar esta visita? El cliente sigue en Interesados.'))quitarVisita(${id})">Quitar visita</button>`)}
 function guardarVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita=l.visita||{},antes=(v.fecha||"")+(v.franja||"");
-  Object.assign(v,{fecha:$("vF").value,franja:$("vH").value,dir:$("vD").value.trim(),barrio:$("vB").value.trim(),mun:$("vM").value,gusto:$("vG").value.trim()});
+  Object.assign(v,{fecha:$("vF").value,franja:$("vH").value,dir:$("vD").value.trim(),barrio:$("vB").value.trim(),mun:$("vM").value,gusto:$("vG").value.trim(),nuevo:false});
   if(!v.fecha||!v.dir)return $("err").textContent="Falta la fecha o la dirección.";
-  const cambio=antes!==v.fecha+v.franja;save();closeSheet();vList();toast("Visita actualizada");
-  if(cambio&&l.tel&&confirm(`¿Le avisamos a ${primer(l.nombre)} el cambio por WhatsApp?`))window.open(waTo(l.tel,`Hola ${primer(l.nombre)} 👋 Te escribimos de *${S.company.nombre||"Upperfumes"}*. Movimos tu visita para el ${fDia(v.fecha)} en la ${String(v.franja).toLowerCase()}. ¿Te queda bien? 🙌`),"_blank")}
+  const cambio=antes!==v.fecha+v.franja;save();closeSheet();renderAcc();toast("Visita actualizada");
+  if(cambio&&l.tel&&confirm(`¿Le avisamos a ${primer(l.nombre)} el cambio por WhatsApp?`))window.open(waTo(l.tel,`Hola ${primer(l.nombre)}, te escribimos de *${S.company.nombre||"Upperfumes"}* ✨ Movimos tu visita para el ${fDia(v.fecha)} en la ${String(v.franja).toLowerCase()}. ¿Te queda bien?`),"_blank")}
 function quitarVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(l)delete l.visita;save();closeSheet();vList()}
 
 /* armar la ruta */
@@ -1831,9 +1831,9 @@ function rtMv(k,d){const j=k+d;if(j<0||j>=RT.orden.length)return;[RT.orden[k],RT
 function mapsUrl(stops,origen){const e=encodeURIComponent,p=stops.map(v=>[v.dir,v.barrio,v.mun,"Antioquia"].filter(Boolean).join(", "));if(!p.length)return "#";
   return `https://www.google.com/maps/dir/?api=1${origen?`&origin=${e(origen+", Antioquia")}`:""}&destination=${e(p[p.length-1])}${p.length>1?`&waypoints=${e(p.slice(0,-1).join("|"))}`:""}&travelmode=driving`}
 function rutaMsg(r){const pend=r.paradas.filter(p=>!p.est||p.est==="camino");
-  return `🗺️ *Ruta de muestras ${S.company.nombre||"Upperfumes"}*\n📅 ${fDia(r.fecha)} · sale desde ${r.salida}\n👤 Lleva: ${r.lleva}\n\n`+
-  pend.map((p,k)=>`*${k+1}. ${p.nombre}*${p.franja?` (${p.franja.toLowerCase()})`:""}\n📍 ${lugar(p)}\n📞 ${p.tel||"—"}\n🧴 ${p.ps.join(", ")||"—"}${p.ases?" + asesoría":""}${p.gusto?`\n💬 "${p.gusto}"`:""}`).join("\n\n")+
-  `\n\n🧭 Google Maps:\n${mapsUrl(pend,r.paradas.some(p=>p.est&&p.est!=="camino")?"":r.salida)}`}
+  return `★ *Ruta de muestras ${S.company.nombre||"Upperfumes"}*\n⏰ ${fDia(r.fecha)} · sale desde ${r.salida}\n✔ Lleva: ${r.lleva}\n\n`+
+  pend.map((p,k)=>`*${k+1}. ${p.nombre}*${p.franja?` (${p.franja.toLowerCase()})`:""}\n➤ ${lugar(p)}\n☎ ${p.tel||"—"}\n✔ ${p.ps.join(", ")||"—"}${p.ases?" + asesoría":""}${p.gusto?`\n✎ "${p.gusto}"`:""}`).join("\n\n")+
+  `\n\n➤ Google Maps:\n${mapsUrl(pend,r.paradas.some(p=>p.est&&p.est!=="camino")?"":r.salida)}`}
 function iniciarRuta(){if(rutaActiva())return toast("Ya hay una ruta en curso");
   const L=RT.orden.map(id=>(S.leads||[]).find(l=>l.id===id)).filter(Boolean);
   const r={id:Date.now(),fecha:RT.fecha,salida:RT.salida.trim()||"Niquía, Bello",lleva:RT.lleva,estado:"curso",creada:today(),
@@ -1854,7 +1854,7 @@ function verRuta(){const r=rutaActiva();if(!r){closeSheet();return}
   <button class="${pend.length?"ghost":"primary"}" onclick="cerrarRuta()">${pend.length?"Cerrar ruta sin terminar":"Cerrar ruta y ver resumen"}</button>
   ${pend.length?`<p class="hint">Si la cierras, las visitas pendientes vuelven a Visitas.</p>`:""}`,true)}
 function enCamino(k){const r=rutaActiva(),p=r&&r.paradas[k];if(!p)return;
-  window.open(waTo(p.tel,`Hola ${primer(p.nombre)} 👋 Somos ${S.company.nombre||"Upperfumes"}. ¡Vamos en camino con tus muestras! 🚗✨ Llegamos en unos minutos.`),"_blank");p.est="camino";save();verRuta()}
+  window.open(waTo(p.tel,`Hola ${primer(p.nombre)}, somos ${S.company.nombre||"Upperfumes"} ✨ ¡Vamos en camino con tus muestras! Llegamos en unos minutos.`),"_blank");p.est="camino";save();verRuta()}
 function visitado(k){const el=$("res"+k);if(!el)return;
   el.innerHTML=`<div class="vi-res"><button class="btn-line" onclick="resVisita(${k},'compro')">🛍️ Compró</button><button class="btn-line" onclick="$('seg${k}').hidden=false">🤔 Lo va a pensar</button><button class="btn-line" onclick="resVisita(${k},'reprog')">🚪 No estaba / reprogramar</button>
   <div id="seg${k}" hidden><label>¿Cuándo le volvemos a escribir?</label><input class="f" type="date" id="sd${k}" value="${(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10)})()}"><button class="btn-line" style="margin-top:6px;width:100%" onclick="resVisita(${k},'pensar')">Guardar</button></div></div>`}
@@ -1880,8 +1880,8 @@ function resumenRuta(id){const r=(S.rutas||[]).find(x=>x.id===id);if(!r)return;c
 
 /* formulario público para agendar: upperfumes.com/?agendar=... */
 function abrirAgendar(){const q=new URLSearchParams(location.search);
-  AG={k:q.get("agendar")!=="1"?q.get("agendar"):"",nombre:q.get("n")||"",tel:q.get("t")||"",dir:"",barrio:"",mun:"Bello",fecha:"",franja:"",pids:[],ases:true,gusto:"",ok:true,q:""};drawAgendar()}
-function drawAgendar(){const A=AG,m=new Date();m.setDate(m.getDate()+1);const min=m.toISOString().slice(0,10);
+  AG={k:q.get("agendar")!=="1"?q.get("agendar"):"",nombre:q.get("n")||"",tel:q.get("t")||"",dir:"",barrio:"",mun:"Bello",fecha:hoyL(),franja:"",pids:[],ases:true,gusto:"",ok:true,q:""};drawAgendar()}
+function drawAgendar(){const A=AG,min=hoyL();
   openSheet(`<div class="ag-hd"><span class="serif">UPPERFUMES</span><small>Asesoría personalizada · Te llevamos las muestras</small></div>
   <h3 class="t" style="text-align:center">${A.nombre?`Hola ${esc(A.nombre)} ✨ `:""}agenda tu visita</h3>
   <div class="two"><div><label for="aN">Nombre</label><input class="f" id="aN" value="${esc(A.nombre)}" autocomplete="name"></div><div><label for="aT">Celular</label><input class="f" id="aT" inputmode="tel" value="${esc(A.tel)}" autocomplete="tel"></div></div>
@@ -1919,6 +1919,10 @@ let solBusy=false;
 async function importarSolicitudes(){if(!CLOUD||!isAdmin()||solBusy)return;solBusy=true;
   try{const {data:ids}=await sb.from("solicitudes").select("id");if(ids&&ids.length){
     const {data,error}=await sb.from("solicitudes").delete().in("id",ids.map(x=>x.id)).select();
-    if(!error&&data&&data.length){S.leads=S.leads||[];agAplicar(data);save();VSEL=null;toast(`📅 ${data.length} visita${data.length>1?"s":""} nueva${data.length>1?"s":""} por agendar`);if(atab==="clientes"&&$("cl"))aClientes()}}}
+    if(!error&&data&&data.length){S.leads=S.leads||[];agAplicar(data);save();VSEL=null;toast(`📅 ${data.length} visita${data.length>1?"s":""} nueva${data.length>1?"s":""} para revisar`);const vc=document.querySelector(".view.active");if(vc&&vc.id==="v-cuenta")renderAcc()}}}
   catch(e){console.warn("solicitudes",e)}solBusy=false}
 if(new URLSearchParams(location.search).has("agendar"))setTimeout(abrirAgendar,700);
+
+function avisoVisitas(){if(!isAdmin())return "";const l=(S.leads||[]).filter(x=>x.visita&&x.visita.nuevo&&!x.visita.ruta);if(!l.length)return "";
+  return `<div class="cobro-av"><b>📅 Nuevas visitas para revisar (${l.length})</b>${l.map(x=>`<button onclick="revisarVisita(${x.id})"><span class="pill g">Nueva</span><span class="grow">${esc(x.nombre)} · ${esc(fDia(x.visita.fecha))} · ${esc(x.visita.franja||"")}</span><b>Revisar ›</b></button>`).join("")}</div>`}
+function revisarVisita(id){atab="clientes";ctab="visitas";VSEL=null;renderAcc();setTimeout(()=>editVisita(id),50)}
