@@ -848,3 +848,6 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .vi-res{display:flex;flex-direction:column;gap:6px;margin-top:8px}.vi-res .btn-line{margin:0;padding:8px;font-size:13px;text-align:left}
 .ag-hd{text-align:center;margin:4px 0 6px}.ag-hd span{color:var(--gold);letter-spacing:4px;font-size:16px;display:block}.ag-hd small{color:var(--muted);font-size:12.5px}
 .primary:disabled{opacity:.4;cursor:not-allowed}
+
+.ag-fab{position:fixed;right:14px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:39;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:62px;height:62px;border-radius:50%;background:var(--gold);color:var(--onGold);box-shadow:0 6px 20px rgba(0,0,0,.45);font-size:10.5px;font-weight:600}
+.ag-fab[hidden]{display:none}
