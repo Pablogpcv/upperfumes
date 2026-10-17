@@ -223,7 +223,7 @@ if(CLOUD){let c=null;try{c=JSON.parse(localStorage.getItem(CAT_CACHE)||"null")}c
   if(Array.isArray(c)&&c.length)S.products=c.sort((a,b)=>a.id-b.id).map(filaProd);
   else document.documentElement.classList.add("precios-cargando")}
 let SNAP=null,syncT=null,syncing=false,syncAgain=false,PERFILES=[],cloudReady=!CLOUD,CLOUD_EMPTY=false,MIS=null;
-const ADM_KEYS=["purchases","expenses","providers","invLog","leads","config"];
+const ADM_KEYS=["purchases","expenses","providers","invLog","leads","config","rutas"];
 const pubOf=p=>{const o={...p};delete o.compra;delete o.proveedor;delete o.stock;return o};
 const privOf=p=>({compra:p.compra||0,proveedor:p.proveedor||"Por definir"});
 function snapshot(){const n={p:{},st:{},pv:{},f:{},a:{},emp:JSON.stringify(S.company)};
@@ -269,7 +269,7 @@ async function cargarAdmin(){
   if(CLOUD_EMPTY){SNAP={p:{},st:{},pv:{},f:{},a:{},emp:""};await sync();CLOUD_EMPTY=false;toast("Catálogo subido a la nube")}
   else{SNAP=snapshot();if(ADM_LEGACY.length){ADM_KEYS.forEach(k=>Object.keys(SNAP.a).forEach(c=>{if(c.startsWith(k+"|"))delete SNAP.a[c]}));sync()}}
   if(!(await sb.from("ajustes").select("clave").eq("clave","empresa")).data.length)await sb.from("ajustes").upsert({clave:"empresa",data:S.company});
-  setTimeout(subirFotosPendientes,1500)}
+  setTimeout(subirFotosPendientes,1500);setTimeout(importarSolicitudes,1200)}
 async function sync(){if(!CLOUD||!isAdmin()||!SNAP)return;if(syncing){syncAgain=true;return}syncing=true;
   try{const N=snapshot(),O=SNAP;
     const nuevos=S.products.filter(p=>O.p[p.id]===undefined),cambian=S.products.filter(p=>O.p[p.id]!==undefined&&N.p[p.id]!==O.p[p.id]);
@@ -315,7 +315,7 @@ async function refrescar(){
       SNAP=snapshot()}
     else if(session)MIS=r[2].data||[];
     redibujar();
-  }catch(e){console.warn("refrescar",e)}finally{refBusy=false}}
+  }catch(e){console.warn("refrescar",e)}finally{refBusy=false;if(isAdmin())importarSolicitudes()}}
 function redibujar(){
   const a=document.activeElement,escribiendo=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!$("sheet").contains(a);
   if(escribiendo){if(a.id==="cq"&&typeof comprasList==="function")comprasList();return} // no interrumpir mientras se escribe en la página
@@ -1253,7 +1253,7 @@ function psClose(key){const d=$("psd_"+key);if(d)d.hidden=true}
 function psPick(key,id){const c=PSCB[key];c.done=true;c.cb(id)}
 const psFocus=k=>setTimeout(()=>{const i=$("ps_"+k);if(i)i.focus()},40);
 const fPr=(l,tipo)=>l.op&&l.price>0?l.price:listPrice(l.pid,tipo);
-function formFactura(){leadConv=null;lines=[];FV={blob:null,url:null};drawFactura()}
+function formFactura(){leadConv=null;RSTOP=null;lines=[];FV={blob:null,url:null};drawFactura()}
 function drawFactura(keep){
   const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pendiente",n:"",nv:false};
   const pr=l=>fPr(l,v.tipo);
@@ -1290,6 +1290,7 @@ async function saveFactura(){
   const nota=(v.n||"").trim();if(nota){inv.notas=nota;if(v.nv)inv.notaCliente=true;save()}
   if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
+  if(RSTOP){const rr=(S.rutas||[]).find(x=>x.id===RSTOP.r);if(rr&&rr.paradas[RSTOP.i])rr.paradas[RSTOP.i].fv=inv.id;RSTOP=null;save()}
   atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada");verFactura(inv.id);
 }
 const fdate=d=>new Date(d+"T12:00:00").toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"});
@@ -1607,11 +1608,11 @@ function buyers(){
 }
 function aClientes(){
   const b=buyers(),L=S.leads||[];
-  $("ab").innerHTML=`<div class="seg" style="margin-top:14px"><button aria-pressed="${ctab==="compradores"}" onclick="ctab='compradores';aClientes()">Compradores (${b.length})</button><button aria-pressed="${ctab==="interesados"}" onclick="ctab='interesados';aClientes()">Interesados (${L.length})</button></div>
+  $("ab").innerHTML=`<div class="seg" style="margin-top:14px;grid-template-columns:1fr 1fr 1fr"><button aria-pressed="${ctab==="compradores"}" onclick="ctab='compradores';aClientes()">Compradores (${b.length})</button><button aria-pressed="${ctab==="interesados"}" onclick="ctab='interesados';aClientes()">Interesados (${L.filter(l=>!l.visita).length})</button><button aria-pressed="${ctab==="visitas"}" onclick="ctab='visitas';VSEL=null;aClientes()">Visitas (${visitas().length})${rutaActiva()?" 🗺️":""}</button></div>
   ${ctab==="compradores"?`<p class="hint" style="margin:0">Se llena solo con cada factura que generas.</p>
    <div class="search" style="margin-top:10px"><input id="cq" placeholder="Buscar por nombre o celular" oninput="cList()" aria-label="Buscar cliente"></div><div id="cl"></div>`
-  :`<div class="toolbar"><button class="btn-line" onclick="formLead()">Agregar interesado</button></div><div id="cl"></div>`}`;
-  ctab==="compradores"?cList():lList();
+  :ctab==="visitas"?`<div id="cl"></div>`:`<div class="toolbar"><button class="btn-line" onclick="formLead()">Agregar interesado</button></div><div id="cl"></div>`}`;
+  ctab==="compradores"?cList():ctab==="visitas"?vList():lList();
 }
 function cList(){
   const q=($("cq")&&$("cq").value||"").toLowerCase().trim(),b=buyers().filter(c=>!q||c.nombre.toLowerCase().includes(q)||String(c.tel).replace(/\D/g,"").includes(q.replace(/\D/g,"")||"~"));
@@ -1636,12 +1637,14 @@ function verCliente(k){
 }
 const MEDIOS=["Instagram","WhatsApp","Facebook","TikTok","Referido","En persona","Otro"];
 function lList(){
-  const L=S.leads||[];
+  const L=(S.leads||[]).filter(l=>!l.visita);
   $("cl").innerHTML=L.length?L.map(l=>`<div class="row" style="align-items:flex-start"><div class="grow"><b>${esc(l.nombre)}</b><small>${l.tel?esc(l.tel)+" · ":""}${esc(l.medio)} · ${fdate(l.fecha)}</small>
    ${l.pids.length?`<div class="cl-sum">${l.pids.filter(id=>P(id)).map(id=>`<span class="pill g">${esc(P(id).name)}</span>`).join("")}</div>`:""}
    ${l.nota?`<small style="display:block;margin-top:4px">${esc(l.nota)}</small>`:""}
+   ${l.seg?`<small style="display:block;margin-top:4px;color:${l.seg<=today()?"var(--warn)":"var(--muted)"}">📅 Volver a escribirle: ${esc(fDia(l.seg))}</small>`:""}${l.invitado?`<small style="display:block;margin-top:2px">Invitado a agendar el ${esc(fdate(l.invitado))}</small>`:""}
    <div style="display:flex;gap:14px;margin-top:8px;font-size:13px">
     ${l.tel?`<a href="${waTo(l.tel,leadMsg(l))}" target="_blank" rel="noopener" style="color:var(--gold)">WhatsApp</a>`:""}
+    ${l.tel?`<button style="color:var(--gold)" onclick="invitarLead(${l.id})">Agendar visita</button>`:""}
     <button style="color:var(--gold)" onclick="convLead(${l.id})">Vendido</button>
     <button style="color:var(--muted)" onclick="formLead(${l.id})">Editar</button></div></div></div>`).join("")
   :`<p class="empty">No hay interesados. Agrega a quien te pregunte por un perfume y aún no haya comprado.</p>`;
@@ -1758,3 +1761,164 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeSheet();closeS
   sh.addEventListener("touchstart",e=>{const onGrab=e.target.closest(".grab");if(sh.scrollTop>0&&!onGrab){y0=null;return}y0=e.touches[0].clientY;dy=0;drag=false},{passive:true});
   sh.addEventListener("touchmove",e=>{if(y0==null)return;dy=e.touches[0].clientY-y0;if(dy>8&&sh.scrollTop<=0){drag=true;sh.style.transition="none";sh.style.transform=`translate(-50%,${dy}px)`}else if(dy<0){y0=null;sh.style.transform="";sh.style.transition=""}},{passive:true});
   sh.addEventListener("touchend",()=>{if(y0==null)return;y0=null;sh.style.transition="";if(drag&&dy>110)closeSheet();else sh.style.transform="";drag=false})})();
+
+/* ---------- VISITAS CON MUESTRAS: agendar (formulario público), visitas y rutas ---------- */
+const ZONAS=["Barbosa","Girardota","Copacabana","Bello","Medellín","Itagüí","Envigado","Sabaneta","La Estrella","Caldas","Otro"];
+const FRANJAS=["Mañana","Tarde","Noche"];
+const fDia=d=>d?new Date(d+"T12:00:00").toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"short"}):"Sin fecha";
+const lugar=v=>[v.dir,v.barrio,v.mun].filter(Boolean).join(", ");
+const pNames=l=>(l.pids||[]).filter(id=>P(id)).map(id=>P(id).name);
+const primer=n=>String(n||"").trim().split(" ")[0];
+let VSEL=null,RT=null,RSTOP=null,AG=null;
+const visitas=()=>(S.leads||[]).filter(l=>l.visita&&!l.visita.ruta).sort((a,b)=>(a.visita.fecha||"9").localeCompare(b.visita.fecha||"9")||FRANJAS.indexOf(a.visita.franja)-FRANJAS.indexOf(b.visita.franja));
+const rutaActiva=()=>(S.rutas||[]).find(r=>r.estado==="curso");
+const linkAgendar=l=>`https://upperfumes.com/?agendar=${l?l.id:"1"}${l?`&n=${encodeURIComponent(primer(l.nombre))}${l.tel?`&t=${encodeURIComponent(String(l.tel).replace(/\D/g,""))}`:""}`:""}`;
+function invitarMsg(l){return `Hola ${primer(l.nombre)} 👋 Soy ${primer(session&&session.name)||"Juan"} de *${S.company.nombre||"Upperfumes"}* ✨\n\nQueremos llevarte tus muestras y darte una *asesoría personalizada* para encontrar tu fragancia ideal.\n\nAgenda tu visita aquí, toma 1 minuto 👇\n${linkAgendar(l)}`}
+function copiarLinkAgendar(){const u=linkAgendar(null);(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Link copiado: pégalo en Instagram o WhatsApp")).catch(()=>prompt("Copia este link:",u))}
+
+/* lista de visitas (Clientes → Visitas) */
+function vList(){
+  const V=visitas(),R=rutaActiva(),H=(S.rutas||[]).filter(r=>r.estado==="cerrada").slice(0,5);
+  if(VSEL===null){const d=V[0]&&V[0].visita.fecha;VSEL=V.filter(l=>l.visita.fecha===d).map(l=>l.id)}
+  VSEL=VSEL.filter(id=>V.some(l=>l.id===id));
+  let last=null;
+  $("cl").innerHTML=`${R?`<button class="vi-ruta" onclick="verRuta()"><span><b>🗺️ Ruta en curso · ${esc(fDia(R.fecha))}</b><small>${R.paradas.filter(p=>p.est&&p.est!=="camino").length} de ${R.paradas.length} visitadas · lleva ${esc(R.lleva||"")}</small></span><span class="lf-add">Abrir ›</span></button>`:""}
+  <div class="toolbar" style="margin-top:${R?10:0}px"><button class="btn-line" onclick="copiarLinkAgendar()">Copiar link para agendar</button></div>
+  ${V.length?`<p class="hint" style="margin:4px 0 0">Ya vienen marcadas las del día más próximo. Desmarca las que no vas a visitar.</p>`+V.map(l=>{const v=l.visita,h=v.fecha!==last?`<div class="vi-dia">${esc(fDia(v.fecha))}</div>`:"";last=v.fecha;
+    return h+`<div class="row vi-row"><input type="checkbox" class="vi-chk" ${VSEL.includes(l.id)?"checked":""} onchange="vTog(${l.id})" aria-label="Incluir a ${esc(l.nombre)} en la ruta">
+    <div class="grow"><b>${esc(l.nombre)}</b>${v.conf?'<span class="pill ok" style="margin-left:6px">Confirmada</span>':v.nuevo?'<span class="pill g" style="margin-left:6px">Nueva</span>':""}
+    <small>${esc(v.franja||"")} · ${esc(lugar(v))}</small><small>${esc(pNames(l).join(", ")||"Sin perfumes")}${v.ases?" · Quiere asesoría":""}</small>${v.gusto?`<small>"${esc(v.gusto)}"</small>`:""}</div>
+    <div class="vi-acc">${!v.conf&&l.tel?`<button class="btn-line" onclick="confVisita(${l.id})">Confirmar</button>`:""}<button class="btn-line vi-ed" onclick="editVisita(${l.id})">Editar</button></div></div>`}).join("")
+   +`<button class="primary" ${VSEL.length&&!R?"":"disabled"} onclick="armarRuta()">🗺️ Armar ruta con ${VSEL.length} visita${VSEL.length===1?"":"s"}</button>${R?`<p class="hint">Termina o cierra la ruta en curso para armar otra.</p>`:""}`
+  :`<p class="empty">No hay visitas por hacer. Invita a tus interesados a agendar desde la pestaña Interesados, o comparte el link para agendar.</p>`}
+  ${H.length?`<div class="sh"><h2 style="font-size:17px">Rutas anteriores</h2></div>`+H.map(r=>{const c=r.paradas.filter(p=>p.est==="compro").length;return `<button class="row" style="width:100%;text-align:left" onclick="resumenRuta(${r.id})"><div class="grow"><b style="font-weight:500">${esc(fDia(r.fecha))}</b><small>${r.paradas.length} visitas · ${c} compraron</small></div><span class="lf-add">Ver ›</span></button>`}).join(""):""}`;
+}
+function vTog(id){const i=VSEL.indexOf(id);i<0?VSEL.push(id):VSEL.splice(i,1);vList()}
+function invitarLead(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;window.open(waTo(l.tel,invitarMsg(l)),"_blank");l.invitado=today();save();lList()}
+function confVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l||!l.visita)return;const v=l.visita;
+  window.open(waTo(l.tel,`¡Listo ${primer(l.nombre)}! ✨ Confirmamos tu visita:\n📅 ${fDia(v.fecha)} · ${String(v.franja||"").toLowerCase()}\n📍 ${lugar(v)}\n🧴 Muestras: ${pNames(l).join(", ")||"las que elijas"}${v.ases?"\n💬 Y te llevamos opciones según tus gustos":""}\n\nEl día de la visita te avisamos cuando vayamos en camino 🚗`),"_blank");
+  v.conf=true;v.nuevo=false;save();vList();toast("Visita confirmada")}
+function editVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita||{};
+  openSheet(`<h3 class="t">Visita de ${esc(l.nombre)}</h3>
+  <div class="two"><div><label for="vF">Fecha</label>${campoFecha("vF",v.fecha||today(),1)}</div><div><label for="vH">Hora</label><select class="f" id="vH">${FRANJAS.map(x=>`<option ${x===v.franja?"selected":""}>${x}</option>`).join("")}</select></div></div>
+  <label for="vD">Dirección</label><input class="f" id="vD" value="${esc(v.dir||"")}">
+  <div class="two"><div><label for="vB">Barrio</label><input class="f" id="vB" value="${esc(v.barrio||"")}"></div><div><label for="vM">Municipio</label><select class="f" id="vM">${ZONAS.map(z=>`<option ${z===v.mun?"selected":""}>${z}</option>`).join("")}</select></div></div>
+  <label for="vG">Lo que le gusta</label><input class="f" id="vG" value="${esc(v.gusto||"")}">
+  <p class="err" id="err"></p><button class="primary" onclick="guardarVisita(${id})">Guardar</button>
+  <button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Quitar esta visita? El cliente sigue en Interesados.'))quitarVisita(${id})">Quitar visita</button>`)}
+function guardarVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(!l)return;const v=l.visita=l.visita||{},antes=(v.fecha||"")+(v.franja||"");
+  Object.assign(v,{fecha:$("vF").value,franja:$("vH").value,dir:$("vD").value.trim(),barrio:$("vB").value.trim(),mun:$("vM").value,gusto:$("vG").value.trim()});
+  if(!v.fecha||!v.dir)return $("err").textContent="Falta la fecha o la dirección.";
+  const cambio=antes!==v.fecha+v.franja;save();closeSheet();vList();toast("Visita actualizada");
+  if(cambio&&l.tel&&confirm(`¿Le avisamos a ${primer(l.nombre)} el cambio por WhatsApp?`))window.open(waTo(l.tel,`Hola ${primer(l.nombre)} 👋 Te escribimos de *${S.company.nombre||"Upperfumes"}*. Movimos tu visita para el ${fDia(v.fecha)} en la ${String(v.franja).toLowerCase()}. ¿Te queda bien? 🙌`),"_blank")}
+function quitarVisita(id){const l=(S.leads||[]).find(x=>x.id===id);if(l)delete l.visita;save();closeSheet();vList()}
+
+/* armar la ruta */
+function armarRuta(){const L=visitas().filter(l=>VSEL.includes(l.id));if(!L.length)return;
+  RT={fecha:L.map(l=>l.visita.fecha).sort()[0]||today(),salida:cfg("ruta").salida||"Niquía, Bello",lleva:primer(session&&session.name)||"Juan",
+    orden:L.slice().sort((a,b)=>ZONAS.indexOf(a.visita.mun)-ZONAS.indexOf(b.visita.mun)).map(l=>l.id)};drawArmar()}
+function drawArmar(){const L=RT.orden.map(id=>(S.leads||[]).find(l=>l.id===id)).filter(Boolean),dias=new Set(L.map(l=>l.visita.fecha));
+  openSheet(`<h3 class="t">Armar ruta</h3>${dias.size>1?`<p class="err">⚠ Elegiste visitas de días distintos.</p>`:""}
+  <div class="two"><div><label for="rF">Fecha</label>${campoFecha("rF",RT.fecha,1)}</div><div><label for="rS">Salimos desde</label><input class="f" id="rS" value="${esc(RT.salida)}" oninput="RT.salida=this.value"></div></div>
+  <label>¿Quién lleva la ruta?</label><div class="fecha-q">${["Juan","Camilo"].map(n=>`<button type="button" class="chip" aria-pressed="${RT.lleva===n}" onclick="RT.lleva='${n}';drawArmar()">${n}</button>`).join("")}</div>
+  <div class="vi-stops"><div class="vi-stop"><span class="vi-n h">⌂</span><div class="grow"><b>Salida</b><small>${esc(RT.salida)}</small></div></div>
+  ${L.map((l,k)=>`<div class="vi-stop"><span class="vi-n">${k+1}</span><div class="grow"><b>${esc(l.nombre)}</b><small>${esc(lugar(l.visita))}</small><small>${esc(l.visita.franja||"")} · ${esc(pNames(l).join(", "))}</small></div><button class="vi-mv" onclick="rtMv(${k},-1)" aria-label="Subir">↑</button><button class="vi-mv" onclick="rtMv(${k},1)" aria-label="Bajar">↓</button></div>`).join("")}</div>
+  <p class="hint">Ordenada por zona, de norte a sur del valle. Ajusta con ↑↓.</p>
+  <a class="btn-line" style="display:block;text-align:center;margin-top:10px" href="${mapsUrl(L.map(l=>l.visita),RT.salida)}" target="_blank" rel="noopener">Ver en Google Maps</a>
+  <button class="primary" onclick="iniciarRuta()">Iniciar ruta y enviarla por WhatsApp</button>`,true);
+  $("rF").addEventListener("change",e=>RT.fecha=e.target.value)}
+function rtMv(k,d){const j=k+d;if(j<0||j>=RT.orden.length)return;[RT.orden[k],RT.orden[j]]=[RT.orden[j],RT.orden[k]];drawArmar()}
+function mapsUrl(stops,origen){const e=encodeURIComponent,p=stops.map(v=>[v.dir,v.barrio,v.mun,"Antioquia"].filter(Boolean).join(", "));if(!p.length)return "#";
+  return `https://www.google.com/maps/dir/?api=1${origen?`&origin=${e(origen+", Antioquia")}`:""}&destination=${e(p[p.length-1])}${p.length>1?`&waypoints=${e(p.slice(0,-1).join("|"))}`:""}&travelmode=driving`}
+function rutaMsg(r){const pend=r.paradas.filter(p=>!p.est||p.est==="camino");
+  return `🗺️ *Ruta de muestras ${S.company.nombre||"Upperfumes"}*\n📅 ${fDia(r.fecha)} · sale desde ${r.salida}\n👤 Lleva: ${r.lleva}\n\n`+
+  pend.map((p,k)=>`*${k+1}. ${p.nombre}*${p.franja?` (${p.franja.toLowerCase()})`:""}\n📍 ${lugar(p)}\n📞 ${p.tel||"—"}\n🧴 ${p.ps.join(", ")||"—"}${p.ases?" + asesoría":""}${p.gusto?`\n💬 "${p.gusto}"`:""}`).join("\n\n")+
+  `\n\n🧭 Google Maps:\n${mapsUrl(pend,r.paradas.some(p=>p.est&&p.est!=="camino")?"":r.salida)}`}
+function iniciarRuta(){if(rutaActiva())return toast("Ya hay una ruta en curso");
+  const L=RT.orden.map(id=>(S.leads||[]).find(l=>l.id===id)).filter(Boolean);
+  const r={id:Date.now(),fecha:RT.fecha,salida:RT.salida.trim()||"Niquía, Bello",lleva:RT.lleva,estado:"curso",creada:today(),
+    paradas:L.map(l=>({lid:l.id,nombre:l.nombre,tel:l.tel||"",dir:l.visita.dir||"",barrio:l.visita.barrio||"",mun:l.visita.mun||"",franja:l.visita.franja||"",ps:pNames(l),ases:!!l.visita.ases,gusto:l.visita.gusto||"",est:""}))};
+  L.forEach(l=>l.visita.ruta=r.id);S.rutas=S.rutas||[];S.rutas.unshift(r);setCfg("ruta",{salida:r.salida});save();VSEL=null;
+  window.open(`https://wa.me/?text=${encodeURIComponent(rutaMsg(r))}`,"_blank");verRuta();if(atab==="clientes")aClientes()}
+
+/* ruta en curso: se guarda cada cosa que marques */
+function verRuta(){const r=rutaActiva();if(!r){closeSheet();return}
+  const pend=r.paradas.filter(p=>!p.est||p.est==="camino"),hechas=r.paradas.length-pend.length;
+  const EST={compro:["ok","Compró"],pensar:["warn","Lo va a pensar"],reprog:["bad","No estaba · reprogramar"],camino:["g","En camino"]};
+  openSheet(`<h3 class="t">Ruta · ${esc(fDia(r.fecha))}</h3><p class="hint" style="margin:0">${hechas} de ${r.paradas.length} visitadas · lleva ${esc(r.lleva)} · se guarda solo</p>
+  <div class="vi-stops">${r.paradas.map((p,k)=>{const e=EST[p.est];const done=p.est&&p.est!=="camino";
+   return `<div class="vi-stop${done?" done":""}"><span class="vi-n">${done?"✓":k+1}</span><div class="grow"><b>${esc(p.nombre)}</b>${e?` <span class="pill ${e[0]}">${e[1]}</span>`:""}<small>${esc(lugar(p))}</small><small>${esc(p.ps.join(", ")||"—")}${p.ases?" · asesoría":""}</small>${p.gusto&&!done?`<small>"${esc(p.gusto)}"</small>`:""}${p.est==="pensar"&&p.seg?`<small>Volver a escribir: ${esc(fDia(p.seg))}</small>`:""}
+   ${!done?`<div class="vi-btns">${p.tel?`<button class="btn-line" onclick="enCamino(${k})">Voy en camino</button>`:""}<button class="btn-line" style="background:var(--gold);color:var(--onGold)" onclick="visitado(${k})">Visitado</button></div><div id="res${k}"></div>`:""}</div></div>`}).join("")}</div>
+  ${pend.length?`<a class="btn-gold" style="display:block;text-align:center;margin-top:12px" href="${mapsUrl(pend,hechas?"":r.salida)}" target="_blank" rel="noopener">Abrir en Google Maps (${pend.length} pendiente${pend.length>1?"s":""})</a>
+  <a class="btn-line" style="display:block;text-align:center;margin-top:8px" href="https://wa.me/?text=${encodeURIComponent(rutaMsg(r))}" target="_blank" rel="noopener">Reenviar ruta por WhatsApp</a>`:""}
+  <button class="${pend.length?"ghost":"primary"}" onclick="cerrarRuta()">${pend.length?"Cerrar ruta sin terminar":"Cerrar ruta y ver resumen"}</button>
+  ${pend.length?`<p class="hint">Si la cierras, las visitas pendientes vuelven a Visitas.</p>`:""}`,true)}
+function enCamino(k){const r=rutaActiva(),p=r&&r.paradas[k];if(!p)return;
+  window.open(waTo(p.tel,`Hola ${primer(p.nombre)} 👋 Somos ${S.company.nombre||"Upperfumes"}. ¡Vamos en camino con tus muestras! 🚗✨ Llegamos en unos minutos.`),"_blank");p.est="camino";save();verRuta()}
+function visitado(k){const el=$("res"+k);if(!el)return;
+  el.innerHTML=`<div class="vi-res"><button class="btn-line" onclick="resVisita(${k},'compro')">🛍️ Compró</button><button class="btn-line" onclick="$('seg${k}').hidden=false">🤔 Lo va a pensar</button><button class="btn-line" onclick="resVisita(${k},'reprog')">🚪 No estaba / reprogramar</button>
+  <div id="seg${k}" hidden><label>¿Cuándo le volvemos a escribir?</label><input class="f" type="date" id="sd${k}" value="${(()=>{const d=new Date();d.setDate(d.getDate()+3);return d.toISOString().slice(0,10)})()}"><button class="btn-line" style="margin-top:6px;width:100%" onclick="resVisita(${k},'pensar')">Guardar</button></div></div>`}
+function resVisita(k,res){const r=rutaActiva(),p=r&&r.paradas[k];if(!p)return;const l=(S.leads||[]).find(x=>x.id===p.lid);
+  p.est=res;p.hora=new Date().toISOString();
+  if(res==="pensar"){p.seg=$("sd"+k)&&$("sd"+k).value||"";if(l){delete l.visita;l.seg=p.seg}}
+  else if(res==="reprog"){if(l&&l.visita){delete l.visita.ruta;l.visita.conf=false}}
+  else if(res==="compro"){if(l)delete l.visita}
+  save();
+  if(res==="compro"&&l){RSTOP={r:r.id,i:k};convLead(l.id);toast("Haz la factura de "+primer(p.nombre));return}
+  if(res==="reprog")toast("Volvió a Visitas: cámbiale la fecha");
+  verRuta()}
+function cerrarRuta(){const r=rutaActiva();if(!r)return;const pend=r.paradas.filter(p=>!p.est||p.est==="camino");
+  if(pend.length&&!confirm(`Quedan ${pend.length} visita${pend.length>1?"s":""} sin marcar. Vuelven a Visitas. ¿Cerrar la ruta?`))return;
+  pend.forEach(p=>{p.est="pendiente";const l=(S.leads||[]).find(x=>x.id===p.lid);if(l&&l.visita)delete l.visita.ruta});
+  r.estado="cerrada";r.cerrada=today();save();VSEL=null;resumenRuta(r.id);if(atab==="clientes")aClientes()}
+function resumenRuta(id){const r=(S.rutas||[]).find(x=>x.id===id);if(!r)return;const n=e=>r.paradas.filter(p=>p.est===e).length;
+  const fv=r.paradas.map(p=>p.fv&&S.invoices.find(i=>i.id===p.fv)).filter(Boolean),vend=fv.reduce((a,i)=>a+i.total,0),mu=r.paradas.filter(p=>p.est!=="pendiente"&&p.est!=="reprog").reduce((a,p)=>a+p.ps.length,0);
+  openSheet(`<h3 class="t">Resumen de la ruta</h3><p class="hint" style="margin:0">${esc(fDia(r.fecha))} · lleva ${esc(r.lleva)}</p>
+  <div class="kpis"><div class="kpi"><span>Visitas hechas</span><b>${r.paradas.length-n("pendiente")-n("reprog")}</b></div><div class="kpi"><span>Muestras entregadas</span><b>${mu}</b></div>
+  <div class="kpi"><span>Compraron</span><b class="g">${n("compro")}</b></div><div class="kpi"><span>Vendido</span><b class="g">${cop(vend)}</b></div></div>
+  ${r.paradas.map(p=>`<div class="row"><div class="grow"><b style="font-weight:500">${esc(p.nombre)}</b><small>${esc(p.mun||"")}${p.fv?` · <a href="#" style="color:var(--gold)" onclick="event.preventDefault();verFactura('${p.fv}')">${p.fv}</a>`:""}${p.est==="pensar"&&p.seg?` · escribirle el ${esc(fDia(p.seg))}`:""}</small></div><span class="pill ${p.est==="compro"?"ok":p.est==="pensar"?"warn":"bad"}">${{compro:"Compró",pensar:"Lo va a pensar",reprog:"Reprogramar",pendiente:"No se visitó"}[p.est]||p.est}</span></div>`).join("")}`)}
+
+/* formulario público para agendar: upperfumes.com/?agendar=... */
+function abrirAgendar(){const q=new URLSearchParams(location.search);
+  AG={k:q.get("agendar")!=="1"?q.get("agendar"):"",nombre:q.get("n")||"",tel:q.get("t")||"",dir:"",barrio:"",mun:"Bello",fecha:"",franja:"",pids:[],ases:true,gusto:"",ok:true,q:""};drawAgendar()}
+function drawAgendar(){const A=AG,m=new Date();m.setDate(m.getDate()+1);const min=m.toISOString().slice(0,10);
+  openSheet(`<div class="ag-hd"><span class="serif">UPPERFUMES</span><small>Asesoría personalizada · Te llevamos las muestras</small></div>
+  <h3 class="t" style="text-align:center">${A.nombre?`Hola ${esc(A.nombre)} ✨ `:""}agenda tu visita</h3>
+  <div class="two"><div><label for="aN">Nombre</label><input class="f" id="aN" value="${esc(A.nombre)}" autocomplete="name"></div><div><label for="aT">Celular</label><input class="f" id="aT" inputmode="tel" value="${esc(A.tel)}" autocomplete="tel"></div></div>
+  <label for="aD">Dirección</label><input class="f" id="aD" placeholder="Ej: Cra 50 #38-20, apto 301" value="${esc(A.dir)}" autocomplete="street-address">
+  <div class="two"><div><label for="aB">Barrio</label><input class="f" id="aB" placeholder="Ej: Niquía" value="${esc(A.barrio)}"></div><div><label for="aM">Municipio</label><select class="f" id="aM">${ZONAS.map(z=>`<option ${z===A.mun?"selected":""}>${z}</option>`).join("")}</select></div></div>
+  <div class="two"><div><label for="aF">¿Qué día te queda bien?</label><input class="f" type="date" id="aF" min="${min}" value="${esc(A.fecha)}"></div><div><label>¿A qué hora?</label><div class="fecha-q" id="aH" style="margin:0">${FRANJAS.map(x=>`<button type="button" class="chip" aria-pressed="${A.franja===x}" onclick="agRead();AG.franja='${x}';drawAgendar()">${x}</button>`).join("")}</div></div></div>
+  <label for="aQ">¿Qué perfumes quieres probar?</label><div id="aSel" class="pick"></div>
+  <div class="cp-search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><input id="aQ" placeholder="Busca por nombre o marca" autocomplete="off" oninput="agList()" aria-label="Buscar perfume"></div><div id="aRes" class="lf-res"></div>
+  <label class="chk"><input type="checkbox" id="aA" ${A.ases?"checked":""}> Quiero asesoría: recomiéndenme según mis gustos</label>
+  <label for="aG">Cuéntanos qué te gusta (opcional)</label><input class="f" id="aG" placeholder="Ej: dulce, para la noche, que dure mucho" value="${esc(A.gusto)}">
+  <label class="chk"><input type="checkbox" id="aO" ${A.ok?"checked":""}> Autorizo a ${esc(S.company.nombre||"Upperfumes")} a contactarme por WhatsApp (Ley 1581)</label>
+  <p class="err" id="err"></p><button class="primary" id="aBtn" onclick="enviarAgendar()">Agendar mi visita</button>`,true);agSel()}
+function agRead(){if(!$("aN"))return;Object.assign(AG,{nombre:$("aN").value,tel:$("aT").value,dir:$("aD").value,barrio:$("aB").value,mun:$("aM").value,fecha:$("aF").value,ases:$("aA").checked,gusto:$("aG").value,ok:$("aO").checked})}
+function agTog(id){const i=AG.pids.indexOf(id);i<0?AG.pids.push(id):AG.pids.splice(i,1);agSel();agList()}
+function agSel(){const el=$("aSel");if(el)el.innerHTML=AG.pids.length?AG.pids.map(id=>`<button type="button" class="chip" aria-pressed="true" onclick="agTog(${id})">${esc(P(id)?P(id).name:"")} ✕</button>`).join(""):`<p class="hint" style="margin:0">Aún no has elegido perfumes.</p>`}
+function agList(){const el=$("aRes");if(!el)return;const q=norm($("aQ").value).trim().split(/\s+/).filter(Boolean);if(!q.length){el.innerHTML="";return}
+  const r=VIS().filter(p=>!AG.pids.includes(p.id)&&q.every(w=>norm(p.brand+" "+p.name).includes(w))).slice(0,6);
+  el.innerHTML=r.length?r.map(p=>`<button type="button" class="lf-it" onclick="agTog(${p.id});$('aQ').value='';agList()"><span><b>${esc(p.name)}</b><small>${esc(p.brand)}</small></span><span class="lf-add">+ Agregar</span></button>`).join(""):`<p class="hint">No lo encontramos. Escríbelo en "qué te gusta".</p>`}
+async function enviarAgendar(){agRead();const A=AG,err=m=>$("err").textContent=m;
+  if(!A.nombre.trim())return err("Escribe tu nombre.");if(String(A.tel).replace(/\D/g,"").length<10)return err("Escribe tu celular.");
+  if(!A.dir.trim())return err("Escribe tu dirección.");if(!A.fecha)return err("Escoge el día.");if(!A.franja)return err("Escoge a qué hora.");
+  if(!A.pids.length&&!A.ases)return err("Escoge un perfume o pide asesoría.");if(!A.ok)return err("Necesitamos tu autorización para escribirte.");
+  const data={k:A.k||null,nombre:A.nombre.trim().slice(0,60),tel:A.tel.trim().slice(0,20),dir:A.dir.trim().slice(0,120),barrio:A.barrio.trim().slice(0,60),mun:A.mun,fecha:A.fecha,franja:A.franja,pids:A.pids.slice(0,10),ases:A.ases,gusto:A.gusto.trim().slice(0,200),ok:true};
+  $("aBtn").disabled=true;
+  if(CLOUD){const {error}=await sb.from("solicitudes").insert({data});if(error){$("aBtn").disabled=false;return err("No se pudo enviar. Revisa tu conexión e intenta de nuevo.")}}
+  else{S.leads=S.leads||[];agAplicar([{data,creado:new Date().toISOString()}]);save()}
+  history.replaceState(null,"",location.pathname+location.hash);
+  openSheet(`<div style="text-align:center;padding:30px 0"><div style="font-size:44px">✨</div><h3 class="t">¡Listo, ${esc(primer(A.nombre))}!</h3><p class="hint">Recibimos tu solicitud para el ${esc(fDia(A.fecha))} en la ${A.franja.toLowerCase()}.<br>Te escribimos por WhatsApp para confirmar.</p><button class="primary" onclick="closeSheet()">Ver el catálogo</button></div>`)}
+function agAplicar(rows){rows.forEach(r=>{const d=r.data||{};let l=d.k?(S.leads||[]).find(x=>String(x.id)===String(d.k)):null;
+  if(!l&&d.tel)l=(S.leads||[]).find(x=>phoneKey(x.tel)&&phoneKey(x.tel)===phoneKey(d.tel));
+  if(!l){l={id:Date.now()+Math.floor(Math.random()*1000),nombre:d.nombre||"Cliente",tel:d.tel||"",medio:"Formulario",pids:[],nota:"",ok:!!d.ok,fecha:today()};S.leads.unshift(l)}
+  l.nombre=d.nombre||l.nombre;l.tel=d.tel||l.tel;l.ok=l.ok||!!d.ok;l.pids=l.pids||[];(d.pids||[]).forEach(p=>{if(P(p)&&!l.pids.includes(p))l.pids.push(p)});
+  l.visita={dir:d.dir||"",barrio:d.barrio||"",mun:d.mun||"",fecha:d.fecha||"",franja:d.franja||"",ases:!!d.ases,gusto:d.gusto||"",nuevo:true,conf:false,recibida:r.creado||""};delete l.seg})}
+let solBusy=false;
+async function importarSolicitudes(){if(!CLOUD||!isAdmin()||solBusy)return;solBusy=true;
+  try{const {data:ids}=await sb.from("solicitudes").select("id");if(ids&&ids.length){
+    const {data,error}=await sb.from("solicitudes").delete().in("id",ids.map(x=>x.id)).select();
+    if(!error&&data&&data.length){S.leads=S.leads||[];agAplicar(data);save();VSEL=null;toast(`📅 ${data.length} visita${data.length>1?"s":""} nueva${data.length>1?"s":""} por agendar`);if(atab==="clientes"&&$("cl"))aClientes()}}}
+  catch(e){console.warn("solicitudes",e)}solBusy=false}
+if(new URLSearchParams(location.search).has("agendar"))setTimeout(abrirAgendar,700);
