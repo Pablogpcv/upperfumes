@@ -793,10 +793,13 @@ function openCart(){
     <div class="total"><span>Total</span><b>${cop(tot)}</b></div><button class="primary" onclick="checkout('detal')">Pedir por WhatsApp</button>`);
 }
 function chg(id,d){const p=P(id);cart[id]=Math.min(p.stock,Math.max(0,(cart[id]||0)+d));if(!cart[id])delete cart[id];save();badge();openCart()}
-function makeInvoice({id,cliente,tel,tipo,items,estado,metodo,origen}){
+/* descuento a toda la factura: {t:"pct"|"val", v:número}. Los precios de cada producto no cambian. */
+function descMonto(sub,d){if(!d||!(d.v>0))return 0;return Math.min(sub,d.t==="pct"?Math.round(sub*Math.min(d.v,100)/100):Math.round(d.v))}
+function aplicarDesc(i){const sub=i.items.reduce((a,x)=>a+x.qty*x.price,0),d=descMonto(sub,i.desc);if(d>0){i.subtotal=sub;i.descuento=d}else{delete i.subtotal;delete i.descuento;delete i.desc}i.total=sub-d;return i}
+function makeInvoice({id,cliente,tel,tipo,items,estado,metodo,origen,desc}){
   const inv={id:id||("FV-"+String(S.seq++).padStart(4,"0")),fecha:today(),cliente,tel:tel||"",tipo,metodo:metodo||"Por definir",estado,origen:origen||"admin",
     items:items.map(i=>{const p=P(i.pid);const o={pid:i.pid,name:p.brand+" "+p.name,qty:i.qty,price:i.price,cost:p.compra};if(i.especial){o.lista=i.lista;o.especial=true}return o})};
-  inv.total=inv.items.reduce((a,i)=>a+i.qty*i.price,0);
+  if(desc&&desc.v>0)inv.desc={t:desc.t,v:desc.v};aplicarDesc(inv);
   inv.items.forEach(i=>{const p=P(i.pid);p.stock=Math.max(0,p.stock-i.qty)});
   S.invoices.unshift(inv);save();return inv;
 }
@@ -1257,7 +1260,7 @@ function formFactura(){leadConv=null;RSTOP=null;lines=[];FV={blob:null,url:null}
 function drawFactura(keep){
   const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pendiente",n:"",nv:false};
   const pr=l=>fPr(l,v.tipo);
-  const tot=lines.reduce((a,l)=>a+pr(l)*l.qty,0);
+  const sub=lines.reduce((a,l)=>a+pr(l)*l.qty,0),dsc=descMonto(sub,{t:v.dt||"pct",v:num(v.dv||0)}),tot=sub-dsc;
   openSheet(`<h3 class="t">Nueva factura</h3>
   <div class="two"><div><label for="vC">Cliente</label><input class="f" id="vC" value="${esc(v.c)}"></div><div><label for="vT">Celular</label><input class="f" id="vT" inputmode="tel" value="${esc(v.t)}"></div></div>
   <div class="two"><div><label for="vTi">Tipo de venta</label><select class="f" id="vTi" onchange="drawFactura(fv())"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
@@ -1272,20 +1275,29 @@ function drawFactura(keep){
   ${v.e!=="pagada"?`<label for="vV">Fecha de pago (si es a crédito, opcional)</label>${campoFecha("vV",v.vence||"")}`:""}
   <label for="vN">Notas adicionales (opcional)</label><textarea class="f nota-in" id="vN" rows="3" placeholder="Ej: entregar el viernes, abona la mitad el 15, va para regalo…">${esc(v.n||"")}</textarea>
   <label class="chk"><input type="checkbox" id="vNv" ${v.nv?"checked":""}> Mostrar la nota en la factura del cliente</label>
-  <div class="total"><span>Total</span><b>${cop(tot)}</b></div><p class="err" id="err"></p>
-  <button class="primary" onclick="saveFactura()">Crear factura</button>`,!!keep);
+  <label for="vDv">Descuento a toda la factura (opcional)</label><div class="desc-row"><select class="f" id="vDt" onchange="drawFactura(fv())"><option value="pct" ${(v.dt||"pct")==="pct"?"selected":""}>%</option><option value="val" ${v.dt==="val"?"selected":""}>$</option></select><input class="f" id="vDv" inputmode="numeric" placeholder="${(v.dt||"pct")==="pct"?"Ej: 10":"Ej: 20.000"}" value="${v.dv?esc(String(v.dv)):""}" onchange="drawFactura(fv())"></div>
+  ${dsc>0?`<div class="sub-row"><span>Subtotal</span><span>${cop(sub)}</span></div><div class="sub-row desc"><span>Descuento${(v.dt||"pct")==="pct"?` (${num(v.dv)}%)`:""}</span><span>− ${cop(dsc)}</span></div>`:""}
+  <div class="total"><span>Total</span><b>${dsc>0?`<s style="color:var(--muted);font-weight:400;font-size:.8em;margin-right:8px">${cop(sub)}</s>`:""}${cop(tot)}</b></div><p class="err" id="err"></p>
+  <div class="two"><button class="btn-line" style="margin:0" onclick="previewFactura()">👁 Previsualizar</button><button class="primary" style="margin:0" onclick="saveFactura()">Crear factura</button></div>`,!!keep);
 }
-const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value,n:$("vN")?$("vN").value:"",nv:$("vNv")?$("vNv").checked:false,vence:$("vV")?$("vV").value:""});let FVM="Efectivo";
+const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FVM=$("vM").value):FVM,e:$("vE").value,n:$("vN")?$("vN").value:"",nv:$("vNv")?$("vNv").checked:false,vence:$("vV")?$("vV").value:"",dt:$("vDt")?$("vDt").value:"pct",dv:$("vDv")?$("vDv").value.trim():""});let FVM="Efectivo";
+let PVF=null;
+function previewFactura(){const v=fv();if(!lines.length)return $("err").textContent="Agrega al menos un producto.";PVF=v;
+  const i=aplicarDesc({id:"Vista previa",fecha:today(),cliente:v.c.trim()||"Cliente",tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,vence:v.e!=="pagada"&&v.vence?v.vence:undefined,notas:(v.n||"").trim(),notaCliente:v.nv,
+    desc:num(v.dv)>0?{t:v.dt,v:num(v.dv)}:null,items:lines.map(l=>{const p=P(l.pid);return{pid:l.pid,name:p.brand+" "+p.name,qty:l.qty,price:fPr(l,v.tipo)}})});
+  openSheet(`<h3 class="t">Vista previa</h3><p class="hint">Así la verá el cliente. Todavía no se ha creado.</p>${paper(i)}
+  <div class="two" style="margin-top:12px"><button class="btn-line" style="margin:0" onclick="drawFactura(PVF)">← Volver a editar</button><button class="primary" style="margin:0" onclick="saveFactura(PVF)">Crear factura</button></div>`)}
 async function pickFV(inp){const f=inp.files&&inp.files[0];if(!f)return;try{FV.blob=await compress(f);FV.url=URL.createObjectURL(FV.blob);drawFactura(fv())}catch(e){toast("No se pudo leer esa imagen")}}
 let FVK=null;
-async function saveFactura(){
-  const v=fv();if(!v.c.trim())return $("err").textContent="Escribe el nombre del cliente.";
-  if(!lines.length)return $("err").textContent="Agrega al menos un producto.";
-  if(lines.some(l=>l.op&&!(l.price>0)))return $("err").textContent="Escribe el precio diferente o vuelve al precio normal.";
+async function saveFactura(vv){
+  const v=vv||fv(),E=m=>{if(!$("err")){drawFactura(v)}$("err").textContent=m};if(!v.c.trim())return E("Escribe el nombre del cliente.");
+  if(!lines.length)return E("Agrega al menos un producto.");
+  if(lines.some(l=>l.op&&!(l.price>0)))return E("Escribe el precio diferente o vuelve al precio normal.");
+  if(num(v.dv)>0&&v.dt==="pct"&&num(v.dv)>=100)return E("El descuento en % debe ser menor a 100.");
   const need={};lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
-  for(const k in need){if(P(k).stock<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`}
-  let nid;try{nid=await nuevoIdFactura()}catch(e){return $("err").textContent="No se pudo crear el número de factura: "+sbErr(e)}
-  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo);return{pid:l.pid,qty:l.qty,price:pr,lista:lp,especial:pr!==lp}})});
+  for(const k in need){if(P(k).stock<need[k])return E(`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`)}
+  let nid;try{nid=await nuevoIdFactura()}catch(e){return E("No se pudo crear el número de factura: "+sbErr(e))}
+  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,desc:num(v.dv)>0?{t:v.dt,v:num(v.dv)}:null,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo);return{pid:l.pid,qty:l.qty,price:pr,lista:lp,especial:pr!==lp}})});
   if(v.vence&&v.e!=="pagada"){inv.vence=v.vence;save()}
   const nota=(v.n||"").trim();if(nota){inv.notas=nota;if(v.nv)inv.notaCliente=true;save()}
   if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
@@ -1302,7 +1314,8 @@ function paper(i){const C=S.company;
   <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}${[i.vence&&i.estado==="pendiente"&&"Fecha de pago: "+fdate(i.vence),i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+esc(i.metodo)].filter(Boolean).map(x=>"<br>"+x).join("")}</div></div>
   <table class="pp-t"><thead><tr><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th></tr></thead><tbody>
   ${i.items.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.qty}</td><td class="r">${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")}</tbody></table>
-  <div class="pp-total"><span>TOTAL</span><span>${cop(i.total)}</span></div>
+  ${i.descuento>0?`<div class="pp-ab-s"><span>Subtotal</span><span>${cop(i.subtotal)}</span></div><div class="pp-ab-s pp-desc"><span>Descuento${i.desc&&i.desc.t==="pct"?` (${i.desc.v}%)`:""}</span><span>− ${cop(i.descuento)}</span></div>`:""}
+  <div class="pp-total"><span>TOTAL</span><span>${i.descuento>0?`<s class="pp-antes">${cop(i.subtotal)}</s>`:""}${cop(i.total)}</span></div>
   ${(i.abonos||[]).length?`<div class="pp-ab"><h5>ABONOS</h5><table class="pp-t"><tbody>${i.abonos.map(a=>`<tr><td>${fdate(a.dia)}</td><td>${esc(a.metodo)}</td><td class="r">${cop(a.monto)}</td></tr>`).join("")}</tbody></table>
   <div class="pp-ab-s"><span>Total abonado</span><span>${cop(abonado(i))}</span></div><div class="pp-ab-s fuerte"><span>SALDO PENDIENTE</span><span>${cop(saldo(i))}</span></div></div>`:""}
   ${i.notas&&i.notaCliente?`<div class="pp-notas"><h5>NOTAS</h5>${esc(i.notas).replace(/\n/g,"<br>")}</div>`:""}
@@ -1424,7 +1437,7 @@ function saveEdit(){const i=S.invoices.find(x=>x.id===EF.id),v=efv();EF.v=v;
   for(const k in need){P(k).stock-=need[k]}
   i.cliente=v.c.trim();i.tel=v.t;i.tipo=v.tipo;i.metodo=v.m;i.estado=v.e;if(v.f)i.fecha=v.f;
   i.items=ord.map(k=>{const l=nw[k],p=P(k),prev=old[k];const lp=listPrice(+k,v.tipo);return{pid:+k,name:nm(+k),qty:l.qty,price:l.price,cost:prev?prev.cost:p.compra,lista:lp,especial:l.price!==lp}});
-  i.total=i.items.reduce((a,x)=>a+x.qty*x.price,0);
+  aplicarDesc(i);
   if(i.total!==oldTot)ch.push(`Total: ${cop(oldTot)} → ${cop(i.total)}`);
   i.editada=true;addLog(i,ch,v.mot.trim());save();renderAdmin();toast("Factura actualizada");verFactura(i.id)}
 function borrarFactura(id){const i=S.invoices.find(x=>x.id===id);
@@ -1477,7 +1490,7 @@ function prepShare(id){const i=S.invoices.find(x=>x.id===id);
 /* mensaje al enviar la factura: si hay uno guardado en Empresa (solo admins), se usa ese */
 function invText(i){const mf=String(cfg("mensajeFactura").texto||"").trim();if(mf)return mf;
   return invTextDetalle(i)}
-function invTextDetalle(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${(i.abonos||[]).length?`\n\nAbonos:\n${i.abonos.map(a=>`• ${fdate(a.dia)} · ${a.metodo}: ${cop(a.monto)}`).join("\n")}\nTotal abonado: ${cop(abonado(i))}\n*Saldo pendiente: ${cop(saldo(i))}*`:""}${i.vence&&i.estado==="pendiente"?`\nFecha de pago: ${fdate(i.vence)}`:""}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
+function invTextDetalle(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`${i.descuento>0?`\nSubtotal: ~${cop(i.subtotal)}~\nDescuento${i.desc&&i.desc.t==="pct"?` (${i.desc.v}%)`:""}: -${cop(i.descuento)}`:""}\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${(i.abonos||[]).length?`\n\nAbonos:\n${i.abonos.map(a=>`• ${fdate(a.dia)} · ${a.metodo}: ${cop(a.monto)}`).join("\n")}\nTotal abonado: ${cop(abonado(i))}\n*Saldo pendiente: ${cop(saldo(i))}*`:""}${i.vence&&i.estado==="pendiente"?`\nFecha de pago: ${fdate(i.vence)}`:""}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
 function waLink(i){const to=String(i.tel||"").replace(/\D/g,"");return `https://wa.me/${to?(to.startsWith("57")?to:"57"+to):""}?text=${encodeURIComponent(invText(i))}`}
 async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
   if(!PRE[id])prepShare(id);
