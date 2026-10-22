@@ -1373,7 +1373,7 @@ function verFactura(id,keep){
   ${i.estado!=="anulada"?`<button class="ghost" style="color:var(--bad)" onclick="if(confirm('¿Anular ${i.id}? El stock vuelve al inventario.'))setEstado('${i.id}','anulada')">Anular factura</button>`:""}
   ${histHTML(i)}`,!!keep);
   /* La imagen para compartir se prepara solo en celular y cuando el celular está libre; en PC se genera al tocar el botón. Así la ventana no se traba al abrir o cerrar. */
-  delete PRE[id];if(matchMedia("(pointer:coarse)").matches)setTimeout(()=>{if(!$("sheet").classList.contains("open"))return;(window.requestIdleCallback||setTimeout)(()=>{if($("sheet").classList.contains("open")&&!PRE[id])prepShare(id)},{timeout:2000})},700);
+  delete PRE[id];delete READY[id];if(matchMedia("(pointer:coarse)").matches)setTimeout(()=>{if(!$("sheet").classList.contains("open"))return;if($("sheet").classList.contains("open")&&!PRE[id])prepShare(id)},400);
 }
 async function attachFV(id,inp){const f=inp.files&&inp.files[0];if(!f)return;try{const b=await compress(f),pid="v"+Date.now();if(!await fotoPut(pid,b))return toast("No se pudo guardar la foto");S.invoices.find(x=>x.id===id).photoId=pid;save();verFactura(id);if(atab==="facturas")aFact();toast("Foto adjuntada")}catch(e){toast("No se pudo leer esa imagen")}}
 function setEstado(id,e){const i=S.invoices.find(x=>x.id===id);
@@ -1483,16 +1483,32 @@ const PRE={};
 function invImage(id){const i=S.invoices.find(x=>x.id===id);
   return (async()=>{if(!window.html2canvas)throw new Error("h2c");
     const box=document.createElement("div");box.style.cssText="position:fixed;left:-10000px;top:0;width:420px;background:#fff";box.innerHTML=paper(i);document.body.appendChild(box);
-    try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;const c=await html2canvas(box.firstElementChild,{scale:2.5,backgroundColor:"#ffffff",logging:false});
+    try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;const c=await html2canvas(box.firstElementChild,{scale:matchMedia("(pointer:coarse)").matches?2:2.5,backgroundColor:"#ffffff",logging:false});
       return await new Promise((r,j)=>c.toBlob(b=>b?r(b):j(new Error("png")),"image/png"))}finally{box.remove()}})()}
+const READY={};
 function prepShare(id){const i=S.invoices.find(x=>x.id===id);
-  PRE[id]=Promise.all([invImage(id).catch(()=>null),i.photoId?fotoGet(i.photoId):null])}
+  PRE[id]=Promise.all([invImage(id).catch(()=>null),i.photoId?fotoGet(i.photoId).catch(()=>null):null]).then(r=>{READY[id]=r;return r})}
+/* En celular, compartir solo funciona si se llama justo al tocar el botón. Por eso la imagen se prepara antes;
+   si todavía no está lista, se avisa y se toca otra vez. */
+const esCel=()=>matchMedia("(pointer:coarse)").matches&&!!navigator.share;
+function esperarImg(id,boton){if(!PRE[id])prepShare(id);toast("Preparando la imagen…");
+  PRE[id].then(r=>{if($("sheet").classList.contains("open"))toast(r&&r[0]?`Lista. Toca otra vez "${boton}"`:"No se pudo generar la imagen")})}
+async function compartir(files,text){try{await navigator.share(text?{files,text}:{files});return "ok"}catch(e){return e&&e.name==="AbortError"?"cancel":"fail"}}
+function botonWA(i){const b=$("waOpen");if(b)return;const d=document.createElement("a");d.id="waOpen";d.className="btn-line";d.href=waLink(i);d.target="_blank";d.rel="noopener";
+  d.style.cssText="display:block;text-align:center;margin-top:8px;text-decoration:none";d.textContent="Abrir chat de WhatsApp";
+  const t=document.querySelector("#sheet .two");if(t)t.after(d)}
 /* mensaje al enviar la factura: si hay uno guardado en Empresa (solo admins), se usa ese */
 function invText(i){const mf=String(cfg("mensajeFactura").texto||"").trim();if(mf)return mf;
   return invTextDetalle(i)}
 function invTextDetalle(i){const C=S.company;let m=`*${C.nombre||"Upperfumes"}* · Factura ${i.id}\nFecha: ${fdate(i.fecha)}\nCliente: ${i.cliente}\n\n`;i.items.forEach(x=>m+=`• ${x.qty} x ${x.name}: ${cop(x.qty*x.price)}\n`);return m+`${i.descuento>0?`\nSubtotal: ~${cop(i.subtotal)}~\nDescuento${i.desc&&i.desc.t==="pct"?` (${i.desc.v}%)`:""}: -${cop(i.descuento)}`:""}\n*Total: ${cop(i.total)}*\nEstado: ${stName(i.estado).toLowerCase()}${(i.abonos||[]).length?`\n\nAbonos:\n${i.abonos.map(a=>`• ${fdate(a.dia)} · ${a.metodo}: ${cop(a.monto)}`).join("\n")}\nTotal abonado: ${cop(abonado(i))}\n*Saldo pendiente: ${cop(saldo(i))}*`:""}${i.vence&&i.estado==="pendiente"?`\nFecha de pago: ${fdate(i.vence)}`:""}${i.notas&&i.notaCliente?`\n\nNotas: ${i.notas}`:""}\n\n${C.pie||""}`}
 function waLink(i){const to=String(i.tel||"").replace(/\D/g,"");return `https://wa.me/${to?(to.startsWith("57")?to:"57"+to):""}?text=${encodeURIComponent(invText(i))}`}
 async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
+  if(esCel()){const r=READY[id];if(!r)return esperarImg(id,"Enviar por WhatsApp");
+    const files=[];if(r[0])files.push(new File([r[0]],`${i.id}-upperfumes.png`,{type:"image/png"}));if(r[1])files.push(new File([r[1]],`${i.id}-comprobante.jpg`,{type:"image/jpeg"}));
+    if(files.length&&navigator.canShare&&navigator.canShare({files})){const s=await compartir(files,invText(i));if(s!=="fail")return;
+      const s2=await compartir(files);if(s2!=="fail")return}
+    if(r[0]){try{await guardar(`${i.id}-upperfumes.png`,r[0])}catch(e){}toast("Imagen guardada: adjúntala en el chat")}
+    return botonWA(i)}
   if(!PRE[id])prepShare(id);
   const [img,foto]=await PRE[id];
   const files=[];if(img)files.push(new File([img],`${i.id}-upperfumes.png`,{type:"image/png"}));if(foto)files.push(new File([foto],`${i.id}-comprobante.jpg`,{type:"image/jpeg"}));
@@ -1504,6 +1520,10 @@ async function sendInv(id){const i=S.invoices.find(x=>x.id===id);
 }
 async function imgFactura(id){const i=S.invoices.find(x=>x.id===id);
   if(!window.html2canvas)return toast("El generador de imágenes no cargó, revisa tu conexión");
+  if(esCel()){const r=READY[id];if(!r)return esperarImg(id,"Descargar imagen");if(!r[0])return toast("No se pudo generar la imagen");
+    const name=`${i.id}-upperfumes.png`,file=new File([r[0]],name,{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){const s=await compartir([file]);if(s!=="fail")return}
+    try{await guardar(name,r[0]);toast("Imagen descargada")}catch(e){toast("No se pudo descargar")}return}
   toast("Generando imagen…");
   try{let img=PRE[id]?(await PRE[id])[0]:null;if(!img)img=await invImage(id);if(!img)throw new Error("img");
     const name=`${i.id}-${(S.company.nombre||"upperfumes").toLowerCase().replace(/\s+/g,"-")}.png`,file=new File([img],name,{type:"image/png"});
