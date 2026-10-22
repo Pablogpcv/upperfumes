@@ -868,3 +868,4 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .pp-t s.pp-antes{color:#999;font-size:10.5px}
 .ab-d{grid-column:1/-1;color:var(--muted);font-size:12px;margin-top:-4px}.ab-d .li-lk{margin-left:6px}
 .li-dd{margin-top:4px}
+.cu-bad{color:var(--bad)}.cu-ok{color:var(--ok)}
