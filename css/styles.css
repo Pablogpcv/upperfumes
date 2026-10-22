@@ -857,3 +857,14 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .sub-row{display:flex;justify-content:space-between;font-size:14px;color:var(--muted);padding:4px 2px}.sub-row.desc{color:var(--ok)}
 .pp-desc span{color:#2e7d32}
 .pp-antes{opacity:.6;font-size:.8em;margin-right:8px;font-family:Jost,Arial,sans-serif}
+/* cuentas por compra */
+.cu-u{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line2);cursor:pointer;font-size:13.5px}
+.cu-u b{font-weight:500}.cu-u small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.cu-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.cu-gl{font-size:12.5px;color:var(--muted);border-left:2px solid var(--line);padding-left:8px;margin-top:8px}
+.cu-op{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;padding:11px 12px;margin-top:6px;background:var(--s2);border:1px solid var(--line);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.cu-op small{color:var(--muted);font-size:12px}.cu-op.on{border-color:var(--gold)}
+.pp-li{display:block;color:#888;font-size:10.5px;margin-top:1px}
+.pp-t s.pp-antes{color:#999;font-size:10.5px}
+.ab-d{grid-column:1/-1;color:var(--muted);font-size:12px;margin-top:-4px}.ab-d .li-lk{margin-left:6px}
+.li-dd{margin-top:4px}
