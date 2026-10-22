@@ -1498,12 +1498,17 @@ function restaurarFactura(k){const e=S.invLog[k],i=JSON.parse(JSON.stringify(e.c
 const PRE={};
 function invImage(id){const i=S.invoices.find(x=>x.id===id);
   return (async()=>{if(!window.html2canvas)throw new Error("h2c");
-    const box=document.createElement("div");box.style.cssText="position:fixed;left:-10000px;top:0;width:420px;background:#fff";box.innerHTML=paper(i);document.body.appendChild(box);
-    try{if(document.fonts&&document.fonts.ready)await document.fonts.ready;const c=await html2canvas(box.firstElementChild,{scale:matchMedia("(pointer:coarse)").matches?2:2.5,backgroundColor:"#ffffff",logging:false});
+    const box=document.createElement("div");box.id="fvShot";box.style.cssText="position:fixed;left:-10000px;top:0;width:420px;background:#fff";box.innerHTML=paper(i);document.body.appendChild(box);
+    /* solo se copia la factura: en iPhone, copiar toda la página (con todas las fotos) dejaba la imagen "preparando" para siempre */
+    const base=new Set(["HTML","HEAD","BODY","STYLE","LINK","META","TITLE"]);
+    try{if(document.fonts&&document.fonts.ready)await conLimite(document.fonts.ready,3000).catch(()=>{});
+      const c=await html2canvas(box.firstElementChild,{scale:matchMedia("(pointer:coarse)").matches?2:2.5,backgroundColor:"#ffffff",logging:false,imageTimeout:4000,
+        ignoreElements:el=>!base.has(el.tagName)&&!(el.closest&&el.closest("#fvShot"))});
       return await new Promise((r,j)=>c.toBlob(b=>b?r(b):j(new Error("png")),"image/png"))}finally{box.remove()}})()}
 const READY={};
+const conLimite=(p,ms)=>Promise.race([p,new Promise((_,j)=>setTimeout(()=>j(new Error("tiempo")),ms))]);
 function prepShare(id){const i=S.invoices.find(x=>x.id===id);
-  PRE[id]=Promise.all([invImage(id).catch(()=>null),i.photoId?fotoGet(i.photoId).catch(()=>null):null]).then(r=>{READY[id]=r;return r})}
+  PRE[id]=Promise.all([conLimite(invImage(id),20000).catch(()=>null),i.photoId?conLimite(fotoGet(i.photoId),6000).catch(()=>null):null]).then(r=>{READY[id]=r;return r})}
 /* En celular, compartir solo funciona si se llama justo al tocar el botón. Por eso la imagen se prepara antes;
    si todavía no está lista, se avisa y se toca otra vez. */
 const esCel=()=>matchMedia("(pointer:coarse)").matches&&!!navigator.share;
