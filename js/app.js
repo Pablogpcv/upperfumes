@@ -1106,7 +1106,7 @@ function pedirBorrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)retu
 function borrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return;
   its(c).forEach(x=>{const p=P(x.pid);if(p)p.stock=Math.max(0,p.stock-x.qty)});
   S.purchases=S.purchases.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Compra eliminada · inventario ajustado")}
-function verCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return closeSheet();cuSync();
+function verCompra(id){VOLVER=null;const c=S.purchases.find(x=>x.id===id);if(!c)return closeSheet();cuSync();
   openSheet(`<h3 class="t">Compra ${cuNumDe(c.id)} · ${esc(c.proveedor)}</h3><p class="hint">${c.fecha}${c.ref?" · Factura "+esc(c.ref):""}</p>
   <label>¿Quién pagó?</label><div class="fecha-q">${SOCIOS.map(o=>`<button type="button" class="chip" aria-pressed="${c.pago===o}" onclick="setPago(${c.id},'${o}');verCompra(${c.id})">${o}</button>`).join("")}</div>
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
@@ -1744,7 +1744,9 @@ function exportConta(){const r=[["Fecha","Tipo","Documento","Detalle","Ingreso",
 
 function openSheet(h,keep){SLOCK=false;if($("agFab"))$("agFab").hidden=true;const st=$("sheet").scrollTop;$("sb").innerHTML=h;$("sheet").scrollTop=keep?st:0;$("sheet").classList.add("open");$("scrim").classList.add("open");document.documentElement.classList.add("sheet-on")}   // el fondo queda quieto mientras la ventana está abierta
 var SLOCK=false;
-function closeSheet(){if($("aN")&&AG&&!AG.enviado){try{agRead()}catch(e){}}SLOCK=false;setTimeout(agFab,350);const sh=$("sheet");sh.style.transform="";sh.style.transition="";sh.classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
+function closeSheet(){if($("aN")&&AG&&!AG.enviado){try{agRead()}catch(e){}}SLOCK=false;setTimeout(agFab,350);const sh=$("sheet");sh.style.transform="";sh.style.transition="";
+  /* si se abrió una factura o un cambio desde una compra, al cerrar se vuelve a esa compra */
+  if(VOLVER!=null){const v=VOLVER;VOLVER=null;if(S.purchases.some(c=>c.id===v)&&isAdmin())return verCompra(v)}sh.classList.remove("open");$("scrim").classList.remove("open");document.documentElement.classList.remove("sheet-on")}
 renderMenu();renderHome();renderShop();badge();loadClientes();route();cloudBoot();
 
 /* ---------- banner principal: vitrina interactiva ---------- */
@@ -1811,7 +1813,7 @@ const fDia=d=>d?new Date(d+"T12:00:00").toLocaleDateString("es-CO",{weekday:"lon
 const lugar=v=>[v.dir,v.barrio,v.mun].filter(Boolean).join(", ");
 const pNames=l=>(l.pids||[]).filter(id=>P(id)).map(id=>P(id).name);
 const primer=n=>{const w=String(n||"").trim().split(" ")[0]||"";return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()};
-var AG=null,RSTOP=null;let VSEL=null,RT=null;
+var AG=null,RSTOP=null,VOLVER=null;let VSEL=null,RT=null;
 const visitas=()=>(S.leads||[]).filter(l=>l.visita&&!l.visita.ruta).sort((a,b)=>(a.visita.fecha||"9").localeCompare(b.visita.fecha||"9")||FRANJAS.indexOf(a.visita.franja)-FRANJAS.indexOf(b.visita.franja));
 const rutaActiva=()=>(S.rutas||[]).find(r=>r.estado==="curso");
 const linkAgendar=l=>l?`https://upperfumes.com/?agendar=${l.id}&n=${encodeURIComponent(primer(l.nombre))}${l.tel?`&t=${encodeURIComponent(String(l.tel).replace(/\D/g,""))}`:""}`:"https://upperfumes.com/agendar";
@@ -2043,9 +2045,9 @@ function cuBloque(c){const r=cuDatos(c),R=Math.round;
   ${r.St.length?`<p class="cu-h">La ganancia incluye ${r.St.length} en stock que se vende${r.St.length>1?"n":""} en ${cop(r.stv)}</p>`:""}
   ${r.G.map(x=>`<p class="cu-gl">${esc(x.u.t||"Gasto")}: ${esc(cuNom(x.u.pid))} ${cop(x.costo)}${x.u.nota?" · "+esc(x.u.nota):""}</p>`).join("")}
   <label>Perfumes</label>
-  ${r.U.map(x=>{const u=x.u;if(u.e==="v"){const v=cuValor(u);x.v=v;x.deb=v.v-v.c>0.5}return x}).sort((a,b)=>{const o=x=>x.u.e==="v"?(x.deb?0:1):x.u.e==="s"?2:3;return o(a)-o(b)}).map(x=>{const u=x.u;let info="",pill="",act=`cuCambiar(${c.id},${x.k})`;
+  ${r.U.map(x=>{const u=x.u;if(u.e==="v"){const v=cuValor(u);x.v=v;x.deb=v.v-v.c>0.5}return x}).sort((a,b)=>{const o=x=>x.u.e==="v"?(x.deb?0:1):x.u.e==="s"?2:3;return o(a)-o(b)}).map(x=>{const u=x.u;let info="",pill="",act=`cuCambiar(${c.id},${x.k});VOLVER=${c.id}`;
     if(u.e==="v"){const v=x.v,fi=v.i;info=` · ${esc(u.fv)} · ${x.deb?`<span class="cu-bad">${esc(fi?fi.cliente:"")} · ${cop(R(v.v))} · debe ${cop(R(v.v-v.c))}</span>`:`${esc(fi?fi.cliente:"")} · <span class="cu-ok">${cop(R(v.v))} · pagado</span>`}`;
-      act=`verFactura('${u.fv}')`;pill=`<span class="cu-r"><span class="pill g">Vendido</span><button class="li-lk" onclick="event.stopPropagation();cuCambiar(${c.id},${x.k})">Cambiar</button></span>`}
+      act=`verFactura('${u.fv}');VOLVER=${c.id}`;pill=`<span class="cu-r"><span class="pill g">Vendido</span><button class="li-lk" onclick="event.stopPropagation();cuCambiar(${c.id},${x.k});VOLVER=${c.id}">Cambiar</button></span>`}
     else if(u.e==="s"){info=` · se vende a ${cop(cuVenta(u.pid))} · hace ${cuDias(c.fecha)} días`;pill=`<span class="pill">En stock</span>`}
     else pill=`<span class="pill">${esc(u.t||"Gasto")}</span>`;
     return `<div class="cu-u" onclick="${act}"><div><b>${esc(cuNom(u.pid))}</b><small>Costó ${cop(x.costo)}${info}</small></div>${pill}</div>`}).join("")}
