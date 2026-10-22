@@ -998,7 +998,7 @@ function invList(){
   const q=($("iq").value||"").toLowerCase(),nO=S.products.filter(p=>p.oculto).length;
   if($("ivf"))$("ivf").innerHTML=[["todos","Todos"],["vis","Publicados"],["ocu",`Ocultos (${nO})`]].map(([k,t])=>`<button class="chip" aria-pressed="${IVF===k}" onclick="IVF='${k}';invList()">${t}</button>`).join("");
   $("il").innerHTML=S.products.filter(p=>(IVF==="todos"||(IVF==="ocu")===!!p.oculto)&&(p.brand+" "+p.name+" "+p.proveedor).toLowerCase().includes(q)).map(p=>{const mg=p.publico?Math.round((p.publico-p.compra)/p.publico*100):0;
-   return `<div class="inv"><div class="inv-top"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.brand)} ${esc(p.name)}</b>${p.mostrario?`<span class="oc-tag">Mostrario</span>`:p.oculto?`<span class="oc-tag">Oculto</span>`:""}<small>${p.ml} ml · ${esc(p.cat)}${p.oculto&&!p.publico?" · sin precio":""}</small></div><b class="${p.stock===0?"stock-out":p.stock<=3?"stock-low":""}">${p.stock} uds</b></div>
+   return `<div class="inv"><div class="inv-top"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.brand)} ${esc(p.name)}</b>${p.oculto?`<span class="oc-tag">Oculto</span>`:""}<small>${p.ml} ml · ${esc(p.cat)}${p.oculto&&!p.publico?" · sin precio":""}</small></div><b class="${p.stock===0?"stock-out":p.stock<=3?"stock-low":""}">${p.stock} uds</b></div>
    <div class="inv-grid"><div><span>Compra</span><b>${cop(p.compra)}</b></div><div><span>Público</span><b>${cop(p.publico)}</b></div><div><span>Mayor</span><b>${cop(p.mayor)}</b></div></div>
    <div class="inv-foot"><span>${esc(p.proveedor)} · ganancia ${cop(p.publico-p.compra)} (${mg}%)${p.mayor?` · al mayor ${cop(p.mayor-p.compra)}`:""}${p.promo?` · promo −${p.promo}%`:""}</span><button onclick="formProducto(${p.id})">Editar</button></div></div>`}).join("");
 }
@@ -1011,7 +1011,6 @@ function formProducto(id){PF={blob:null,url:null,quitar:false};
   const p=id?P(id):{brand:"",name:"",ml:100,g:"Unisex",cat:"Árabes",conc:"Eau de Parfum",fam:"",stock:0,compra:0,publico:0,mayor:0,proveedor:"",promo:0};
   openSheet(`<h3 class="t">${id?"Editar producto":"Nuevo producto"}</h3>
   <label class="vis-sw"><input type="checkbox" id="pVis" ${p.oculto?"":"checked"} onchange="this.nextElementSibling.querySelector('small').textContent=this.checked?'Los clientes lo ven en la tienda':'Oculto: solo lo ves tú en Inventario'"><span><b>Visible en la tienda</b><small>${p.oculto?"Oculto: solo lo ves tú en Inventario":"Los clientes lo ven en la tienda"}</small></span></label>
-  <label class="vis-sw"><input type="checkbox" id="pMo" ${p.mostrario?"checked":""} onchange="if(this.checked){$('pVis').checked=false}"><span><b>Es mostrario (rollones)</b><small>No sale en la tienda y en Compras cuenta como gasto, no da ganancia</small></span></label>
   <label>Foto</label><div id="pfBox" class="pf-box" data-cur="${esc(fotoDe(p))}" data-own="${p.foto?1:""}"></div>
   <div class="two"><div><label>Marca</label><input class="f" id="pB" value="${esc(p.brand)}"></div><div><label>Nombre</label><input class="f" id="pN" value="${esc(p.name)}"></div></div>
   <div class="two"><div><label>Género</label><select class="f" id="pG">${["Femenino","Masculino","Unisex"].map(o=>`<option ${o===p.g?"selected":""}>${o}</option>`).join("")}</select></div><div><label>Categoría</label><select class="f" id="pC">${["Árabes","Diseñador"].map(o=>`<option ${o===p.cat?"selected":""}>${o}</option>`).join("")}</select></div></div>
@@ -1027,7 +1026,7 @@ async function subirFotoProducto(pid,blob){
   const path=`p${pid}-${Date.now()}.jpg`,{error}=await sb.storage.from("productos").upload(path,blob,{contentType:"image/jpeg",cacheControl:"31536000"});
   if(error)throw error;return sb.storage.from("productos").getPublicUrl(path).data.publicUrl}
 async function saveProducto(id){
-  const v={brand:$("pB").value.trim(),name:$("pN").value.trim(),g:$("pG").value,cat:$("pC").value,ml:num($("pM").value),stock:num($("pS").value),compra:num($("pCo").value),publico:num($("pPu").value),mayor:num($("pMa").value),promo:Math.min(90,num($("pPr").value)),proveedor:$("pPv").value.trim()||"Por definir",oculto:!$("pVis").checked||$("pMo").checked,mostrario:$("pMo").checked};
+  const v={brand:$("pB").value.trim(),name:$("pN").value.trim(),g:$("pG").value,cat:$("pC").value,ml:num($("pM").value),stock:num($("pS").value),compra:num($("pCo").value),publico:num($("pPu").value),mayor:num($("pMa").value),promo:Math.min(90,num($("pPr").value)),proveedor:$("pPv").value.trim()||"Por definir",oculto:!$("pVis").checked};
   if(!v.brand||!v.name)return $("err").textContent="Escribe la marca y el nombre.";
   if(!v.publico&&!v.oculto)return $("err").textContent="Para publicarlo escribe el precio al público (o déjalo oculto).";
   const nid=id||Math.max(...S.products.map(p=>p.id))+1;
@@ -2004,12 +2003,12 @@ const cuFvOk=i=>i&&i.estado!=="anulada";
 /* arma la lista de perfumes de cada compra (uno por unidad) y la repara si la compra se editó */
 function cuUds(c){const ex=[];its(c).forEach(x=>{for(let k=0;k<(x.qty||0);k++)ex.push({pid:x.pid,c:x.costo||0})});
   let U=c.uds;if(!Array.isArray(U)||U.length!==ex.length||U.some((u,k)=>!u||u.pid!==ex[k].pid)){const old=(U||[]).slice();
-    U=ex.map(e=>{const j=old.findIndex(o=>o&&o.pid===e.pid);return j>=0?old.splice(j,1)[0]:(P(e.pid)&&P(e.pid).mostrario?{pid:e.pid,e:"x",t:"Mostrario"}:{pid:e.pid,e:"s",nv:1})});c.uds=U;c._cuMod=1}
+    U=ex.map(e=>{const j=old.findIndex(o=>o&&o.pid===e.pid);return j>=0?old.splice(j,1)[0]:{pid:e.pid,e:"s",nv:1}});c.uds=U;c._cuMod=1}
   return ex}
 /* revisa que cada perfume vendido siga en una factura válida; lo que sobre vuelve a stock */
 function cuSync(){let mod=false;const cnt={};
   cuOrd().forEach(c=>{cuUds(c);if(c._cuMod){delete c._cuMod;mod=true}
-    c.uds.forEach(u=>{if(u.e==="s"&&P(u.pid)&&P(u.pid).mostrario){u.e="x";u.t="Mostrario";delete u.nv;mod=true}if(u.e!=="v")return;const i=S.invoices.find(x=>x.id===u.fv),it=cuFvOk(i)&&i.items.find(x=>x.pid===u.pid),k=u.fv+"|"+u.pid;
+    c.uds.forEach(u=>{if(u.e!=="v")return;const i=S.invoices.find(x=>x.id===u.fv),it=cuFvOk(i)&&i.items.find(x=>x.pid===u.pid),k=u.fv+"|"+u.pid;
       if(!it||(cnt[k]||0)>=it.qty){u.e="s";delete u.fv;mod=true}else cnt[k]=(cnt[k]||0)+1})});
   const viejas=()=>S.invoices.filter(cuFvOk).slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id)));
   if(cfg("cuInit").v!==2&&cloudReady&&S.purchases.length&&S.invoices.length){if(cfg("cuInit").f===hoyL()||cfg("cuInit").f==="2026-10-22")S.purchases.forEach(c=>(c.uds||[]).forEach(u=>{if(u.e==="v"){u.e="s";delete u.fv}}));viejas().forEach(i=>cuAuto(i));setCfg("cuInit",{f:hoyL(),v:2});mod=true}
@@ -2044,10 +2043,9 @@ function cuBloque(c){const r=cuDatos(c),R=Math.round;
   return `<div class="cu-k"><div><span>Compra</span><b>${cop(r.inv)}</b></div><div><span>Vendido</span><b>${cop(R(r.ven))}</b></div><div><span>Ganancia total</span><b class="cu-g">${cop(R(r.gan))}</b></div>
   <div><span>Cobrado</span><b>${cop(R(r.cob))}</b></div><div><span>Deben</span><b${r.deb>0.5?' class="cu-bad"':""}>${cop(R(r.deb))}</b></div><div><span>Gastos / regalos</span><b>${cop(r.gas)}</b></div></div>
   ${r.St.length?`<p class="cu-h">La ganancia incluye ${r.St.length} en stock que se vende${r.St.length>1?"n":""} en ${cop(r.stv)}</p>`:""}
-  ${(()=>{const g={};r.G.forEach(x=>{const k=(x.u.t||"Gasto")+"|"+x.u.pid+"|"+(x.u.nota||"");(g[k]=g[k]||{x,n:0,v:0}).n++;g[k].v+=x.costo});
-    return Object.values(g).map(({x,n,v})=>`<p class="cu-gl">${esc(x.u.t||"Gasto")}: ${esc(cuNom(x.u.pid))}${n>1?" ×"+n:""} ${cop(v)}${x.u.nota?" · "+esc(x.u.nota):""}</p>`).join("")})()}
+  ${r.G.map(x=>`<p class="cu-gl">${esc(x.u.t||"Gasto")}: ${esc(cuNom(x.u.pid))} ${cop(x.costo)}${x.u.nota?" · "+esc(x.u.nota):""}</p>`).join("")}
   <label>Perfumes</label>
-  ${r.U.filter(x=>x.u.t!=="Mostrario").map(x=>{const u=x.u;if(u.e==="v"){const v=cuValor(u);x.v=v;x.deb=v.v-v.c>0.5}return x}).sort((a,b)=>{const o=x=>x.u.e==="v"?(x.deb?0:1):x.u.e==="s"?2:3;return o(a)-o(b)}).map(x=>{const u=x.u;let info="",pill="",act=`cuCambiar(${c.id},${x.k});VOLVER=${c.id}`;
+  ${r.U.map(x=>{const u=x.u;if(u.e==="v"){const v=cuValor(u);x.v=v;x.deb=v.v-v.c>0.5}return x}).sort((a,b)=>{const o=x=>x.u.e==="v"?(x.deb?0:1):x.u.e==="s"?2:3;return o(a)-o(b)}).map(x=>{const u=x.u;let info="",pill="",act=`cuCambiar(${c.id},${x.k});VOLVER=${c.id}`;
     if(u.e==="v"){const v=x.v,fi=v.i;info=` · ${esc(u.fv)} · ${x.deb?`<span class="cu-bad">${esc(fi?fi.cliente:"")} · ${cop(R(v.v))} · debe ${cop(R(v.v-v.c))}</span>`:`${esc(fi?fi.cliente:"")} · <span class="cu-ok">${cop(R(v.v))} · pagado</span>`}`;
       act=`verFactura('${u.fv}');VOLVER=${c.id}`;pill=`<span class="cu-r"><span class="pill g">Vendido</span><button class="li-lk" onclick="event.stopPropagation();cuCambiar(${c.id},${x.k});VOLVER=${c.id}">Cambiar</button></span>`}
     else if(u.e==="s"){info=` · se vende a ${cop(cuVenta(u.pid))} · hace ${cuDias(c.fecha)} días`;pill=`<span class="pill">En stock</span>`}
