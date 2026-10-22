@@ -987,8 +987,10 @@ function aResumen(){
    <button class="ghost" onclick="logout()">Cerrar sesión</button>`;
 }
 /* inventario */
-function aInv(){
-  $("ab").innerHTML=`<div class="toolbar"><button class="btn-line" onclick="formProducto()">Agregar producto</button><button class="btn-line" onclick="exportInv()">Exportar CSV</button></div>
+let IVT="p";
+function aInv(){const tb=`<div class="chips cu-tabs" style="margin-top:0">${[["p","Productos"],["s","Stock por compra"]].map(([k,n])=>`<button class="chip" aria-pressed="${IVT===k}" onclick="IVT='${k}';aInv()">${n}</button>`).join("")}</div>`;
+  if(IVT==="s"){$("ab").innerHTML=tb+cuStock();return}
+  $("ab").innerHTML=tb+`<div class="toolbar"><button class="btn-line" onclick="formProducto()">Agregar producto</button><button class="btn-line" onclick="exportInv()">Exportar CSV</button></div>
   <div class="search" style="margin-top:12px"><input id="iq" placeholder="Buscar en inventario" oninput="invList()" aria-label="Buscar en inventario"></div><div class="chips inv-f" id="ivf"></div><div id="il"></div>`;invList();
 }
 let IVF="todos";
@@ -1316,7 +1318,7 @@ function paper(i){const C=S.company;
   <div class="pp-body"><div class="pp-cols"><div><h5>EMITIDA POR</h5><b>${esc(C.nombre||"Upperfumes")}</b><br>${info.map(esc).join("<br>")}</div>
   <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}${[i.vence&&i.estado==="pendiente"&&"Fecha de pago: "+fdate(i.vence),i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+esc(i.metodo)].filter(Boolean).map(x=>"<br>"+x).join("")}</div></div>
   <table class="pp-t"><thead><tr><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th></tr></thead><tbody>
-  ${(()=>{const L=(i.abonos||[]).length&&i.estado!=="anulada"?fvLineas(i):null;return i.items.map((x,li)=>`<tr><td>${esc(x.name)}${L?`<small class="pp-li">${L.net[li]-L.paid[li]>0.5?`Abonado ${cop(Math.round(L.paid[li]))} · Debe ${cop(Math.round(L.net[li]-L.paid[li]))}`:"Pagado"}</small>`:""}</td><td class="r">${x.qty}</td><td class="r">${x.antes>x.price?`<s class="pp-antes">${cop(x.antes)}</s><br>`:""}${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")})()}</tbody></table>
+  ${(()=>{return i.items.map((x,li)=>`<tr><td>${esc(x.name)}</td><td class="r">${x.qty}</td><td class="r">${x.antes>x.price?`<s class="pp-antes">${cop(x.antes)}</s><br>`:""}${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")})()}</tbody></table>
   ${i.descuento>0?`<div class="pp-ab-s"><span>Subtotal</span><span>${cop(i.subtotal)}</span></div><div class="pp-ab-s pp-desc"><span>Descuento${i.desc&&i.desc.t==="pct"?` (${i.desc.v}%)`:""}</span><span>− ${cop(i.descuento)}</span></div>`:""}
   <div class="pp-total"><span>TOTAL</span><span>${i.descuento>0?`<s class="pp-antes">${cop(i.subtotal)}</s>`:""}${cop(i.total)}</span></div>
   ${(i.abonos||[]).length?`<div class="pp-ab"><h5>ABONOS</h5><table class="pp-t"><tbody>${(()=>{const L=fvLineas(i);return i.abonos.map((a,k)=>`<tr><td>${fdate(a.dia)}</td><td>${esc(a.metodo)}${(L.pz[k]||[]).length?`<small class="pp-li">${(L.pz[k]).map(([li])=>esc(i.items[li].name)).join(" + ")}</small>`:""}</td><td class="r">${cop(a.monto)}</td></tr>`).join("")})()}</tbody></table>
@@ -1577,9 +1579,9 @@ function addGasto(){const c=$("cuGn").value.trim(),m=num($("cuGm").value),p=$("c
   S.expenses.unshift({id:Date.now(),concepto:c,cat:"Otros",monto:m,fecha:today(),pago:p});save();aConta();toast("Gasto registrado")}
 function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;S.expenses=S.expenses.filter(x=>x.id!==id);save();aConta()}
 function aConta(){
-  if(!["liq","st","mes"].includes(CU.v))CU.v="liq";
+  if(!["liq","mes"].includes(CU.v))CU.v="liq";
   const t=(k,n)=>`<button class="chip" aria-pressed="${CU.v===k}" onclick="CU.v='${k}';aConta()">${n}</button>`;
-  $("ab").innerHTML=`<div class="chips cu-tabs">${t("liq","Compras")}${t("st","Stock")}${t("mes","Resumen del mes")}</div>`+(CU.v==="mes"?cuMes():CU.v==="st"?cuStock():cuCompras())}
+  $("ab").innerHTML=`<div class="chips cu-tabs">${t("liq","Compras")}${t("mes","Resumen del mes")}</div>`+(CU.v==="mes"?cuMes():cuCompras())}
 function cuLiq(){const D=liqData(),all=S.purchases.filter(cuIn).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id),
   num_=new Map(S.purchases.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id).map((c,k)=>[c.id,k+1])),
   nP=all.filter(c=>!c.liq).length,ks=all.filter(c=>CU.w==="L"?c.liq:!c.liq);
@@ -2039,17 +2041,17 @@ function cuCompras(){cuSync();const L=cuOrd().reverse();
   return L.length?L.map(c=>{const r=cuDatos(c),R=Math.round;
   return `<div class="cu-card"><div class="cu-hd"><span><b>Compra ${cuNumDe(c.id)}</b> <small>· ${cuF(c.fecha)} · ${r.U.length} perfume${r.U.length===1?"":"s"}</small><small class="cu-prov">${c.pago?"Pagó: "+esc(c.pago):""}${c.proveedor?(c.pago?" · ":"")+esc(c.proveedor):""}</small></span></div>
   <div class="cu-k"><div><span>Compra</span><b>${cop(r.inv)}</b></div><div><span>Vendido</span><b>${cop(R(r.ven))}</b></div><div><span>Ganancia total</span><b class="cu-g">${cop(R(r.gan))}</b></div>
-  <div><span>Cobrado</span><b>${cop(R(r.cob))}</b></div><div><span>Deben</span><b>${cop(R(r.deb))}</b></div><div><span>Gastos / regalos</span><b>${cop(r.gas)}</b></div></div>
+  <div><span>Cobrado</span><b>${cop(R(r.cob))}</b></div><div><span>Deben</span><b${r.deb>0.5?' class="cu-bad"':""}>${cop(R(r.deb))}</b></div><div><span>Gastos / regalos</span><b>${cop(r.gas)}</b></div></div>
   ${r.St.length?`<p class="cu-h">La ganancia incluye ${r.St.length} en stock que se vende${r.St.length>1?"n":""} en ${cop(r.stv)}</p>`:""}
   ${r.G.map(x=>`<p class="cu-gl">${esc(x.u.t||"Gasto")}: ${esc(cuNom(x.u.pid))} ${cop(x.costo)}${x.u.nota?" · "+esc(x.u.nota):""}</p>`).join("")}
   <details class="cu-det"${CU.op&&CU.op[c.id]?" open":""} ontoggle="CU.op=CU.op||{};CU.op[${c.id}]=this.open"><summary>Ver perfumes</summary>
-  ${r.U.map(x=>{const u=x.u;let info="",pill="";
-    if(u.e==="v"){const v=cuValor(u),fi=v.i;info=` · ${esc(u.fv)} · ${esc(fi?fi.cliente:"")} · ${cop(R(v.v))}${v.v-v.c>0.5?` · debe ${cop(R(v.v-v.c))}`:" · pagado"}`;
-      pill=`<span class="cu-r"><span class="pill g">Vendido</span><button class="li-lk" onclick="event.stopPropagation();verFactura('${u.fv}')">Ver factura</button></span>`}
+  ${r.U.map(x=>{const u=x.u;if(u.e==="v"){const v=cuValor(u);x.v=v;x.deb=v.v-v.c>0.5}return x}).sort((a,b)=>{const o=x=>x.u.e==="v"?(x.deb?0:1):x.u.e==="s"?2:3;return o(a)-o(b)}).map(x=>{const u=x.u;let info="",pill="",act=`cuCambiar(${c.id},${x.k})`;
+    if(u.e==="v"){const v=x.v,fi=v.i;info=` · ${esc(u.fv)} · ${x.deb?`<span class="cu-bad">${esc(fi?fi.cliente:"")} · ${cop(R(v.v))} · debe ${cop(R(v.v-v.c))}</span>`:`${esc(fi?fi.cliente:"")} · <span class="cu-ok">${cop(R(v.v))} · pagado</span>`}`;
+      act=`verFactura('${u.fv}')`;pill=`<span class="cu-r"><span class="pill g">Vendido</span><button class="li-lk" onclick="event.stopPropagation();cuCambiar(${c.id},${x.k})">Cambiar</button></span>`}
     else if(u.e==="s"){info=` · se vende a ${cop(cuVenta(u.pid))} · hace ${cuDias(c.fecha)} días`;pill=`<span class="pill">En stock</span>`}
     else pill=`<span class="pill">${esc(u.t||"Gasto")}</span>`;
-    return `<div class="cu-u" onclick="cuCambiar(${c.id},${x.k})"><div><b>${esc(cuNom(u.pid))}</b><small>Costó ${cop(x.costo)}${info}</small></div>${pill}</div>`}).join("")}
-  <p class="cu-h">Toca un perfume para cambiarlo.</p></details></div>`}).join(""):`<p class="empty">Todavía no hay compras.</p>`}
+    return `<div class="cu-u" onclick="${act}"><div><b>${esc(cuNom(u.pid))}</b><small>Costó ${cop(x.costo)}${info}</small></div>${pill}</div>`}).join("")}
+  <p class="cu-h">Toca un perfume vendido para ver su factura. "Cambiar" lo mueve de venta, a stock o a gasto.</p></details></div>`}).join(""):`<p class="empty">Todavía no hay compras.</p>`}
 function cuStock(){cuSync();const L=[];cuOrd().forEach(c=>{const ex=cuUds(c);c.uds.forEach((u,k)=>{if(u.e==="s")L.push({c,u,k,costo:ex[k].c})})});
   return `<p class="cu-h">Perfumes que tienen en la mano, de qué compra salieron. No cambia el Inventario de la tienda.</p>`+(L.length?`<div class="cu-card">${L.map(x=>`<div class="cu-u" onclick="cuCambiar(${x.c.id},${x.k})"><div><b>${esc(cuNom(x.u.pid))}</b><small>Compra ${cuNumDe(x.c.id)} · costó ${cop(x.costo)} · se vende a ${cop(cuVenta(x.u.pid))} · hace ${cuDias(x.c.fecha)} días</small></div></div>`).join("")}</div>`:`<p class="empty">No hay perfumes en stock.</p>`)}
 let CUS=null;
@@ -2063,7 +2065,7 @@ function cuCambiar(cid,k){const c=S.purchases.find(x=>x.id===cid);if(!c)return;c
   <div class="chips" id="cuT">${["Regalo","Garantía","Compra personal"].map(t=>`<button class="chip" aria-pressed="${u.e==="x"&&u.t===t}" onclick="cuTipo(this)">${t}</button>`).join("")}</div>
   <div id="cuGx" ${u.e==="x"?"":"hidden"}><input class="f" id="cuNo" placeholder="Nota (ej: regalo para publicidad)" value="${esc(u.nota||"")}" ${u.t==="Compra personal"?"hidden":""} style="margin-top:8px"><button class="primary" onclick="cuPoner('x')">Guardar</button></div>`)}
 function cuTipo(b){document.querySelectorAll("#cuT .chip").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed","true");$("cuGx").hidden=false;$("cuNo").hidden=b.textContent==="Compra personal"}
-function cuRefresh(m){closeSheet();if(atab==="contabilidad")aConta();toast(m)}
+function cuRefresh(m){closeSheet();if(atab==="contabilidad")aConta();else if(atab==="inventario")aInv();toast(m)}
 function cuAsignar(fid){const c=S.purchases.find(x=>x.id===CUS.cid),u=c.uds[CUS.k],i=S.invoices.find(x=>x.id===fid);if(!i)return;
   const q=i.items.find(x=>x.pid===u.pid).qty;let ya=[];cuOrd().forEach(cc=>(cc.uds||[]).forEach(o=>{if(o!==u&&o.e==="v"&&o.fv===fid&&o.pid===u.pid)ya.push(o)}));
   if(ya.length>=q){const o=ya[ya.length-1];o.e="s";delete o.fv}
