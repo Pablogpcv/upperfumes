@@ -798,7 +798,7 @@ function descMonto(sub,d){if(!d||!(d.v>0))return 0;return Math.min(sub,d.t==="pc
 function aplicarDesc(i){const sub=i.items.reduce((a,x)=>a+x.qty*x.price,0),d=descMonto(sub,i.desc);if(d>0){i.subtotal=sub;i.descuento=d}else{delete i.subtotal;delete i.descuento;delete i.desc}i.total=sub-d;return i}
 function makeInvoice({id,cliente,tel,tipo,items,estado,metodo,origen,desc}){
   const inv={id:id||("FV-"+String(S.seq++).padStart(4,"0")),fecha:today(),cliente,tel:tel||"",tipo,metodo:metodo||"Por definir",estado,origen:origen||"admin",
-    items:items.map(i=>{const p=P(i.pid);const o={pid:i.pid,name:p.brand+" "+p.name,qty:i.qty,price:i.price,cost:p.compra};if(i.especial){o.lista=i.lista;o.especial=true}return o})};
+    items:items.map(i=>{const p=P(i.pid);const o={pid:i.pid,name:p.brand+" "+p.name,qty:i.qty,price:i.price,cost:p.compra};if(i.especial){o.lista=i.lista;o.especial=true}if(i.antes>i.price)o.antes=i.antes;return o})};
   if(desc&&desc.v>0)inv.desc={t:desc.t,v:desc.v};aplicarDesc(inv);
   inv.items.forEach(i=>{const p=P(i.pid);p.stock=Math.max(0,p.stock-i.qty)});
   S.invoices.unshift(inv);save();return inv;
@@ -1260,13 +1260,14 @@ function formFactura(){leadConv=null;RSTOP=null;lines=[];FV={blob:null,url:null}
 function drawFactura(keep){
   const v=keep||{c:"",t:"",tipo:"detal",m:"Efectivo",e:"pendiente",n:"",nv:false};
   const pr=l=>fPr(l,v.tipo);
-  const sub=lines.reduce((a,l)=>a+pr(l)*l.qty,0),dsc=descMonto(sub,{t:v.dt||"pct",v:num(v.dv||0)}),tot=sub-dsc;
+  const sub=lines.reduce((a,l)=>a+(pr(l)-(l.dd||0))*l.qty,0),dsc=descMonto(sub,{t:v.dt||"pct",v:num(v.dv||0)}),tot=sub-dsc;
   openSheet(`<h3 class="t">Nueva factura</h3>
   <div class="two"><div><label for="vC">Cliente</label><input class="f" id="vC" value="${esc(v.c)}"></div><div><label for="vT">Celular</label><input class="f" id="vT" inputmode="tel" value="${esc(v.t)}"></div></div>
   <div class="two"><div><label for="vTi">Tipo de venta</label><select class="f" id="vTi" onchange="drawFactura(fv())"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
   <div><label for="vE">Estado</label><select class="f" id="vE" onchange="drawFactura(fv())"><option value="pendiente" ${v.e!=="pagada"?"selected":""}>Pendiente</option><option value="pagada" ${v.e==="pagada"?"selected":""}>Pagada</option></select></div></div>
   <label>Productos</label>${lines.map((l,i)=>{const lp=listPrice(l.pid,v.tipo),esp=l.op&&l.price>0&&l.price!==lp;return `<div class="li-wrap${l.op?" op":""}"><div class="line-item">${pickBtn(l.pid,"fl"+i,id=>{const v=fv();lines[i].pid=id;lines[i].op=0;delete lines[i].price;drawFactura(v)},v.tipo)}<input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="lines[${i}].qty=Math.max(1,num(this.value));drawFactura(fv())"><button class="x" aria-label="Quitar" onclick="lines.splice(${i},1);drawFactura(fv())">×</button></div>
-   <div class="li-px">${l.op?`<span class="li-ed"><input class="f li-in" id="fp${i}" inputmode="numeric" aria-label="Precio unitario" value="${l.price||lp}" onchange="lines[${i}].price=num(this.value);drawFactura(fv())"><small>c/u</small>${esp?`<span class="li-tag">Especial</span>`:""}</span><button class="li-lk" onclick="lines[${i}].op=0;delete lines[${i}].price;drawFactura(fv())">Usar precio normal</button>`:`<span>${cop(lp)} c/u</span><button class="li-lk" onclick="lines[${i}].op=1;lines[${i}].price=${lp};drawFactura(fv());setTimeout(()=>{const e=$('fp${i}');if(e){e.focus();e.select()}},60)">Precio diferente</button>`}</div></div>`}).join("")}
+   <div class="li-px">${l.op?`<span class="li-ed"><input class="f li-in" id="fp${i}" inputmode="numeric" aria-label="Precio unitario" value="${l.price||lp}" onchange="lines[${i}].price=num(this.value);drawFactura(fv())"><small>c/u</small>${esp?`<span class="li-tag">Especial</span>`:""}</span><button class="li-lk" onclick="lines[${i}].op=0;delete lines[${i}].price;drawFactura(fv())">Usar precio normal</button>`:`<span>${cop(lp)} c/u</span><button class="li-lk" onclick="lines[${i}].op=1;lines[${i}].price=${lp};drawFactura(fv());setTimeout(()=>{const e=$('fp${i}');if(e){e.focus();e.select()}},60)">Precio diferente</button>`}</div>
+   <div class="li-px li-dd"><span>Descuento a este perfume</span><span class="li-ed"><input class="f li-in" inputmode="numeric" aria-label="Descuento c/u" placeholder="$0" value="${l.dd||""}" onchange="lines[${i}].dd=Math.min(num(this.value),fPr(lines[${i}],'${v.tipo}'));drawFactura(fv())"><small>c/u</small></span></div></div>`}).join("")}
   ${lines.some(l=>l.op)?`<p class="hint li-note">🔒 Solo lo ves tú. El cliente ve únicamente el precio final, sin descuentos ni recargos.</p>`:""}
   ${psBox("fadd",lines.length?"Agregar otro producto…":"Buscar y agregar producto…",id=>{const v=fv();const e=lines.find(l=>l.pid===id);if(e)e.qty++;else lines.push({pid:id,qty:1});drawFactura(v);psFocus("fadd")},v.tipo)}
   ${v.e==="pagada"?`<div class="paid-box"><label for="vM">Método de pago</label><select class="f" id="vM">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===v.m?"selected":""}>${o}</option>`).join("")}</select>
@@ -1284,7 +1285,7 @@ const fv=()=>({c:$("vC").value,t:$("vT").value,tipo:$("vTi").value,m:$("vM")?(FV
 let PVF=null;
 function previewFactura(){const v=fv();if(!lines.length)return $("err").textContent="Agrega al menos un producto.";PVF=v;
   const i=aplicarDesc({id:"Vista previa",fecha:today(),cliente:v.c.trim()||"Cliente",tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,vence:v.e!=="pagada"&&v.vence?v.vence:undefined,notas:(v.n||"").trim(),notaCliente:v.nv,
-    desc:num(v.dv)>0?{t:v.dt,v:num(v.dv)}:null,items:lines.map(l=>{const p=P(l.pid);return{pid:l.pid,name:p.brand+" "+p.name,qty:l.qty,price:fPr(l,v.tipo)}})});
+    desc:num(v.dv)>0?{t:v.dt,v:num(v.dv)}:null,items:lines.map(l=>{const p=P(l.pid),b=fPr(l,v.tipo),dd=l.dd||0;return{pid:l.pid,name:p.brand+" "+p.name,qty:l.qty,price:b-dd,...(dd?{antes:b}:{})}})});
   openSheet(`<h3 class="t">Vista previa</h3><p class="hint">Así la verá el cliente. Todavía no se ha creado.</p>${paper(i)}
   <div class="two" style="margin-top:12px"><button class="btn-line" style="margin:0" onclick="drawFactura(PVF)">← Volver a editar</button><button class="primary" style="margin:0" onclick="saveFactura(PVF)">Crear factura</button></div>`)}
 async function pickFV(inp){const f=inp.files&&inp.files[0];if(!f)return;try{FV.blob=await compress(f);FV.url=URL.createObjectURL(FV.blob);drawFactura(fv())}catch(e){toast("No se pudo leer esa imagen")}}
@@ -1293,17 +1294,19 @@ async function saveFactura(vv){
   const v=vv||fv(),E=m=>{if(!$("err")){drawFactura(v)}$("err").textContent=m};if(!v.c.trim())return E("Escribe el nombre del cliente.");
   if(!lines.length)return E("Agrega al menos un producto.");
   if(lines.some(l=>l.op&&!(l.price>0)))return E("Escribe el precio diferente o vuelve al precio normal.");
+  if(lines.some(l=>(l.dd||0)>=fPr(l,v.tipo)))return E("El descuento de un perfume no puede ser igual o mayor a su precio.");
   if(num(v.dv)>0&&v.dt==="pct"&&num(v.dv)>=100)return E("El descuento en % debe ser menor a 100.");
   const need={};lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
   for(const k in need){if(P(k).stock<need[k])return E(`No hay stock suficiente de ${P(k).name} (quedan ${P(k).stock}).`)}
   let nid;try{nid=await nuevoIdFactura()}catch(e){return E("No se pudo crear el número de factura: "+sbErr(e))}
-  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,desc:num(v.dv)>0?{t:v.dt,v:num(v.dv)}:null,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo);return{pid:l.pid,qty:l.qty,price:pr,lista:lp,especial:pr!==lp}})});
+  const inv=makeInvoice({id:nid,cliente:v.c.trim(),tel:v.t,tipo:v.tipo,metodo:v.e==="pagada"?v.m:"Por definir",estado:v.e,desc:num(v.dv)>0?{t:v.dt,v:num(v.dv)}:null,items:lines.map(l=>{const lp=listPrice(l.pid,v.tipo),pr=fPr(l,v.tipo),dd=l.dd||0;return{pid:l.pid,qty:l.qty,price:pr-dd,antes:dd?pr:0,lista:lp,especial:pr!==lp}})});
   if(v.vence&&v.e!=="pagada"){inv.vence=v.vence;save()}
   const nota=(v.n||"").trim();if(nota){inv.notas=nota;if(v.nv)inv.notaCliente=true;save()}
   if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
   if(RSTOP){const rr=(S.rutas||[]).find(x=>x.id===RSTOP.r);if(rr&&rr.paradas[RSTOP.i])rr.paradas[RSTOP.i].fv=inv.id;RSTOP=null;save()}
-  atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada");verFactura(inv.id);
+  const asg=cuAuto(inv);if(asg.length)save();
+  atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada"+(asg.length?" · "+asg.join(" · "):""));verFactura(inv.id);
 }
 const fdate=d=>new Date(d+"T12:00:00").toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"});
 const stName=s=>s==="pagada"?"PAGADA":s==="pendiente"?"PENDIENTE DE PAGO":"ANULADA";
@@ -1313,10 +1316,10 @@ function paper(i){const C=S.company;
   <div class="pp-body"><div class="pp-cols"><div><h5>EMITIDA POR</h5><b>${esc(C.nombre||"Upperfumes")}</b><br>${info.map(esc).join("<br>")}</div>
   <div><h5>CLIENTE</h5><b>${esc(i.cliente)}</b>${i.tel?"<br>"+esc(i.tel):""}<br>${fdate(i.fecha)}${[i.vence&&i.estado==="pendiente"&&"Fecha de pago: "+fdate(i.vence),i.tipo==="mayor"&&"Venta por mayor",i.metodo&&i.metodo!=="Por definir"&&"Pago: "+esc(i.metodo)].filter(Boolean).map(x=>"<br>"+x).join("")}</div></div>
   <table class="pp-t"><thead><tr><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Subtotal</th></tr></thead><tbody>
-  ${i.items.map(x=>`<tr><td>${esc(x.name)}</td><td class="r">${x.qty}</td><td class="r">${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")}</tbody></table>
+  ${(()=>{const L=(i.abonos||[]).length&&i.estado!=="anulada"?fvLineas(i):null;return i.items.map((x,li)=>`<tr><td>${esc(x.name)}${L?`<small class="pp-li">${L.net[li]-L.paid[li]>0.5?`Abonado ${cop(Math.round(L.paid[li]))} · Debe ${cop(Math.round(L.net[li]-L.paid[li]))}`:"Pagado"}</small>`:""}</td><td class="r">${x.qty}</td><td class="r">${x.antes>x.price?`<s class="pp-antes">${cop(x.antes)}</s><br>`:""}${cop(x.price)}</td><td class="r">${cop(x.qty*x.price)}</td></tr>`).join("")})()}</tbody></table>
   ${i.descuento>0?`<div class="pp-ab-s"><span>Subtotal</span><span>${cop(i.subtotal)}</span></div><div class="pp-ab-s pp-desc"><span>Descuento${i.desc&&i.desc.t==="pct"?` (${i.desc.v}%)`:""}</span><span>− ${cop(i.descuento)}</span></div>`:""}
   <div class="pp-total"><span>TOTAL</span><span>${i.descuento>0?`<s class="pp-antes">${cop(i.subtotal)}</s>`:""}${cop(i.total)}</span></div>
-  ${(i.abonos||[]).length?`<div class="pp-ab"><h5>ABONOS</h5><table class="pp-t"><tbody>${i.abonos.map(a=>`<tr><td>${fdate(a.dia)}</td><td>${esc(a.metodo)}</td><td class="r">${cop(a.monto)}</td></tr>`).join("")}</tbody></table>
+  ${(i.abonos||[]).length?`<div class="pp-ab"><h5>ABONOS</h5><table class="pp-t"><tbody>${(()=>{const L=fvLineas(i);return i.abonos.map((a,k)=>`<tr><td>${fdate(a.dia)}</td><td>${esc(a.metodo)}${(L.pz[k]||[]).length?`<small class="pp-li">${(L.pz[k]).map(([li])=>esc(i.items[li].name)).join(" + ")}</small>`:""}</td><td class="r">${cop(a.monto)}</td></tr>`).join("")})()}</tbody></table>
   <div class="pp-ab-s"><span>Total abonado</span><span>${cop(abonado(i))}</span></div><div class="pp-ab-s fuerte"><span>SALDO PENDIENTE</span><span>${cop(saldo(i))}</span></div></div>`:""}
   ${i.notas&&i.notaCliente?`<div class="pp-notas"><h5>NOTAS</h5>${esc(i.notas).replace(/\n/g,"<br>")}</div>`:""}
   <div style="text-align:right"><span class="pp-stamp">${stName(i.estado)}</span></div>
@@ -1340,18 +1343,19 @@ function credBox(i){if(i.estado==="anulada"||(i.estado==="pagada"&&!(i.abonos||[
   return `<div class="cred-box" id="credBox">
   ${pend?`<div class="cb-h"><b>Fecha de pago</b>${i.vence?`<span>${fdate(i.vence)}</span>${v?`<span class="pill ${v.cls}">${v.txt}</span>`:""}`:`<span class="muted">Sin fecha</span>`}<button class="li-lk" onclick="editarVence('${i.id}')">${i.vence?"Cambiar":"Poner fecha"}</button></div>
   ${i.vence?`<a class="btn-line cal-b" target="_blank" rel="noopener" href="${calUrl(i)}" onclick="${correosRec().length?"":"toast('Agrega los correos para recordatorios en Empresa')"}">📅 Agregar al calendario (aviso el día antes)</a>`:""}`:""}
-  <div class="cb-ab"><b>Abonos</b>${(i.abonos||[]).length?i.abonos.map(a=>`<div class="ab-r"><span>${fcorta(a.dia)}</span><span>${esc(a.metodo)}</span><b>${cop(a.monto)}</b><button class="x" aria-label="Eliminar abono" onclick="borrarAbono('${i.id}',${a.id})">×</button></div>`).join(""):`<p class="hint" style="margin:4px 0 0">Aún no hay abonos.</p>`}</div>
+  <div class="cb-ab"><b>Abonos</b>${(i.abonos||[]).length?(()=>{const L=fvLineas(i);return i.abonos.map((a,k)=>`<div class="ab-r"><span>${fcorta(a.dia)}</span><span>${esc(a.metodo)}</span><b>${cop(a.monto)}</b><button class="x" aria-label="Eliminar abono" onclick="borrarAbono('${i.id}',${a.id})">×</button><small class="ab-d">${abDest(i,k,L)} <button class="li-lk" onclick="formDestino('${i.id}',${a.id})">Cambiar</button></small></div>`).join("")})():`<p class="hint" style="margin:4px 0 0">Aún no hay abonos.</p>`}</div>
   <div class="cb-t"><div><span>Total</span><b>${cop(i.total)}</b></div><div><span>Abonado</span><b>${cop(abonado(i))}</b></div><div><span>Saldo</span><b class="g">${cop(saldo(i))}</b></div></div>
   ${pend?`<div id="abForm"><button class="primary" style="margin-top:10px" onclick="formAbono('${i.id}')">Registrar abono</button></div>`:""}</div>`}
 function formAbono(id){const i=S.invoices.find(x=>x.id===id);$("abForm").innerHTML=`<div class="two" style="margin-top:10px"><div><label for="abM" style="margin-top:0">Monto</label><input class="f" id="abM" inputmode="numeric" value="${saldo(i)}"></div>
   <div><label for="abP" style="margin-top:0">Método</label><select class="f" id="abP">${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option>${o}</option>`).join("")}</select></div></div>
+  ${i.items.length>1?`<label for="abD">¿A qué va?</label>${abOpts(i,null)}`:""}
   <p class="err" id="abE"></p><div class="two"><button class="btn-gold" style="margin:0" onclick="guardarAbono('${id}')">Guardar abono</button><button class="btn-line" onclick="verFactura('${id}',1)">Cancelar</button></div>`;
   setTimeout(()=>{const e=$("abM");e.focus();e.select()},40)}
 function guardarAbono(id){const i=S.invoices.find(x=>x.id===id),m=num($("abM").value),met=$("abP").value;
   if(m<=0)return $("abE").textContent="Escribe el monto del abono.";
   if(m>saldo(i))return $("abE").textContent=`El abono es mayor que el saldo (${cop(saldo(i))}).`;
-  i.abonos=i.abonos||[];i.abonos.push({id:Date.now(),fecha:ahora(),dia:hoyL(),monto:m,metodo:met,usuario:quien()});
-  const ch=[`Abono de ${cop(m)} (${met}) · saldo ${cop(saldo(i))}`];
+  i.abonos=i.abonos||[];const ab={id:Date.now(),fecha:ahora(),dia:hoyL(),monto:m,metodo:met,usuario:quien()};if($("abD")&&$("abD").value)ab.pid=+$("abD").value;i.abonos.push(ab);
+  const ch=[`Abono de ${cop(m)} (${met})${ab.pid?" a "+cuNom(ab.pid):""} · saldo ${cop(saldo(i))}`];
   if(saldo(i)<=0&&i.estado==="pendiente"){i.estado="pagada";i.metodo=met;i.pagoAbonos=true;ch.push("Pagada con abonos")}
   addLog(i,ch);save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast(i.estado==="pagada"?"Abono registrado · factura pagada":"Abono registrado")}
 function borrarAbono(id,aid){const i=S.invoices.find(x=>x.id===id),a=(i.abonos||[]).find(x=>x.id===aid);if(!a)return;
@@ -1392,10 +1396,10 @@ function histHTML(i){const l=i.log||[];if(!l.length)return "";
   return `<div class="sh" style="margin-top:14px"><h2 style="font-size:16px">Historial de cambios</h2></div>`+l.slice().reverse().map(e=>`<div class="row" style="align-items:flex-start"><div class="grow"><b style="font-weight:500">${fdt(e.fecha)} · ${esc(e.usuario)}</b><small>${e.cambios.map(esc).join("<br>")}${e.motivo?`<br><i>Motivo: ${esc(e.motivo)}</i>`:""}</small></div></div>`).join("")}
 let EF=null;
 function formEditFactura(id){const i=S.invoices.find(x=>x.id===id);
-  EF={id,v:{c:i.cliente,t:i.tel||"",tipo:i.tipo,m:i.metodo,e:i.estado,f:i.fecha,mot:""},lines:i.items.map(x=>({pid:x.pid,qty:x.qty,price:x.price}))};drawEdit()}
+  EF={id,v:{c:i.cliente,t:i.tel||"",tipo:i.tipo,m:i.metodo,e:i.estado,f:i.fecha,mot:""},lines:i.items.map(x=>({pid:x.pid,qty:x.qty,price:x.antes>x.price?x.antes:x.price,dd:x.antes>x.price?x.antes-x.price:0}))};drawEdit()}
 function efv(){return{c:$("eC").value,t:$("eT").value,tipo:$("eTi").value,m:$("eM").value,e:$("eE").value,f:$("eF").value,mot:$("eMo").value}}
 function drawEdit(keep){const v=EF.v;
-  const tot=EF.lines.reduce((a,l)=>a+l.price*l.qty,0);
+  const tot=EF.lines.reduce((a,l)=>a+(l.price-(l.dd||0))*l.qty,0);
   openSheet(`<h3 class="t">Editar ${EF.id}</h3><p class="hint">Cada cambio queda guardado con fecha, hora y quién lo hizo.</p>
   <div class="two"><div><label for="eC">Cliente</label><input class="f" id="eC" value="${esc(v.c)}"></div><div><label for="eT">Celular</label><input class="f" id="eT" inputmode="tel" value="${esc(v.t)}"></div></div>
   <div class="two"><div><label for="eTi">Tipo de venta</label><select class="f" id="eTi" onchange="EF.v=efv();EF.lines.forEach(l=>l.price=listPrice(l.pid,EF.v.tipo));drawEdit(1)"><option value="detal" ${v.tipo==="detal"?"selected":""}>Detal</option><option value="mayor" ${v.tipo==="mayor"?"selected":""}>Por mayor</option></select></div>
@@ -1407,7 +1411,8 @@ function drawEdit(keep){const v=EF.v;
    <input class="f" inputmode="numeric" value="${l.qty}" aria-label="Cantidad" onchange="EF.v=efv();EF.lines[${k}].qty=Math.max(1,num(this.value));drawEdit(1)">
    <button class="x" aria-label="Quitar" onclick="EF.v=efv();EF.lines.splice(${k},1);if(!EF.lines.length)EF.lines.push({pid:S.products[0].id,qty:1,price:listPrice(S.products[0].id,EF.v.tipo)});drawEdit(1)">×</button></div>
    <div class="two" style="align-items:end"><div><label for="eP${k}">Precio unitario</label><input class="f" id="eP${k}" inputmode="numeric" value="${l.price}" onchange="EF.v=efv();EF.lines[${k}].price=num(this.value);drawEdit(1)"></div>
-   <div><small class="hint" style="display:block;margin-bottom:10px">Lista: ${cop(lp)}${esp?` · <b style="color:var(--gold)">Precio especial (${l.price<lp?"−":"+"}${cop(Math.abs(lp-l.price))})</b>`:""}</small></div></div>
+   <div><label for="eD${k}">Descuento c/u</label><input class="f" id="eD${k}" inputmode="numeric" placeholder="$0" value="${l.dd||""}" onchange="EF.v=efv();EF.lines[${k}].dd=Math.min(num(this.value),EF.lines[${k}].price);drawEdit(1)"></div></div>
+   <div><small class="hint" style="display:block;margin:6px 0">Lista: ${cop(lp)}${esp?` · <b style="color:var(--gold)">Precio especial (${l.price<lp?"−":"+"}${cop(Math.abs(lp-l.price))})</b>`:""}</small></div>
    ${esp?`<button class="ghost" style="margin:0;padding:4px 0" onclick="EF.v=efv();EF.lines[${k}].price=${lp};drawEdit(1)">Volver al precio de lista</button>`:""}</div>`}).join("")}
   ${psBox("eadd","Agregar otro producto…",id=>{EF.v=efv();const e=EF.lines.find(l=>l.pid===id);if(e)e.qty++;else EF.lines.push({pid:id,qty:1,price:listPrice(id,EF.v.tipo)});drawEdit(1);psFocus("eadd")},v.tipo)}
   <label for="eMo">Motivo del cambio (opcional)</label><input class="f" id="eMo" placeholder="Ej: precio especial cliente frecuente" value="${esc(v.mot)}">
@@ -1415,7 +1420,7 @@ function drawEdit(keep){const v=EF.v;
   <button class="primary" onclick="saveEdit()">Guardar cambios</button><button class="ghost" onclick="verFactura('${EF.id}')">Cancelar</button>`,!!keep)}
 function saveEdit(){const i=S.invoices.find(x=>x.id===EF.id),v=efv();EF.v=v;
   if(!v.c.trim())return $("err").textContent="Escribe el nombre del cliente.";
-  if(EF.lines.some(l=>l.price<=0))return $("err").textContent="Hay un producto con precio en cero.";
+  if(EF.lines.some(l=>l.price-(l.dd||0)<=0))return $("err").textContent="Hay un producto con precio en cero.";
   // stock: devolvemos lo que tenía la factura y descontamos lo nuevo
   const back={},need={};i.items.forEach(x=>back[x.pid]=(back[x.pid]||0)+x.qty);EF.lines.forEach(l=>need[l.pid]=(need[l.pid]||0)+l.qty);
   for(const k in need){const disp=P(k).stock+(back[k]||0);if(disp<need[k])return $("err").textContent=`No hay stock suficiente de ${P(k).name} (disponibles ${disp}).`}
@@ -1426,20 +1431,20 @@ function saveEdit(){const i=S.invoices.find(x=>x.id===EF.id),v=efv();EF.v=v;
   if(v.m!==i.metodo)ch.push(`Método de pago: ${i.metodo} → ${v.m}`);
   if(v.e!==i.estado)ch.push(`Estado: ${i.estado} → ${v.e}`);
   if(v.f&&v.f!==i.fecha)ch.push(`Fecha: ${i.fecha} → ${v.f}`);
-  const old={};i.items.forEach(x=>old[x.pid]=x);const nw={},ord=[];EF.lines.forEach(l=>{if(nw[l.pid]){nw[l.pid].qty+=l.qty}else{nw[l.pid]={...l};ord.push(l.pid)}});
+  const old={};i.items.forEach(x=>old[x.pid]=x);const nw={},ord=[];EF.lines.forEach(l=>{if(nw[l.pid]){nw[l.pid].qty+=l.qty}else{nw[l.pid]={...l,base:l.price,price:l.price-(l.dd||0)};ord.push(l.pid)}});
   for(const k in old){const o=old[k],n=nw[k];
     if(!n)ch.push(`Quitado: ${o.qty} x ${o.name}`);
-    else{if(n.qty!==o.qty)ch.push(`${o.name}: cantidad ${o.qty} → ${n.qty}`);if(n.price!==o.price)ch.push(`${o.name}: precio ${cop(o.price)} → ${cop(n.price)}${n.price!==listPrice(+k,v.tipo)?" (precio especial)":""}`)}}
+    else{if(n.qty!==o.qty)ch.push(`${o.name}: cantidad ${o.qty} → ${n.qty}`);if(n.price!==o.price)ch.push(`${o.name}: precio ${cop(o.price)} → ${cop(n.price)}${n.dd?` (descuento ${cop(n.dd)})`:n.price!==listPrice(+k,v.tipo)?" (precio especial)":""}`)}}
   for(const k in nw)if(!old[k])ch.push(`Agregado: ${nw[k].qty} x ${nm(+k)} a ${cop(nw[k].price)}${nw[k].price!==listPrice(+k,v.tipo)?" (precio especial)":""}`);
   if(!ch.length){toast("No hiciste cambios");return verFactura(i.id)}
   const oldTot=i.total;
   for(const k in back){const p=P(k);if(p)p.stock+=back[k]}
   for(const k in need){P(k).stock-=need[k]}
   i.cliente=v.c.trim();i.tel=v.t;i.tipo=v.tipo;i.metodo=v.m;i.estado=v.e;if(v.f)i.fecha=v.f;
-  i.items=ord.map(k=>{const l=nw[k],p=P(k),prev=old[k];const lp=listPrice(+k,v.tipo);return{pid:+k,name:nm(+k),qty:l.qty,price:l.price,cost:prev?prev.cost:p.compra,lista:lp,especial:l.price!==lp}});
+  i.items=ord.map(k=>{const l=nw[k],p=P(k),prev=old[k];const lp=listPrice(+k,v.tipo);const o={pid:+k,name:nm(+k),qty:l.qty,price:l.price,cost:prev?prev.cost:p.compra,lista:lp,especial:l.base!==lp};if(l.dd>0)o.antes=l.base;return o});
   aplicarDesc(i);
   if(i.total!==oldTot)ch.push(`Total: ${cop(oldTot)} → ${cop(i.total)}`);
-  i.editada=true;addLog(i,ch,v.mot.trim());save();renderAdmin();toast("Factura actualizada");verFactura(i.id)}
+  i.editada=true;addLog(i,ch,v.mot.trim());cuSync();const asg=cuAuto(i);save();renderAdmin();toast("Factura actualizada"+(asg.length?" · "+asg.join(" · "):""));verFactura(i.id)}
 function borrarFactura(id){const i=S.invoices.find(x=>x.id===id);
   const mot=prompt(`¿Eliminar ${id} de ${i.cliente} por ${cop(i.total)}?\n${i.estado!=="anulada"?"El stock vuelve al inventario.\n":""}Queda guardado en el registro de cambios.\n\nEscribe el motivo (o deja vacío) y presiona Aceptar:`,"");
   if(mot===null)return;
@@ -1478,7 +1483,7 @@ function verRegistro(){const l=S.invLog||[];
   ${l.length?l.map((e,k)=>`<div class="row" style="align-items:flex-start"><div class="grow"><b style="font-weight:500">${esc(e.factura)} · ${esc(e.cliente||"")} <span class="pill ${e.accion==="eliminada"?"bad":"warn"}">${e.accion==="eliminada"?"Eliminada":"Editada"}</span></b><small>${fdt(e.fecha)} · ${esc(e.usuario)}<br>${e.cambios.map(esc).join("<br>")}${e.motivo?`<br><i>Motivo: ${esc(e.motivo)}</i>`:""}</small>${e.accion==="eliminada"&&e.copia&&!S.invoices.some(x=>x.id===e.factura)?`<button class="ghost" style="margin:4px 0 0;padding:0" onclick="restaurarFactura(${k})">Restaurar esta factura</button>`:""}</div></div>`).join(""):`<p class="empty">Todavía no hay cambios registrados.</p>`}`)}
 function restaurarFactura(k){const e=S.invLog[k],i=JSON.parse(JSON.stringify(e.copia));
   if(i.estado!=="anulada"){for(const x of i.items){const p=P(x.pid);if(!p||p.stock<x.qty)return toast(`No hay stock de ${x.name} para restaurarla`)}i.items.forEach(x=>P(x.pid).stock-=x.qty)}
-  S.invoices.unshift(i);S.invoices.sort((a,b)=>b.id.localeCompare(a.id));addLog(i,["Factura restaurada después de eliminarla"]);save();renderAdmin();toast("Factura "+i.id+" restaurada");verFactura(i.id)}
+  S.invoices.unshift(i);S.invoices.sort((a,b)=>b.id.localeCompare(a.id));addLog(i,["Factura restaurada después de eliminarla"]);cuAuto(i);save();renderAdmin();toast("Factura "+i.id+" restaurada");verFactura(i.id)}
 const PRE={};
 function invImage(id){const i=S.invoices.find(x=>x.id===id);
   return (async()=>{if(!window.html2canvas)throw new Error("h2c");
@@ -1572,8 +1577,9 @@ function addGasto(){const c=$("cuGn").value.trim(),m=num($("cuGm").value),p=$("c
   S.expenses.unshift({id:Date.now(),concepto:c,cat:"Otros",monto:m,fecha:today(),pago:p});save();aConta();toast("Gasto registrado")}
 function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;S.expenses=S.expenses.filter(x=>x.id!==id);save();aConta()}
 function aConta(){
-  const tabs=`<div class="chips cu-tabs"><button class="chip" aria-pressed="${CU.v==="liq"}" onclick="CU.v='liq';aConta()">Liquidación</button><button class="chip" aria-pressed="${CU.v==="mes"}" onclick="CU.v='mes';aConta()">Resumen del mes</button></div>`;
-  $("ab").innerHTML=tabs+(CU.v==="mes"?cuMes():cuLiq())}
+  if(!["liq","st","mes"].includes(CU.v))CU.v="liq";
+  const t=(k,n)=>`<button class="chip" aria-pressed="${CU.v===k}" onclick="CU.v='${k}';aConta()">${n}</button>`;
+  $("ab").innerHTML=`<div class="chips cu-tabs">${t("liq","Compras")}${t("st","Stock")}${t("mes","Resumen del mes")}</div>`+(CU.v==="mes"?cuMes():CU.v==="st"?cuStock():cuCompras())}
 function cuLiq(){const D=liqData(),all=S.purchases.filter(cuIn).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id),
   num_=new Map(S.purchases.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id).map((c,k)=>[c.id,k+1])),
   nP=all.filter(c=>!c.liq).length,ks=all.filter(c=>CU.w==="L"?c.liq:!c.liq);
@@ -1614,7 +1620,7 @@ function cuMes(){cMonth=cMonth||month(today());const inM=f=>month(f||"")===cMont
   <p class="hint">Margen ${ven?Math.round(net/ven*100):0}% · cada socio ${cop(net/2)} · incluye lo que falta por cobrar</p>
   <div class="sh"><h2 style="font-size:19px">Gastos del mes</h2></div>
   ${ex.length?ex.map(e=>`<div class="row"><div class="grow"><b>${esc(e.concepto)}</b><small>${cuF(e.fecha)} · puso ${esc(e.pago||"—")} · <span style="color:var(--${e.pagado||e.pago==="Nequi"?"ok":"warn"})">${e.pagado||e.pago==="Nequi"?"pagado":"pendiente"}</span></small></div><span>${cop(e.monto)}</span></div>`).join(""):`<p class="empty">No hay gastos en este mes.</p>`}
-  <p class="hint">Los gastos se registran en Liquidación → Por liquidar.</p>
+  ${cuGastos()}
   <div class="toolbar"><button class="btn-line" onclick="exportConta()">Exportar CSV</button></div>`}
 /* usuarios */
 async function setRol(id,rol){const u=S.users.find(x=>x.id===id);if(!u)return;
@@ -1980,3 +1986,94 @@ function vistoCancelo(id){const l=(S.leads||[]).find(x=>x.id===id);if(l)delete l
 function revisarVisita(id){atab="clientes";ctab="visitas";VSEL=null;renderAcc();setTimeout(()=>editVisita(id),50)}
 
 document.addEventListener("click",e=>{if(e.target&&e.target.id==="scrim"&&SLOCK){e.stopImmediatePropagation()}},true);
+function cuGastos(){const gp=S.expenses.filter(e=>!e.pagado),sm=l=>cop(l.reduce((a,e)=>a+e.monto,0));
+  return `<details class="cu-card cu-gas"${gp.length?" open":""}><summary>Gastos por pagar${gp.length?` · ${gp.length} (${sm(gp)})`:""}</summary>
+   ${gp.map(e=>`<div class="cu-gr"><span>${esc(e.concepto)} <small>· ${cuF(e.fecha)}</small></span><span>${cuSel(e.pago||"",`gastoPago(${e.id},this.value)`)} ${cop(e.monto)} <button class="chip" onclick="gastoPagado(${e.id},true)">Pagado</button><button class="x" aria-label="Eliminar gasto" onclick="borrarGasto(${e.id})">×</button></span></div>`).join("")}
+   <div class="cu-add"><input class="f" id="cuGn" placeholder="Concepto"><input class="f" id="cuGm" inputmode="numeric" placeholder="Monto">${cuSel("","").replace('class="cu-sel"','class="cu-sel" id="cuGp"')}<button class="chip" onclick="addGasto()">+ Agregar</button></div></details>`}
+/* ===== Cuentas por compra: cada perfume de la compra sabe si se vendió, está en stock o salió como gasto ===== */
+const cuSum=a=>a.reduce((x,y)=>x+y,0);
+const cuOrd=()=>S.purchases.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id);
+const cuNom=pid=>{const p=P(pid);return p?p.name:"Producto"};
+const cuVenta=pid=>{const p=P(pid);return p?Math.round(price(p)):0};
+const cuFvOk=i=>i&&i.estado!=="anulada";
+/* arma la lista de perfumes de cada compra (uno por unidad) y la repara si la compra se editó */
+function cuUds(c){const ex=[];its(c).forEach(x=>{for(let k=0;k<(x.qty||0);k++)ex.push({pid:x.pid,c:x.costo||0})});
+  let U=c.uds;if(!Array.isArray(U)||U.length!==ex.length||U.some((u,k)=>!u||u.pid!==ex[k].pid)){const old=(U||[]).slice();
+    U=ex.map(e=>{const j=old.findIndex(o=>o&&o.pid===e.pid);return j>=0?old.splice(j,1)[0]:{pid:e.pid,e:"s"}});c.uds=U;c._cuMod=1}
+  return ex}
+/* revisa que cada perfume vendido siga en una factura válida; lo que sobre vuelve a stock */
+function cuSync(){let mod=false;const cnt={};
+  cuOrd().forEach(c=>{cuUds(c);if(c._cuMod){delete c._cuMod;mod=true}
+    c.uds.forEach(u=>{if(u.e!=="v")return;const i=S.invoices.find(x=>x.id===u.fv),it=cuFvOk(i)&&i.items.find(x=>x.pid===u.pid),k=u.fv+"|"+u.pid;
+      if(!it||(cnt[k]||0)>=it.qty){u.e="s";delete u.fv;mod=true}else cnt[k]=(cnt[k]||0)+1})});
+  if(!cfg("cuInit").f&&cloudReady&&S.purchases.length&&S.invoices.length){S.invoices.filter(cuFvOk).slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id))).forEach(i=>cuAuto(i,true));setCfg("cuInit",{f:hoyL()});mod=true}
+  if(mod)save()}
+/* asigna sola cada línea de la factura al perfume en stock de la compra más vieja */
+function cuAuto(i,ini){const msg=[];if(!cuFvOk(i))return msg;const O=cuOrd();O.forEach(cuUds);
+  i.items.forEach(x=>{let ya=0;O.forEach(c=>c.uds.forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===x.pid)ya++}));
+    while(ya<x.qty){let hit=null;for(const c of O){if(ini&&(c.fecha||"")>(i.fecha||""))continue;const u=c.uds.find(u=>u.e==="s"&&u.pid===x.pid);if(u){hit=[c,u];break}}
+      if(!hit)break;hit[1].e="v";hit[1].fv=i.id;ya++;msg.push(cuNom(x.pid)+" → Compra "+cuNumDe(hit[0].id))}});
+  return msg}
+const cuNumDe=id=>{const k=cuOrd().findIndex(c=>c.id===id);return k+1};
+/* reparte lo cobrado de una factura entre sus perfumes: primero los abonos dirigidos, luego el resto al de la compra más vieja */
+function fvLineas(i){const it=i.items||[],br=it.map(x=>x.qty*x.price),sb=cuSum(br)||1,d=i.descuento||0,
+  net=br.map(v=>Math.round(v-d*v/sb)),paid=net.map(()=>0),pz=(i.abonos||[]).map(()=>[]),pool=[];
+  if(i.estado==="anulada")return{net,paid,pz};
+  const vieja=li=>{let m="9999";cuOrd().forEach(c=>(c.uds||[]).forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===it[li].pid&&(c.fecha||"")<m)m=c.fecha||""}));return m};
+  const ord=it.map((_,k)=>k).sort((a,b)=>vieja(a).localeCompare(vieja(b))||a-b);
+  (i.abonos||[]).forEach((a,k)=>{const li=a.pid!=null?it.findIndex(x=>x.pid===a.pid):-1;if(li<0)return pool.push([k,a.monto]);
+    const t=Math.min(a.monto,net[li]-paid[li]);if(t>0){paid[li]+=t;pz[k].push([li,t])}if(a.monto-t>0)pool.push([k,a.monto-t])});
+  const extra=cobradoF(i)-cuSum((i.abonos||[]).map(a=>a.monto));if(extra>0)pool.push([-1,extra]);
+  pool.forEach(([k,r])=>{for(const li of ord){if(r<=0)break;const t=Math.min(r,net[li]-paid[li]);if(t>0){paid[li]+=t;r-=t;if(k>=0)pz[k].push([li,t])}}});
+  return{net,paid,pz}}
+function cuValor(u){const i=S.invoices.find(x=>x.id===u.fv);if(!cuFvOk(i))return{v:0,c:0};const li=i.items.findIndex(x=>x.pid===u.pid);if(li<0)return{v:0,c:0};
+  const L=fvLineas(i),q=i.items[li].qty||1;return{v:L.net[li]/q,c:L.paid[li]/q,i}}
+function cuDatos(c){const ex=cuUds(c),U=c.uds.map((u,k)=>({u,k,costo:ex[k].c})),V=U.filter(x=>x.u.e==="v").map(x=>({...x,...cuValor(x.u)})),St=U.filter(x=>x.u.e==="s"),G=U.filter(x=>x.u.e==="x");
+  const inv=cuSum(U.filter(x=>x.u.e!=="x").map(x=>x.costo)),ven=cuSum(V.map(x=>x.v)),cob=cuSum(V.map(x=>x.c)),stv=cuSum(St.map(x=>cuVenta(x.u.pid)));
+  return{U,V,St,G,inv,ven,cob,deb:ven-cob,gas:cuSum(G.map(x=>x.costo)),stv,gan:ven+stv-inv}}
+const cuDias=f=>f?Math.max(0,difDias(hoyL(),f)):0;
+function cuCompras(){cuSync();const L=cuOrd().reverse();
+  return L.length?L.map(c=>{const r=cuDatos(c),R=Math.round;
+  return `<div class="cu-card"><div class="cu-hd"><span><b>Compra ${cuNumDe(c.id)}</b> <small>· ${cuF(c.fecha)} · ${r.U.length} perfume${r.U.length===1?"":"s"}</small><small class="cu-prov">${c.pago?"Pagó: "+esc(c.pago):""}${c.proveedor?(c.pago?" · ":"")+esc(c.proveedor):""}</small></span></div>
+  <div class="cu-k"><div><span>Compra</span><b>${cop(r.inv)}</b></div><div><span>Vendido</span><b>${cop(R(r.ven))}</b></div><div><span>Ganancia total</span><b class="cu-g">${cop(R(r.gan))}</b></div>
+  <div><span>Cobrado</span><b>${cop(R(r.cob))}</b></div><div><span>Deben</span><b>${cop(R(r.deb))}</b></div><div><span>Gastos / regalos</span><b>${cop(r.gas)}</b></div></div>
+  ${r.St.length?`<p class="cu-h">La ganancia incluye ${r.St.length} en stock que se vende${r.St.length>1?"n":""} en ${cop(r.stv)}</p>`:""}
+  ${r.G.map(x=>`<p class="cu-gl">${esc(x.u.t||"Gasto")}: ${esc(cuNom(x.u.pid))} ${cop(x.costo)}${x.u.nota?" · "+esc(x.u.nota):""}</p>`).join("")}
+  <details class="cu-det"${CU.op&&CU.op[c.id]?" open":""} ontoggle="CU.op=CU.op||{};CU.op[${c.id}]=this.open"><summary>Ver perfumes</summary>
+  ${r.U.map(x=>{const u=x.u;let info="",pill="";
+    if(u.e==="v"){const v=cuValor(u),fi=v.i;info=` · ${esc(u.fv)} · ${esc(fi?fi.cliente:"")} · ${cop(R(v.v))}${v.v-v.c>0.5?` · debe ${cop(R(v.v-v.c))}`:" · pagado"}`;
+      pill=`<span class="cu-r"><span class="pill g">Vendido</span><button class="li-lk" onclick="event.stopPropagation();verFactura('${u.fv}')">Ver factura</button></span>`}
+    else if(u.e==="s"){info=` · se vende a ${cop(cuVenta(u.pid))} · hace ${cuDias(c.fecha)} días`;pill=`<span class="pill">En stock</span>`}
+    else pill=`<span class="pill">${esc(u.t||"Gasto")}</span>`;
+    return `<div class="cu-u" onclick="cuCambiar(${c.id},${x.k})"><div><b>${esc(cuNom(u.pid))}</b><small>Costó ${cop(x.costo)}${info}</small></div>${pill}</div>`}).join("")}
+  <p class="cu-h">Toca un perfume para cambiarlo.</p></details></div>`}).join(""):`<p class="empty">Todavía no hay compras.</p>`}
+function cuStock(){cuSync();const L=[];cuOrd().forEach(c=>{const ex=cuUds(c);c.uds.forEach((u,k)=>{if(u.e==="s")L.push({c,u,k,costo:ex[k].c})})});
+  return `<p class="cu-h">Perfumes que tienen en la mano, de qué compra salieron. No cambia el Inventario de la tienda.</p>`+(L.length?`<div class="cu-card">${L.map(x=>`<div class="cu-u" onclick="cuCambiar(${x.c.id},${x.k})"><div><b>${esc(cuNom(x.u.pid))}</b><small>Compra ${cuNumDe(x.c.id)} · costó ${cop(x.costo)} · se vende a ${cop(cuVenta(x.u.pid))} · hace ${cuDias(x.c.fecha)} días</small></div></div>`).join("")}</div>`:`<p class="empty">No hay perfumes en stock.</p>`)}
+let CUS=null;
+function cuCambiar(cid,k){const c=S.purchases.find(x=>x.id===cid);if(!c)return;const ex=cuUds(c),u=c.uds[k];CUS={cid,k};
+  const fs=S.invoices.filter(i=>cuFvOk(i)&&i.items.some(x=>x.pid===u.pid));
+  const tag=i=>{if(u.e==="v"&&u.fv===i.id)return "Esta";const q=i.items.find(x=>x.pid===u.pid).qty;let n=0,de=[];cuOrd().forEach(cc=>(cc.uds||[]).forEach(o=>{if(o.e==="v"&&o.fv===i.id&&o.pid===u.pid){n++;de.push("Compra "+cuNumDe(cc.id))}}));return n?de.join(", "):"Sin asignar"};
+  openSheet(`<h3 class="t">${esc(cuNom(u.pid))}</h3><p class="hint">Compra ${cuNumDe(cid)} · costó ${cop(ex[k].c)}</p>
+  <label>Ventas de ${esc(cuNom(u.pid))}</label>${fs.length?fs.map(i=>`<button class="cu-op${u.e==="v"&&u.fv===i.id?" on":""}" onclick="cuAsignar('${i.id}')"><span>${esc(i.id)} · ${esc(i.cliente)}</span><small>${tag(i)}</small></button>`).join(""):`<p class="hint">No hay ventas de este perfume.</p>`}
+  ${u.e!=="s"?`<button class="btn-line" style="margin-top:10px" onclick="cuPoner('s')">Devolver a stock</button>`:""}
+  <label>Sacar como gasto (sale de la compra, no da ganancia)</label>
+  <div class="chips" id="cuT">${["Regalo","Garantía","Compra personal"].map(t=>`<button class="chip" aria-pressed="${u.e==="x"&&u.t===t}" onclick="cuTipo(this)">${t}</button>`).join("")}</div>
+  <div id="cuGx" ${u.e==="x"?"":"hidden"}><input class="f" id="cuNo" placeholder="Nota (ej: regalo para publicidad)" value="${esc(u.nota||"")}" ${u.t==="Compra personal"?"hidden":""} style="margin-top:8px"><button class="primary" onclick="cuPoner('x')">Guardar</button></div>`)}
+function cuTipo(b){document.querySelectorAll("#cuT .chip").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed","true");$("cuGx").hidden=false;$("cuNo").hidden=b.textContent==="Compra personal"}
+function cuRefresh(m){closeSheet();if(atab==="contabilidad")aConta();toast(m)}
+function cuAsignar(fid){const c=S.purchases.find(x=>x.id===CUS.cid),u=c.uds[CUS.k],i=S.invoices.find(x=>x.id===fid);if(!i)return;
+  const q=i.items.find(x=>x.pid===u.pid).qty;let ya=[];cuOrd().forEach(cc=>(cc.uds||[]).forEach(o=>{if(o!==u&&o.e==="v"&&o.fv===fid&&o.pid===u.pid)ya.push(o)}));
+  if(ya.length>=q){const o=ya[ya.length-1];o.e="s";delete o.fv}
+  delete u.t;delete u.nota;u.e="v";u.fv=fid;save();cuRefresh("Asignado a "+fid)}
+function cuPoner(e){const c=S.purchases.find(x=>x.id===CUS.cid),u=c.uds[CUS.k];
+  if(e==="s"){u.e="s";delete u.fv;delete u.t;delete u.nota;save();return cuRefresh("Devuelto a stock")}
+  const b=document.querySelector('#cuT .chip[aria-pressed="true"]');if(!b)return toast("Elige regalo, garantía o compra personal");
+  const t=b.textContent,n=$("cuNo").value.trim();u.e="x";u.t=t;delete u.fv;if(t!=="Compra personal"&&n)u.nota=n;else delete u.nota;save();cuRefresh("Guardado como "+t.toLowerCase())}
+/* texto del destino de un abono */
+function abDest(i,k,L){L=L||fvLineas(i);const a=i.abonos[k],p=L.pz[k]||[];const n=p.map(([li,t])=>esc(cuNom(i.items[li].pid))+(p.length>1?" "+cop(t):"")).join(" + ");return (a.pid==null?"A la cuenta":"")+(n?(a.pid==null?" → ":"")+n:"")}
+function formDestino(id,aid){const i=S.invoices.find(x=>x.id===id),a=(i.abonos||[]).find(x=>x.id===aid);if(!a)return;
+  $("abForm").innerHTML=`<label style="margin-top:10px">Abono de ${cop(a.monto)} del ${fcorta(a.dia)}: ¿a qué va?</label>${abOpts(i,a.pid)}
+  <div class="two" style="margin-top:8px"><button class="btn-gold" style="margin:0" onclick="guardarDestino('${id}',${aid})">Guardar</button><button class="btn-line" onclick="verFactura('${id}',1)">Cancelar</button></div>`;$("abForm").scrollIntoView({block:"nearest"})}
+function abOpts(i,sel){return `<select class="f" id="abD"><option value="">A la cuenta (va al perfume más viejo)</option>${i.items.map(x=>`<option value="${x.pid}" ${sel===x.pid?"selected":""}>${esc(x.name)}</option>`).join("")}</select>`}
+function guardarDestino(id,aid){const i=S.invoices.find(x=>x.id===id),a=(i.abonos||[]).find(x=>x.id===aid);if(!a)return;const v=$("abD").value;
+  if(v)a.pid=+v;else delete a.pid;addLog(i,[`Abono de ${cop(a.monto)} va a: ${v?cuNom(+v):"la cuenta"}`]);save();verFactura(id,1);toast("Abono actualizado")}
