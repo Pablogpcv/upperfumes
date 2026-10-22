@@ -1999,19 +1999,22 @@ const cuFvOk=i=>i&&i.estado!=="anulada";
 /* arma la lista de perfumes de cada compra (uno por unidad) y la repara si la compra se editó */
 function cuUds(c){const ex=[];its(c).forEach(x=>{for(let k=0;k<(x.qty||0);k++)ex.push({pid:x.pid,c:x.costo||0})});
   let U=c.uds;if(!Array.isArray(U)||U.length!==ex.length||U.some((u,k)=>!u||u.pid!==ex[k].pid)){const old=(U||[]).slice();
-    U=ex.map(e=>{const j=old.findIndex(o=>o&&o.pid===e.pid);return j>=0?old.splice(j,1)[0]:{pid:e.pid,e:"s"}});c.uds=U;c._cuMod=1}
+    U=ex.map(e=>{const j=old.findIndex(o=>o&&o.pid===e.pid);return j>=0?old.splice(j,1)[0]:{pid:e.pid,e:"s",nv:1}});c.uds=U;c._cuMod=1}
   return ex}
 /* revisa que cada perfume vendido siga en una factura válida; lo que sobre vuelve a stock */
 function cuSync(){let mod=false;const cnt={};
   cuOrd().forEach(c=>{cuUds(c);if(c._cuMod){delete c._cuMod;mod=true}
     c.uds.forEach(u=>{if(u.e!=="v")return;const i=S.invoices.find(x=>x.id===u.fv),it=cuFvOk(i)&&i.items.find(x=>x.pid===u.pid),k=u.fv+"|"+u.pid;
       if(!it||(cnt[k]||0)>=it.qty){u.e="s";delete u.fv;mod=true}else cnt[k]=(cnt[k]||0)+1})});
-  if(!cfg("cuInit").f&&cloudReady&&S.purchases.length&&S.invoices.length){S.invoices.filter(cuFvOk).slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id))).forEach(i=>cuAuto(i,true));setCfg("cuInit",{f:hoyL()});mod=true}
+  const viejas=()=>S.invoices.filter(cuFvOk).slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id)));
+  if(cfg("cuInit").v!==2&&cloudReady&&S.purchases.length&&S.invoices.length){if(cfg("cuInit").f===hoyL()||cfg("cuInit").f==="2026-10-22")S.purchases.forEach(c=>(c.uds||[]).forEach(u=>{if(u.e==="v"){u.e="s";delete u.fv}}));viejas().forEach(i=>cuAuto(i));setCfg("cuInit",{f:hoyL(),v:2});mod=true}
+  /* perfumes nuevos de una compra: primero llenan las facturas que estaban esperando ese perfume */
+  if(S.purchases.some(c=>(c.uds||[]).some(u=>u.nv))){if(cloudReady)viejas().forEach(i=>cuAuto(i,true));S.purchases.forEach(c=>(c.uds||[]).forEach(u=>delete u.nv));mod=true}
   if(mod)save()}
 /* asigna sola cada línea de la factura al perfume en stock de la compra más vieja */
 function cuAuto(i,ini){const msg=[];if(!cuFvOk(i))return msg;const O=cuOrd();O.forEach(cuUds);
   i.items.forEach(x=>{let ya=0;O.forEach(c=>c.uds.forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===x.pid)ya++}));
-    while(ya<x.qty){let hit=null;for(const c of O){if(ini&&(c.fecha||"")>(i.fecha||""))continue;const u=c.uds.find(u=>u.e==="s"&&u.pid===x.pid);if(u){hit=[c,u];break}}
+    while(ya<x.qty){let hit=null;for(const c of O){const u=c.uds.find(u=>u.e==="s"&&u.pid===x.pid&&(!ini||u.nv));if(u){hit=[c,u];break}}
       if(!hit)break;hit[1].e="v";hit[1].fv=i.id;ya++;msg.push(cuNom(x.pid)+" → Compra "+cuNumDe(hit[0].id))}});
   return msg}
 const cuNumDe=id=>{const k=cuOrd().findIndex(c=>c.id===id);return k+1};
