@@ -1018,7 +1018,8 @@ function formProducto(id){PF={blob:null,url:null,quitar:false};
   <div class="two"><div><label>Precio de compra</label><input class="f" id="pCo" inputmode="numeric" value="${p.compra}"></div><div><label>Precio al público</label><input class="f" id="pPu" inputmode="numeric" value="${p.publico}"></div></div>
   <div class="two"><div><label>Precio al por mayor</label><input class="f" id="pMa" inputmode="numeric" value="${p.mayor}"></div><div><label>Promo (%)</label><input class="f" id="pPr" inputmode="numeric" value="${p.promo||0}"></div></div>
   <label>Dónde se compró (proveedor)</label><input class="f" id="pPv" value="${esc(p.proveedor)}">
-  <p class="err" id="err"></p><button class="primary" id="pSave" onclick="saveProducto(${id||0})">Guardar producto</button>`);
+  <p class="err" id="err"></p><button class="primary" id="pSave" onclick="saveProducto(${id||0})">Guardar producto</button>
+  ${id?`<button class="ghost" style="color:var(--bad);border-color:var(--bad);margin-top:12px" onclick="borrarProducto(${id})">🗑 Eliminar producto</button>`:""}`);
   pfPrev();
 }
 async function subirFotoProducto(pid,blob){
@@ -1036,6 +1037,12 @@ async function saveProducto(id){
   if(id)Object.assign(P(id),v);else S.products.push({...v,id:nid,conc:"Eau de Parfum",fam:"",notes:[],desc:"",glass:["#2a2620","#8C6F1F"],shape:"square"});
   save();closeSheet();aInv();toast("Producto guardado");
 }
+/* eliminar producto: solo si no está en ninguna factura ni compra, para no dañar las cuentas */
+function borrarProducto(id){const p=P(id);if(!p)return;
+  const nf=S.invoices.filter(i=>(i.items||[]).some(x=>x.pid===id)).length,nc=S.purchases.filter(c=>its(c).some(x=>x.pid===id)).length;
+  if(nf||nc)return $("err").textContent=`No se puede eliminar: está en ${nf?nf+" factura"+(nf>1?"s":""):""}${nf&&nc?" y ":""}${nc?nc+" compra"+(nc>1?"s":""):""}. Si no lo quieres en la tienda, desmarca "Visible en la tienda".`;
+  if(!confirm(`¿Eliminar ${p.brand} ${p.name} del inventario? No se puede deshacer.`))return;
+  S.products=S.products.filter(x=>x.id!==id);save();closeSheet();aInv();toast("Producto eliminado")}
 /* fotos: se guardan en este dispositivo (IndexedDB) */
 let _idb;function idb(){return _idb||(_idb=new Promise((res,rej)=>{const r=indexedDB.open("upperfumes_fotos",1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
 async function fotoLocal(id,blob){try{const d=await idb();await new Promise((res,rej)=>{const tx=d.transaction("f","readwrite");tx.objectStore("f").put(blob,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});return true}catch(e){return false}}
