@@ -869,3 +869,4 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .ab-d{grid-column:1/-1;color:var(--muted);font-size:12px;margin-top:-4px}.ab-d .li-lk{margin-left:6px}
 .li-dd{margin-top:4px}
 .cu-bad{color:var(--bad)}.cu-ok{color:var(--ok)}
+.cu-lin{display:flex!important;flex-wrap:wrap;gap:4px 12px;margin-top:4px;color:var(--ink)!important}
