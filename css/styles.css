@@ -870,3 +870,12 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .li-dd{margin-top:4px}
 .cu-bad{color:var(--bad)}.cu-ok{color:var(--ok)}
 .cu-lin{display:flex!important;flex-wrap:wrap;gap:4px 12px;margin-top:4px;color:var(--ink)!important}
+/* caja */
+.cj-top{border:1px solid var(--gold);background:var(--s1);padding:14px;margin-top:6px}
+.cj-top>span{display:block;font-size:12px;color:var(--muted)}.cj-top>b{font-size:28px;font-weight:600;color:var(--gold)}
+.cj-box{border:1px solid var(--line);background:var(--s1);padding:12px;margin-top:12px}
+.cj-box h4{font-family:Cinzel,Georgia,serif;color:var(--gold);font-weight:400;font-size:16px;margin:0}
+.cj-r{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:13.5px}
+.cj-r>div{flex:1;min-width:0}.cj-r b{font-weight:500}.cj-r small{display:block;color:var(--muted);font-size:12px}.cj-r>span{white-space:nowrap;font-weight:500}
+.cj-r .chip{padding:4px 10px;font-size:12px}.cj-r .x{width:28px;height:28px}.cj-pag{opacity:.65}
+.cj-f{display:grid;gap:8px;margin-top:10px}
