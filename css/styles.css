@@ -879,3 +879,5 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .cj-r>div{flex:1;min-width:0}.cj-r b{font-weight:500}.cj-r small{display:block;color:var(--muted);font-size:12px}.cj-r>span{white-space:nowrap;font-weight:500}
 .cj-r .chip{padding:4px 10px;font-size:12px}.cj-r .x{width:28px;height:28px}.cj-pag{opacity:.65}
 .cj-f{display:grid;gap:8px;margin-top:10px}
+.cj-g{margin-top:8px}.cj-gh{color:var(--gold);font-size:13px;margin:6px 0 0;border-bottom:1px solid var(--line);padding-bottom:4px}
+.cj-mv summary{cursor:pointer;list-style:none}.cj-mv summary::-webkit-details-marker{display:none}.cj-mv summary h4::after{content:" ▾";font-size:12px}.cj-mv[open] summary h4::after{content:" ▴"}
