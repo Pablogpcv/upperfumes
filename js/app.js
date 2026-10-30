@@ -2154,14 +2154,17 @@ function socCompra(c){const L=(S.socios||[]).filter(x=>x.compra===c.id);
   return `<div class="cj-box"><h4>Quién puso plata</h4>${L.length?L.map(x=>`<div class="cj-r${x.pag?" cj-pag":""}"><div><b>${x.pag?esc(x.quien)+" ya se le pagó":"La empresa le debe a "+esc(x.quien)}</b><small>${x.pag?"Pagado "+fHora(x.pag.f):"Anotado "+fHora(x.f)}</small></div><span>${cop(x.m)}</span></div>`).join(""):`<p class="hint" style="margin:6px 0 0">No se le debe nada a nadie por esta compra.</p>`}
   <details style="margin-top:6px"><summary class="li-lk">Anotar quién puso plata</summary><div class="cj-f"><div class="chips" id="scQ"><button class="chip" aria-pressed="false" onclick="chipUno(this)">Juan</button><button class="chip" aria-pressed="false" onclick="chipUno(this)">Camilo</button></div><input class="f" id="scM" inputmode="numeric" placeholder="Valor que puso"><button class="primary" style="margin:0" onclick="socCompraAdd(${c.id})">Anotar</button></div></details></div>`}
 function socCompraAdd(cid){const b=document.querySelector('#scQ .chip[aria-pressed="true"]'),m=num($("scM").value);if(!b)return toast("Elige Juan o Camilo");if(!m)return toast("Escribe el valor");
-  socAdd(b.textContent,m,"Compra "+cuNumDe(cid),cid);save();verCompra(cid);toast("Anotado: la empresa le debe a "+b.textContent)}
+  socAdd(b.textContent,m,"Compra "+cuNumDe(cid),cid);cajaCompras();save();verCompra(cid);toast("Anotado: la empresa le debe a "+b.textContent)}
 
 /* compras desde que arrancó la caja (26/10 10 pm): "Nequi" = la pagó la empresa y sale de la caja; Juan o Camilo = la empresa se la debe */
 const CAJA_DESDE=Date.UTC(2026,9,27,3,0);
 function cajaCompras(){if(!isAdmin()||!cloudReady)return false;let mod=false;S.caja=S.caja||[];S.socios=S.socios||[];
   S.purchases.filter(c=>c.id>=CAJA_DESDE).forEach(c=>{const tot=pTotal(c),nom="Compra "+cuNumDe(c.id),mv=S.caja.find(m=>m.ref&&m.ref.compra===c.id),so=S.socios.find(x=>x.ref&&x.ref.compraPago===c.id);
-    if(c.pago==="Nequi"){if(!mv){S.caja.push({id:Date.now()+Math.floor(Math.random()*1000),f:new Date(c.id).toISOString(),t:"out",m:tot,c:`${nom} · ${c.proveedor||"proveedor"} (pagó la empresa)`,ref:{compra:c.id},u:quien()});mod=true}
-      else if(mv.m!==tot){mv.m=tot;mod=true}
+    if(c.pago==="Nequi"){/* si Juan o Camilo pusieron una parte ("Anotar quién puso plata"), de la caja sale solo el resto */
+      const ap=S.socios.filter(x=>x.compra===c.id&&!(x.ref&&x.ref.compraPago)).reduce((a,x)=>a+x.m,0),out=Math.max(0,tot-ap),txt=`${nom} · ${c.proveedor||"proveedor"} (pagó la empresa${ap?" "+cop(out)+" de "+cop(tot):""})`;
+      if(!out){if(mv){S.caja=S.caja.filter(m=>m!==mv);mod=true}}
+      else if(!mv){S.caja.push({id:Date.now()+Math.floor(Math.random()*1000),f:new Date(c.id).toISOString(),t:"out",m:out,c:txt,ref:{compra:c.id},u:quien()});mod=true}
+      else if(mv.m!==out||mv.c!==txt){mv.m=out;mv.c=txt;mod=true}
       if(so&&!so.pag){S.socios=S.socios.filter(x=>x!==so);mod=true}}
     else{if(mv){S.caja=S.caja.filter(m=>m!==mv);mod=true}
       if(c.pago==="Juan"||c.pago==="Camilo"){if(!so){S.socios.push({id:Date.now()+Math.floor(Math.random()*1000),f:new Date(c.id).toISOString(),quien:c.pago,m:tot,c:nom,compra:c.id,ref:{compraPago:c.id},u:quien()});mod=true}
