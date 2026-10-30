@@ -1073,7 +1073,7 @@ let AI=null;(async()=>{try{if(!window.claude||!claude.use)return;const s=await c
 const its=c=>c.items||[{pid:c.pid,qty:c.qty,costo:c.costo}];
 const pTotal=c=>its(c).reduce((a,x)=>a+x.qty*x.costo,0);
 let CQ="";
-function aCompras(){
+function aCompras(){if(cajaCompras())save();
   const t=S.purchases.reduce((a,c)=>a+pTotal(c),0);cuSync();const deb=Math.round(cuSum(S.purchases.map(c=>cuDatos(c).deb)));
   $("ab").innerHTML=`<div class="kpis"><div class="kpi"><span>Compras registradas</span><b>${S.purchases.length}</b></div><div class="kpi"><span>Total invertido</span><b class="g">${cop(t)}</b></div><div class="kpi"><span>Les deben (todas las compras)</span><b class="cu-bad">${cop(deb)}</b></div></div>
   <div class="toolbar"><button class="btn-line" onclick="formCompra()">Registrar compra</button></div>
@@ -1112,7 +1112,8 @@ function pedirBorrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)retu
   <button class="ghost" onclick="verCompra(${c.id})">Cancelar</button>`)}
 function borrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return;
   its(c).forEach(x=>{const p=P(x.pid);if(p)p.stock=Math.max(0,p.stock-x.qty)});
-  S.purchases=S.purchases.filter(x=>x.id!==id);save();closeSheet();renderAdmin();toast("Compra eliminada · inventario ajustado")}
+  S.purchases=S.purchases.filter(x=>x.id!==id);S.caja=(S.caja||[]).filter(m=>!(m.ref&&m.ref.compra===id));S.socios=(S.socios||[]).filter(x=>!(x.ref&&x.ref.compraPago===id&&!x.pag));
+  save();closeSheet();renderAdmin();toast("Compra eliminada · inventario ajustado")}
 function verCompra(id){VOLVER=null;const c=S.purchases.find(x=>x.id===id);if(!c)return closeSheet();cuSync();
   openSheet(`<h3 class="t">Compra ${cuNumDe(c.id)} · ${esc(c.proveedor)}</h3><p class="hint">${c.fecha}${c.ref?" · Factura "+esc(c.ref):""}</p>
   <label>¿Quién pagó?</label><div class="fecha-q">${SOCIOS.map(o=>`<button type="button" class="chip" aria-pressed="${c.pago===o}" onclick="setPago(${c.id},'${o}');verCompra(${c.id})">${o}</button>`).join("")}</div>
@@ -1204,7 +1205,7 @@ async function saveCompra(){
   S.purchases.unshift({id:Date.now(),fecha:($("cF")&&$("cF").value)||CP.fecha||today(),proveedor:prov,ref:CP.ref.trim(),pago:CP.pago,photoId,items});
   items.forEach(i=>{const p=P(i.pid);p.stock+=i.qty;p.compra=i.costo;p.proveedor=prov});
   if(!S.providers.some(x=>x.toLowerCase()===prov.toLowerCase()))S.providers.push(prov);
-  const u=items.reduce((a,i)=>a+i.qty,0);save();closeSheet();atab="compras";renderAdmin();toast(`Compra guardada · +${u} uds al inventario`);
+  cajaCompras();const u=items.reduce((a,i)=>a+i.qty,0);save();closeSheet();atab="compras";renderAdmin();toast(`Compra guardada · +${u} uds al inventario`);
 }
 /* facturas */
 let fFilter="todas";
@@ -1595,7 +1596,7 @@ function cuCompra(c,D){const L=D.lines.filter(x=>x.c===c.id),inv=pTotal(c),vend=
 const cuSel=(v,on)=>`<select class="cu-sel" onchange="${on}">${v?"":`<option value="">Elegir</option>`}${SOCIOS.map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("")}</select>`;
 const cuIn=c=>(!CU.d1||c.fecha>=CU.d1)&&(!CU.d2||c.fecha<=CU.d2);
 function cuRango(n){const h=today();if(n==="q"){const d=+h.slice(8);CU.d1=h.slice(0,8)+(d<=15?"01":"16");CU.d2=d<=15?h.slice(0,8)+"15":h.slice(0,8)+"31"}else if(n==="m"){CU.d1=h.slice(0,8)+"01";CU.d2=h.slice(0,8)+"31"}else{CU.d1="";CU.d2=""}aConta()}
-function setPago(id,v){const c=S.purchases.find(x=>x.id===id);if(!c)return;c.pago=v;save();if(atab==="contabilidad")aConta();else renderAdmin()}
+function setPago(id,v){const c=S.purchases.find(x=>x.id===id);if(!c)return;c.pago=v;cajaCompras();save();if(atab==="contabilidad")aConta();else renderAdmin()}
 function liqCompra(id,on){const c=S.purchases.find(x=>x.id===id);if(!c)return;if(on){if(!c.pago)return toast("Primero elige quién pagó la compra");c.liq=today()}else delete c.liq;save();aConta();toast(on?"Compra liquidada":"Compra devuelta a por liquidar")}
 function gastoPago(id,v){const e=S.expenses.find(x=>x.id===id);if(!e)return;e.pago=v;save();aConta()}
 function gastoPagado(id,on){const e=S.expenses.find(x=>x.id===id);if(!e)return;if(on)e.pagado=today();else delete e.pagado;save();aConta()}
@@ -1608,7 +1609,7 @@ function addGasto(){const c=$("gaC").value.trim(),m=num($("gaM").value),b=docume
 function borrarGasto(id){if(!confirm("¿Eliminar este gasto?"))return;S.expenses=S.expenses.filter(x=>x.id!==id);
   S.caja=(S.caja||[]).filter(x=>!(x.ref&&x.ref.gasto===id));S.socios=(S.socios||[]).filter(x=>!(x.ref&&x.ref.gasto===id&&!x.pag));save();aConta()}
 function aConta(){
-  cajaInit();$("ab").innerHTML=cajaHTML()+`<div class="sh"><h2 style="font-size:19px">Resumen del mes</h2></div>`+cuMes()}
+  cajaInit();if(cajaCompras())save();$("ab").innerHTML=cajaHTML()+`<div class="sh"><h2 style="font-size:19px">Resumen del mes</h2></div>`+cuMes()}
 function cuLiq(){const D=liqData(),all=S.purchases.filter(cuIn).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id),
   num_=new Map(S.purchases.slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||a.id-b.id).map((c,k)=>[c.id,k+1])),
   nP=all.filter(c=>!c.liq).length,ks=all.filter(c=>CU.w==="L"?c.liq:!c.liq);
@@ -2154,3 +2155,16 @@ function socCompra(c){const L=(S.socios||[]).filter(x=>x.compra===c.id);
   <details style="margin-top:6px"><summary class="li-lk">Anotar quién puso plata</summary><div class="cj-f"><div class="chips" id="scQ"><button class="chip" aria-pressed="false" onclick="chipUno(this)">Juan</button><button class="chip" aria-pressed="false" onclick="chipUno(this)">Camilo</button></div><input class="f" id="scM" inputmode="numeric" placeholder="Valor que puso"><button class="primary" style="margin:0" onclick="socCompraAdd(${c.id})">Anotar</button></div></details></div>`}
 function socCompraAdd(cid){const b=document.querySelector('#scQ .chip[aria-pressed="true"]'),m=num($("scM").value);if(!b)return toast("Elige Juan o Camilo");if(!m)return toast("Escribe el valor");
   socAdd(b.textContent,m,"Compra "+cuNumDe(cid),cid);save();verCompra(cid);toast("Anotado: la empresa le debe a "+b.textContent)}
+
+/* compras desde que arrancó la caja (26/10 10 pm): "Nequi" = la pagó la empresa y sale de la caja; Juan o Camilo = la empresa se la debe */
+const CAJA_DESDE=Date.UTC(2026,9,27,3,0);
+function cajaCompras(){if(!isAdmin()||!cloudReady)return false;let mod=false;S.caja=S.caja||[];S.socios=S.socios||[];
+  S.purchases.filter(c=>c.id>=CAJA_DESDE).forEach(c=>{const tot=pTotal(c),nom="Compra "+cuNumDe(c.id),mv=S.caja.find(m=>m.ref&&m.ref.compra===c.id),so=S.socios.find(x=>x.ref&&x.ref.compraPago===c.id);
+    if(c.pago==="Nequi"){if(!mv){S.caja.push({id:Date.now()+Math.floor(Math.random()*1000),f:new Date(c.id).toISOString(),t:"out",m:tot,c:`${nom} · ${c.proveedor||"proveedor"} (pagó la empresa)`,ref:{compra:c.id},u:quien()});mod=true}
+      else if(mv.m!==tot){mv.m=tot;mod=true}
+      if(so&&!so.pag){S.socios=S.socios.filter(x=>x!==so);mod=true}}
+    else{if(mv){S.caja=S.caja.filter(m=>m!==mv);mod=true}
+      if(c.pago==="Juan"||c.pago==="Camilo"){if(!so){S.socios.push({id:Date.now()+Math.floor(Math.random()*1000),f:new Date(c.id).toISOString(),quien:c.pago,m:tot,c:nom,compra:c.id,ref:{compraPago:c.id},u:quien()});mod=true}
+        else if(!so.pag&&(so.quien!==c.pago||so.m!==tot)){so.quien=c.pago;so.m=tot;mod=true}}
+      else if(so&&!so.pag){S.socios=S.socios.filter(x=>x!==so);mod=true}}});
+  return mod}
