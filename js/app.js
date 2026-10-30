@@ -1116,10 +1116,10 @@ function borrarCompra(id){const c=S.purchases.find(x=>x.id===id);if(!c)return;
   save();closeSheet();renderAdmin();toast("Compra eliminada · inventario ajustado")}
 function verCompra(id){VOLVER=null;const c=S.purchases.find(x=>x.id===id);if(!c)return closeSheet();cuSync();
   openSheet(`<h3 class="t">Compra ${cuNumDe(c.id)} · ${esc(c.proveedor)}</h3><p class="hint">${c.fecha}${c.ref?" · Factura "+esc(c.ref):""}</p>
-  <label>¿Quién pagó?</label><div class="fecha-q">${SOCIOS.map(o=>`<button type="button" class="chip" aria-pressed="${c.pago===o}" onclick="setPago(${c.id},'${o}');verCompra(${c.id})">${o}</button>`).join("")}</div>
+  <label>¿Quién pagó?</label><div class="fecha-q">${SOCIOS.map(o=>`<button type="button" class="chip" aria-pressed="${c.pago===o}" onclick="setPago(${c.id},'${o}');verCompra(${c.id})">${o}</button>`).join("")}<button type="button" class="chip ap-mas" aria-label="Anotar aporte de un socio" title="Anotar aporte de un socio" onclick="const f=$('apF');f.hidden=!f.hidden">+</button></div>
+  ${socCompra(c)}
   ${c.photoId?`<img class="shot" id="cph" alt="Factura del proveedor" hidden>`:`<p class="hint">Sin foto de factura.</p>`}
   ${cuBloque(c)}
-  ${socCompra(c)}
   <label>Detalles de la compra</label>
   ${its(c).map(x=>`<div class="row"><div class="thumb">${P(x.pid)?visual(P(x.pid),26):""}</div><div class="grow"><b>${esc(P(x.pid)?.name||"Producto eliminado")}</b><small>${x.qty} × ${cop(x.costo)}</small></div><span>${cop(x.qty*x.costo)}</span></div>`).join("")}
   <div class="total"><span>Total</span><b>${cop(pTotal(c))}</b></div>
@@ -2151,8 +2151,8 @@ function socDeshacer(id){const x=(S.socios||[]).find(y=>y.id===id);if(!x)return;
 function socNuevo(){const b=document.querySelector('#soQ .chip[aria-pressed="true"]'),c=$("soC").value.trim(),m=num($("soM").value);if(!b)return toast("Elige Juan o Camilo");if(!c||!m)return toast("Escribe concepto y valor");socAdd(b.textContent,m,c,null);save();aConta();toast("Anotado")}
 /* en cada compra: lo que la empresa debe por esa compra */
 function socCompra(c){const L=(S.socios||[]).filter(x=>x.compra===c.id);
-  return `<div class="cj-box"><h4>Quién puso plata</h4>${L.length?L.map(x=>`<div class="cj-r${x.pag?" cj-pag":""}"><div><b>${x.pag?esc(x.quien)+" ya se le pagó":"La empresa le debe a "+esc(x.quien)}</b><small>${x.pag?"Pagado "+fHora(x.pag.f):"Anotado "+fHora(x.f)}</small></div><span>${cop(x.m)}</span></div>`).join(""):`<p class="hint" style="margin:6px 0 0">No se le debe nada a nadie por esta compra.</p>`}
-  <details style="margin-top:6px"><summary class="li-lk">Anotar quién puso plata</summary><div class="cj-f"><div class="chips" id="scQ"><button class="chip" aria-pressed="false" onclick="chipUno(this)">Juan</button><button class="chip" aria-pressed="false" onclick="chipUno(this)">Camilo</button></div><input class="f" id="scM" inputmode="numeric" placeholder="Valor que puso"><button class="primary" style="margin:0" onclick="socCompraAdd(${c.id})">Anotar</button></div></details></div>`}
+  return `${L.length?`<div class="ap-l">${L.map(x=>`<span class="${x.pag?"ap-pag":""}">Aporte ${esc(x.quien)} ${cop(x.m)}${x.pag?" · devuelto":""}</span>`).join("")}</div>`:""}
+  <div class="ap-f" id="apF" hidden><div class="chips" id="scQ"><button class="chip" aria-pressed="false" onclick="chipUno(this)">Juan</button><button class="chip" aria-pressed="false" onclick="chipUno(this)">Camilo</button></div><input class="f" id="scM" inputmode="numeric" placeholder="Valor que puso"><button class="primary" style="margin:0" onclick="socCompraAdd(${c.id})">Anotar aporte</button></div>`}
 function socCompraAdd(cid){const b=document.querySelector('#scQ .chip[aria-pressed="true"]'),m=num($("scM").value);if(!b)return toast("Elige Juan o Camilo");if(!m)return toast("Escribe el valor");
   socAdd(b.textContent,m,"Compra "+cuNumDe(cid),cid);cajaCompras();save();verCompra(cid);toast("Anotado: la empresa le debe a "+b.textContent)}
 
