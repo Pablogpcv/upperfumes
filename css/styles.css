@@ -881,3 +881,6 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .cj-f{display:grid;gap:8px;margin-top:10px}
 .cj-g{margin-top:8px}.cj-gh{color:var(--gold);font-size:13px;margin:6px 0 0;border-bottom:1px solid var(--line);padding-bottom:4px}
 .cj-mv summary{cursor:pointer;list-style:none}.cj-mv summary::-webkit-details-marker{display:none}.cj-mv summary h4::after{content:" ▾";font-size:12px}.cj-mv[open] summary h4::after{content:" ▴"}
+.ap-mas{min-width:38px;font-size:16px;line-height:1}
+.ap-l{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:12.5px;color:var(--muted)}.ap-l span{border-left:2px solid var(--gold);padding-left:6px}.ap-l .ap-pag{opacity:.6}
+.ap-f{display:grid;gap:8px;margin-top:10px;border:1px solid var(--line);padding:10px}
