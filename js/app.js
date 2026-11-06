@@ -1384,7 +1384,7 @@ function guardarVence(id,quitar){const i=S.invoices.find(x=>x.id===id),v=quitar?
   if(v)i.vence=v;else delete i.vence;save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast("Fecha guardada")}
 function verFactura(id,keep){
   const i=S.invoices.find(x=>x.id===id);
-  openSheet(`${espNote(i)}${paper(i)}${reservaBox(i)}${notaBox(i)}${credBox(i)}
+  openSheet(`${espNote(i)}${paper(i)}${notaBox(i)}${credBox(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm" onchange="PMS['${i.id}']=this.value;$('pmMore').hidden=!this.value"><option value="" ${PMS[i.id]?"":"selected"} disabled>Selecciona el método de pago</option>${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===PMS[i.id]?"selected":""}>${o}</option>`).join("")}</select><div id="pmMore" ${PMS[i.id]?"":"hidden"}>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button></div>`:""}
@@ -2193,10 +2193,13 @@ function reservaBox(i){if(!i.reserva||!cuFvOk(i)||cuSale(i)||!isAdmin())return "
 
 /* ¿lo tenemos en stock? (solo para pedidos sin enviar) */
 let RSC=null,RST=0;const rsCache=()=>{if(!RSC||Date.now()-RST>1500){RSC=cuReservas();RST=Date.now()}return RSC};
-function stockFalta(i){const R=rsCache(),r=R.fv[i.id];if(r)return Object.values(r).reduce((a,x)=>a+x.falta,0);
-  let f=0;i.items.forEach(x=>{let n=0;S.purchases.forEach(c=>(c.uds||[]).forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===x.pid)n++}));f+=Math.max(0,x.qty-n)});return f}
-function stockPill(i){if(!isAdmin()||i.estado==="anulada"||cuSale(i)||!S.purchases.length)return "";const f=stockFalta(i);
-  return ` <span class="pill ${f?"bad":"ok"}" style="opacity:.85">${f?"Falta comprar":"En stock"}</span>`}
+/* por perfume: cuántos de esa factura tenemos (apartados o ya asignados de una compra) */
+function stockItems(i){const r=rsCache().fv[i.id];return i.items.map(x=>{let ok;if(r&&r[x.pid])ok=r[x.pid].ok;else{ok=0;S.purchases.forEach(c=>(c.uds||[]).forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===x.pid)ok++}))}return{name:x.name,qty:x.qty,ok:Math.min(ok,x.qty)}})}
+function stockPill(i){if(!isAdmin()||i.estado==="anulada"||cuSale(i)||!S.purchases.length)return "";if(!stockItems(i).some(x=>x.ok))return "";
+  return ` <span class="pill ok st-pill" role="button" tabindex="0" onclick="stockLista(event,'${i.id}')">En stock</span>`}
+function stockLista(ev,id){ev.stopPropagation();const row=ev.target.closest(".row"),nx=row&&row.nextElementSibling;
+  if(nx&&nx.classList.contains("st-list")){nx.remove();return}const i=S.invoices.find(x=>x.id===id);if(!i||!row)return;
+  const d=document.createElement("div");d.className="st-list";d.innerHTML=stockItems(i).map(x=>`<div><span>${esc(x.name)}${x.qty>1?" ×"+x.qty:""}</span>${x.ok>=x.qty?`<b class="cu-ok">En stock</b>`:x.ok?`<b class="cu-ok">${x.ok} de ${x.qty} en stock</b>`:`<b class="st-no">Falta comprar</b>`}</div>`).join("");row.after(d)}
 /* en el formulario: cuántos hay libres de ese perfume (sin apartar para otra factura) */
 function libresDe(pid,fid){const R=rsCache();let n=0;S.purchases.forEach(c=>(c.uds||[]).forEach(u=>{if(u.pid!==pid)return;if(u.e==="s"&&(!R.un.get(u)||R.un.get(u)===fid))n++;else if(fid&&u.e==="v"&&u.fv===fid)n++}));return n}
 const libresTxt=(pid,fid)=>{if(!isAdmin()||!S.purchases.length)return "";const n=libresDe(pid,fid);return `<small class="st-tag ${n?"ok":""}">${n?"En stock ("+n+")":"Sin stock"}</small>`};
