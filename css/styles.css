@@ -892,3 +892,4 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .cj-gb{padding:0 0 6px 22px}
 .rs-box{border:1px dashed var(--line);padding:8px 12px;margin-top:10px}
 .rs-r{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;font-size:13px}.rs-r .pill{margin:0}
+.st-tag{font-size:11px;color:var(--muted);margin-left:6px}.st-tag.ok{color:var(--ok)}
