@@ -1167,8 +1167,8 @@ function cpList(){
 function cpAdd(id){const x=CP.items[id]||{qty:0,costo:P(id).compra};x.qty++;CP.items[id]=x;cpOrder();
   CP.q="";$("cpQ").value="";cpList();cpSel();cpSum();$("cpQ").focus();toast(`${P(id).name} agregado`)}
 function cpQ(id,d){const x=CP.items[id];if(!x)return;x.qty=Math.max(0,x.qty+d);cpOrder();cpSel();cpSum()}
-/* lo que lleva la compra: siempre visible, en el orden en que se agregó */
-function cpSel(){const ids=cpOrder();
+/* lo que lleva la compra: siempre visible, el último que se agregó va de primero */
+function cpSel(){const ids=cpOrder().slice().reverse();
   $("cpSel").innerHTML=ids.length?`<div class="cp-sel"><div class="cp-sel-h"><b>En esta compra</b><span>${ids.length} referencia${ids.length>1?"s":""}</span></div>${ids.map(id=>{const p=P(id),x=CP.items[id];return `<div class="cp-it">
     <span class="cp-th">${fotoDe(p)?`<img src="${esc(fotoDe(p))}" alt="">`:""}</span>
     <div class="cp-mid"><b>${esc(p.brand)} ${esc(p.name)}</b><div class="cp-c"><span>Costo c/u</span><input class="f" inputmode="numeric" value="${x.costo||""}" placeholder="0" aria-label="Costo ${esc(p.name)}" oninput="CP.items[${id}].costo=num(this.value);this.closest('.cp-it').querySelector('.cp-sub').textContent=cop(CP.items[${id}].qty*CP.items[${id}].costo);cpSum()"></div></div>
@@ -1321,8 +1321,8 @@ async function saveFactura(vv){
   if(FV.blob&&v.e==="pagada"){const id="v"+Date.now();if(await fotoPut(id,FV.blob)){inv.photoId=id;save()}}
   if(leadConv){S.leads=(S.leads||[]).filter(l=>l.id!==leadConv);leadConv=null;save()}
   if(RSTOP){const rr=(S.rutas||[]).find(x=>x.id===RSTOP.r);if(rr&&rr.paradas[RSTOP.i])rr.paradas[RSTOP.i].fv=inv.id;RSTOP=null;save()}
-  const asg=cuAuto(inv);if(asg.length)save();
-  atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada"+(asg.length?" · "+asg.join(" · "):""));verFactura(inv.id);
+  inv.reserva=1;save();const rs=cuReservas().fv[inv.id]||{},nF=Object.values(rs).reduce((a,x)=>a+x.falta,0);
+  atab="facturas";renderAdmin();toast("Factura "+inv.id+" creada"+(nF?" · falta comprar "+nF:" · todo en stock"));verFactura(inv.id);
 }
 const fdate=d=>new Date(d+"T12:00:00").toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"});
 const stName=s=>s==="pagada"?"PAGADA":s==="pendiente"?"PENDIENTE DE PAGO":"ANULADA";
@@ -1384,7 +1384,7 @@ function guardarVence(id,quitar){const i=S.invoices.find(x=>x.id===id),v=quitar?
   if(v)i.vence=v;else delete i.vence;save();if(atab==="facturas"||atab==="resumen")renderAdmin();verFactura(id,1);toast("Fecha guardada")}
 function verFactura(id,keep){
   const i=S.invoices.find(x=>x.id===id);
-  openSheet(`${espNote(i)}${paper(i)}${notaBox(i)}${credBox(i)}
+  openSheet(`${espNote(i)}${paper(i)}${reservaBox(i)}${notaBox(i)}${credBox(i)}
   <div class="two" style="margin-top:12px"><button class="btn-gold" style="margin:0" onclick="imgFactura('${i.id}')">Descargar imagen</button><button class="btn-line" onclick="sendInv('${i.id}')">Enviar por WhatsApp</button></div>
   ${i.photoId?`<button class="ghost" onclick="verFoto('${i.photoId}')">Ver foto adjunta</button>`:i.estado==="pagada"?`<label class="ghost fileb">📷 Adjuntar foto del comprobante<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`:""}
   ${i.estado==="pendiente"?`<label for="pm">Método de pago</label><select class="f" id="pm" onchange="PMS['${i.id}']=this.value;$('pmMore').hidden=!this.value"><option value="" ${PMS[i.id]?"":"selected"} disabled>Selecciona el método de pago</option>${["Efectivo","Transferencia","Nequi","Daviplata","Tarjeta"].map(o=>`<option ${o===PMS[i.id]?"selected":""}>${o}</option>`).join("")}</select><div id="pmMore" ${PMS[i.id]?"":"hidden"}>${i.photoId?"":`<label class="ghost fileb">📷 Foto del comprobante (opcional)<input type="file" accept="image/*" onchange="attachFV('${i.id}',this)"></label>`}<button class="primary" onclick="setEstado('${i.id}','pagada')">Marcar como pagada</button></div>`:""}
@@ -1494,12 +1494,12 @@ function formEnvio(id,pre){const i=S.invoices.find(x=>x.id===id),cur=pre||envOf(
   <button class="primary" onclick="saveEnvio('${id}')">Guardar</button><button class="ghost" onclick="verFactura('${id}')">Cancelar</button>`)}
 function envioRapido(id,e){const i=S.invoices.find(x=>x.id===id),prev=envOf(i);if(!i||e===prev)return;
   i.envioHist=i.envioHist||[];i.envioHist.push({estado:e,fecha:ahora(),usuario:quien(),nota:""});i.envio=e;
-  addLog(i,[`Envío: ${envName(prev)} → ${envName(e)}`]);save();renderAdmin();toast("Envío: "+envName(e));verFactura(id,1)}
+  addLog(i,[`Envío: ${envName(prev)} → ${envName(e)}`]);cuEnvio(i);save();renderAdmin();toast("Envío: "+envName(e));verFactura(id,1)}
 function saveEnvio(id){const i=S.invoices.find(x=>x.id===id),e=$("nE").value,tr=$("nTr").value.trim(),g=$("nG").value.trim(),n=$("nN").value.trim(),prev=envOf(i);
   const ch=[];if(e!==prev)ch.push(`Envío: ${envName(prev)} → ${envName(e)}`);if(tr!==(i.transp||""))ch.push(`Transportadora: ${i.transp||"—"} → ${tr||"—"}`);if(g!==(i.guia||""))ch.push(`Guía: ${i.guia||"—"} → ${g||"—"}`);
   if(!ch.length&&!n){return verFactura(id)}
   i.envioHist=i.envioHist||[];if(e!==prev)i.envioHist.push({estado:e,fecha:ahora(),usuario:quien(),nota:n});
-  i.envio=e;i.transp=tr;i.guia=g;addLog(i,ch.length?ch:["Nota de envío"],n);save();renderAdmin();toast("Envío: "+envName(e));verFactura(id)}
+  i.envio=e;i.transp=tr;i.guia=g;addLog(i,ch.length?ch:["Nota de envío"],n);cuEnvio(i);save();renderAdmin();toast("Envío: "+envName(e));verFactura(id)}
 function verRegistro(){const l=S.invLog||[];
   openSheet(`<h3 class="t">Registro de cambios</h3><p class="hint">Ediciones, cambios de estado y facturas eliminadas, con fecha, hora y usuario.</p>
   ${l.length?l.map((e,k)=>`<div class="row" style="align-items:flex-start"><div class="grow"><b style="font-weight:500">${esc(e.factura)} · ${esc(e.cliente||"")} <span class="pill ${e.accion==="eliminada"?"bad":"warn"}">${e.accion==="eliminada"?"Eliminada":"Editada"}</span></b><small>${fdt(e.fecha)} · ${esc(e.usuario)}<br>${e.cambios.map(esc).join("<br>")}${e.motivo?`<br><i>Motivo: ${esc(e.motivo)}</i>`:""}</small>${e.accion==="eliminada"&&e.copia&&!S.invoices.some(x=>x.id===e.factura)?`<button class="ghost" style="margin:4px 0 0;padding:0" onclick="restaurarFactura(${k})">Restaurar esta factura</button>`:""}</div></div>`).join(""):`<p class="empty">Todavía no hay cambios registrados.</p>`}`)}
@@ -2034,14 +2034,14 @@ function cuUds(c){const ex=[];its(c).forEach(x=>{for(let k=0;k<(x.qty||0);k++)ex
 function cuSync(){let mod=false;const cnt={};
   cuOrd().forEach(c=>{cuUds(c);if(c._cuMod){delete c._cuMod;mod=true}
     c.uds.forEach(u=>{if(u.e!=="v")return;const i=S.invoices.find(x=>x.id===u.fv),it=cuFvOk(i)&&i.items.find(x=>x.pid===u.pid),k=u.fv+"|"+u.pid;
-      if(!it||(cnt[k]||0)>=it.qty){u.e="s";delete u.fv;mod=true}else cnt[k]=(cnt[k]||0)+1})});
+      if(!it||(cnt[k]||0)>=it.qty||(i.reserva&&!cuSale(i)&&!u.man)){u.e="s";delete u.fv;delete u.man;mod=true}else cnt[k]=(cnt[k]||0)+1})});
   const viejas=()=>S.invoices.filter(cuFvOk).slice().sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id)));
   if(cfg("cuInit").v!==2&&cloudReady&&S.purchases.length&&S.invoices.length){if(cfg("cuInit").f===hoyL()||cfg("cuInit").f==="2026-10-22")S.purchases.forEach(c=>(c.uds||[]).forEach(u=>{if(u.e==="v"){u.e="s";delete u.fv}}));viejas().forEach(i=>cuAuto(i));setCfg("cuInit",{f:hoyL(),v:2});mod=true}
   /* perfumes nuevos de una compra: primero llenan las facturas que estaban esperando ese perfume */
   if(S.purchases.some(c=>(c.uds||[]).some(u=>u.nv))){if(cloudReady)viejas().forEach(i=>cuAuto(i,true));S.purchases.forEach(c=>(c.uds||[]).forEach(u=>delete u.nv));mod=true}
   if(mod)save()}
 /* asigna sola cada línea de la factura al perfume en stock de la compra más vieja */
-function cuAuto(i,ini){const msg=[];if(!cuFvOk(i))return msg;const O=cuOrd();O.forEach(cuUds);
+function cuAuto(i,ini){const msg=[];if(!cuFvOk(i)||(i.reserva&&!cuSale(i)))return msg;const O=cuOrd();O.forEach(cuUds);
   i.items.forEach(x=>{let ya=0;O.forEach(c=>c.uds.forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===x.pid)ya++}));
     while(ya<x.qty){let hit=null;for(const c of O){const u=c.uds.find(u=>u.e==="s"&&u.pid===x.pid&&(!ini||u.nv));if(u){hit=[c,u];break}}
       if(!hit)break;hit[1].e="v";hit[1].fv=i.id;ya++;msg.push(cuNom(x.pid)+" → Compra "+cuNumDe(hit[0].id))}});
@@ -2077,8 +2077,8 @@ function cuBloque(c){const r=cuDatos(c),R=Math.round;
     else pill=`<span class="pill">${esc(u.t||"Gasto")}</span>`;
     return `<div class="cu-u" onclick="${act}"><div><b>${esc(cuNom(u.pid))}</b><small>Costó ${cop(x.costo)}${info}</small></div>${pill}</div>`}).join("")}
   <p class="cu-h">Toca un perfume vendido para ver su factura. "Cambiar" lo mueve de venta, a stock o a gasto.</p>`}
-function cuStock(){cuSync();const L=[];cuOrd().forEach(c=>{const ex=cuUds(c);c.uds.forEach((u,k)=>{if(u.e==="s")L.push({c,u,k,costo:ex[k].c})})});
-  return `<p class="cu-h">Perfumes que tienen en la mano, de qué compra salieron. No cambia el Inventario de la tienda.</p>`+(L.length?`<div class="cu-card">${L.map(x=>`<div class="cu-u" onclick="cuCambiar(${x.c.id},${x.k})"><div><b>${esc(cuNom(x.u.pid))}</b><small>Compra ${cuNumDe(x.c.id)} · costó ${cop(x.costo)} · se vende a ${cop(cuVenta(x.u.pid))} · hace ${cuDias(x.c.fecha)} días</small></div></div>`).join("")}</div>`:`<p class="empty">No hay perfumes en stock.</p>`)}
+function cuStock(){cuSync();const RS=cuReservas(),L=[];cuOrd().forEach(c=>{const ex=cuUds(c);c.uds.forEach((u,k)=>{if(u.e==="s")L.push({c,u,k,costo:ex[k].c})})});
+  return `<p class="cu-h">Perfumes que tienen en la mano, de qué compra salieron. No cambia el Inventario de la tienda.</p>`+(L.length?`<div class="cu-card">${L.map(x=>`<div class="cu-u" onclick="cuCambiar(${x.c.id},${x.k})"><div><b>${esc(cuNom(x.u.pid))}</b><small>Compra ${cuNumDe(x.c.id)} · costó ${cop(x.costo)} · se vende a ${cop(cuVenta(x.u.pid))} · hace ${cuDias(x.c.fecha)} días</small></div>${RS.un.get(x.u)?`<span class="pill g">Apartado · ${esc(RS.un.get(x.u))}</span>`:""}</div>`).join("")}</div>`:`<p class="empty">No hay perfumes en stock.</p>`)}
 let CUS=null;
 function cuCambiar(cid,k){const c=S.purchases.find(x=>x.id===cid);if(!c)return;const ex=cuUds(c),u=c.uds[k];CUS={cid,k};
   const fs=S.invoices.filter(i=>cuFvOk(i)&&i.items.some(x=>x.pid===u.pid));
@@ -2094,9 +2094,9 @@ function cuRefresh(m){if(atab==="compras"&&CUS){renderAdmin();verCompra(CUS.cid)
 function cuAsignar(fid){const c=S.purchases.find(x=>x.id===CUS.cid),u=c.uds[CUS.k],i=S.invoices.find(x=>x.id===fid);if(!i)return;
   const q=i.items.find(x=>x.pid===u.pid).qty;let ya=[];cuOrd().forEach(cc=>(cc.uds||[]).forEach(o=>{if(o!==u&&o.e==="v"&&o.fv===fid&&o.pid===u.pid)ya.push(o)}));
   if(ya.length>=q){const o=ya[ya.length-1];o.e="s";delete o.fv}
-  delete u.t;delete u.nota;u.e="v";u.fv=fid;save();cuRefresh("Asignado a "+fid)}
+  delete u.t;delete u.nota;u.e="v";u.fv=fid;if(i.reserva&&!cuSale(i))u.man=1;save();cuRefresh("Asignado a "+fid)}
 function cuPoner(e){const c=S.purchases.find(x=>x.id===CUS.cid),u=c.uds[CUS.k];
-  if(e==="s"){u.e="s";delete u.fv;delete u.t;delete u.nota;save();return cuRefresh("Devuelto a stock")}
+  if(e==="s"){u.e="s";delete u.fv;delete u.t;delete u.nota;delete u.man;save();return cuRefresh("Devuelto a stock")}
   const b=document.querySelector('#cuT .chip[aria-pressed="true"]');if(!b)return toast("Elige regalo, garantía o compra personal");
   const t=b.textContent,n=$("cuNo").value.trim();u.e="x";u.t=t;delete u.fv;if(t!=="Compra personal"&&n)u.nota=n;else delete u.nota;save();cuRefresh("Guardado como "+t.toLowerCase())}
 /* texto del destino de un abono */
@@ -2172,3 +2172,16 @@ function cajaCompras(){if(!isAdmin()||!cloudReady)return false;let mod=false;S.c
         else if(!so.pag&&(so.quien!==c.pago||so.m!==tot)){so.quien=c.pago;so.m=tot;mod=true}}
       else if(so&&!so.pag){S.socios=S.socios.filter(x=>x!==so);mod=true}}});
   return mod}
+
+/* facturas nuevas: el perfume queda apartado y solo sale del stock de la compra al marcar Enviado o Entregado */
+const cuSale=i=>["enviado","entregado"].includes(envOf(i));
+function cuEnvio(i){if(!i.reserva)return;cuSync();cuAuto(i)}
+function cuReservas(){const fv={},un=new Map(),O=cuOrd();O.forEach(cuUds);
+  const libres=[];O.forEach(c=>c.uds.forEach(u=>{if(u.e==="s")libres.push(u)}));
+  S.invoices.filter(i=>i.reserva&&cuFvOk(i)&&!cuSale(i)).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||"")||String(a.id).localeCompare(String(b.id))).forEach(i=>{fv[i.id]={};
+    i.items.forEach(x=>{let ya=0;O.forEach(c=>c.uds.forEach(u=>{if(u.e==="v"&&u.fv===i.id&&u.pid===x.pid)ya++}));let ok=ya,need=x.qty-ya;
+      for(const u of libres){if(need<=0)break;if(u.pid===x.pid&&!un.has(u)){un.set(u,i.id);ok++;need--}}
+      fv[i.id][x.pid]={ok,falta:Math.max(0,need)}})});
+  return{fv,un}}
+function reservaBox(i){if(!i.reserva||!cuFvOk(i)||cuSale(i)||!isAdmin())return "";const r=cuReservas().fv[i.id]||{};
+  return `<div class="rs-box">${i.items.map(x=>{const v=r[x.pid]||{ok:0,falta:x.qty};return `<div class="rs-r"><span>${esc(x.name)}${x.qty>1?" ×"+x.qty:""}</span>${v.falta?`<span class="pill bad">Falta comprar${x.qty>1?" "+v.falta:""}</span>`:`<span class="pill ok">En stock</span>`}</div>`}).join("")}</div>`}
