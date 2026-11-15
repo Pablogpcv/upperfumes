@@ -16,6 +16,9 @@ Uso desde la terminal:
     python estudio/sb.py lista [estado]       -> lista videos (id, estado, título)
     python estudio/sb.py guardar <archivo.json>   -> inserta/actualiza un video {id, estado, ...data}
     python estudio/sb.py subir <video_id> <archivo.mp4> [nota]  -> sube versión y pasa a revisión
+
+Cada bot usa su propia cuenta (UP_EMAIL/UP_PASS) con permisos solo para su parte
+(ver supabase/estudio-bots.sql).
 """
 import json, os, sys, time, urllib.request, urllib.error
 
@@ -79,9 +82,12 @@ def guardar_video(v, accion=None):
     for k in ("creado", "actualizado"): v.pop(k, None)
     data = v.get("data", v)
     if accion: data["historial"] = (data.get("historial") or [])[-39:] + [{"fecha": ahora(), "por": PC, "accion": accion}]
-    fila = {"id": vid, "data": data, "actualizado": ahora()}
+    fila = {"data": data, "actualizado": ahora()}
     if estado: fila["estado"] = estado
-    return db("POST", "estudio_videos?on_conflict=id", fila, "resolution=merge-duplicates,return=minimal")
+    if db("GET", f"estudio_videos?id=eq.{vid}&select=id"):      # existe: solo actualizar (Mateo, Nico, Tomás)
+        return db("PATCH", f"estudio_videos?id=eq.{vid}", fila, "return=minimal")
+    fila["id"] = vid                                              # nuevo: crear (Valentina, estado "idea")
+    return db("POST", "estudio_videos", fila, "return=minimal")
 
 
 def main(a):
