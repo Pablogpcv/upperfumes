@@ -224,7 +224,8 @@
   .es-dl{display:block;text-align:center;margin-top:8px}.es-wait{border-style:dashed}
   .es-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.es-st small{color:var(--muted);font-size:11px}
   .es-ana{background:var(--s2);border-radius:8px;padding:8px 10px;margin-top:10px}
-  #ab textarea,#ab input[type=url],#ab input[type=text],#ab input[type=number]{width:100%}`;
+  #ab textarea,#ab input[type=url],#ab input[type=text],#ab input[type=number]{width:100%;background:var(--s2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px}
+  #ab textarea::placeholder,#ab input::placeholder{color:var(--muted)}`;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
   /* ---------- entrada desde el panel de administración ---------- */
