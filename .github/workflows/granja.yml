@@ -1,0 +1,57 @@
+name: Granja de videos
+
+# Cada 5 minutos revisa el panel (Supabase) y trabaja las tarjetas en cola.
+# Una vez al día (8:00 a. m. Colombia) propone ideas nuevas si hay pocas esperando.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'cola = trabajar tarjetas en cola; ideas = proponer ideas nuevas'
+        default: 'cola'
+        type: choice
+        options: [cola, ideas]
+
+concurrency:
+  group: granja
+  cancel-in-progress: false
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: granja
+      - name: ¿Hay trabajo en cola?
+        id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 13 * * *" ] || [ "${{ inputs.modo }}" = "ideas" ]; then
+            echo "hay=true" >> "$GITHUB_OUTPUT"
+          else
+            python3 granja/worker.py --check
+          fi
+      - name: Herramientas de video
+        if: steps.check.outputs.hay == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-inter
+          pip install --quiet pillow numpy
+      - name: Ejecutar worker
+        if: steps.check.outputs.hay == 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 13 * * *" ] || [ "${{ inputs.modo }}" = "ideas" ]; then
+            python3 granja/worker.py --ideas
+          else
+            python3 granja/worker.py
+          fi
