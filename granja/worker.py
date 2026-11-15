@@ -50,7 +50,9 @@ def http(method, url, headers=None, body=None, raw=False, timeout=120):
 
 
 def sb_headers(extra=None):
-    h = {'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY}
+    h = {'apikey': SB_KEY}
+    if not SB_KEY.startswith('sb_'):   # las llaves nuevas (sb_secret_...) van solo en 'apikey'; las antiguas (JWT) también en Authorization
+        h['Authorization'] = 'Bearer ' + SB_KEY
     h.update(extra or {})
     return h
 
