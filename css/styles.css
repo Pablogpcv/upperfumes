@@ -897,3 +897,23 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .st-list{margin:-4px 0 8px;padding:6px 12px;border:1px dashed var(--line);font-size:13px}
 .st-list div{display:flex;justify-content:space-between;gap:10px;padding:5px 0}.st-list b{font-weight:500;white-space:nowrap}.st-list .st-no{color:var(--muted)}
 .li-dt{width:56px;padding:6px 4px;margin-right:4px}
+
+/* ===== Black Friday ===== */
+.bfban{background:#050505;color:#F5F5DC;border-bottom:1px solid rgba(212,175,55,.35);position:relative;overflow:hidden}
+.bfban::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 120% at 85% 50%,rgba(212,175,55,.18),transparent 70%);pointer-events:none}
+.bf-in{position:relative;max-width:1180px;margin:0 auto;padding:22px 18px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px}
+.bf-tx{display:flex;flex-direction:column;gap:4px}
+.bf-kick{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#D4AF37}
+.bf-h{margin:0;font-family:Cinzel,Georgia,serif;font-weight:600;font-size:clamp(30px,7vw,54px);line-height:1;letter-spacing:.04em;text-transform:uppercase;color:#F5F5DC}
+.bf-h em{font-style:normal;color:#D4AF37}
+.bf-off{margin:6px 0 0;display:flex;align-items:center;gap:10px}
+.bf-off b{font-family:Cinzel,Georgia,serif;font-weight:600;font-size:clamp(40px,10vw,64px);line-height:.9;color:#D4AF37}
+.bf-off span{font-size:14px;line-height:1.2;text-transform:uppercase;letter-spacing:.08em}
+.bf-side{display:flex;flex-direction:column;gap:12px;flex:1 1 260px;max-width:380px}
+.bf-cd{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.bf-cd div{border:1px solid rgba(212,175,55,.45);text-align:center;padding:8px 0;background:rgba(255,255,255,.03)}
+.bf-cd b{display:block;font-family:Cinzel,Georgia,serif;color:#D4AF37;font-size:22px;font-weight:500;line-height:1.1}
+.bf-cd span{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#C9C5AE}
+.bf-btn{background:#D4AF37;color:#0A0A0A;font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;padding:13px 18px;min-height:44px;border:0;cursor:pointer}
+.bf-btn:hover{background:#E3C25A}
+#v-promos.is-bf #pT{font-family:Cinzel,Georgia,serif;letter-spacing:.06em;text-transform:uppercase}
