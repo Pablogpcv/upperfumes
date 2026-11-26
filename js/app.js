@@ -2,6 +2,11 @@ const WHATSAPP="573005598061";   // número de la tienda (se puede cambiar en Ad
 const MIN_MAYOR=6;
 const DESC_MIN=6;          // desde cuántos perfumes en el carrito aplica el descuento
 const DESC_VOL=10;         // porcentaje de descuento por volumen (cámbialo aquí)
+/* ===== Black Friday (se apaga sola al pasar la fecha "hasta") =====
+   El descuento de cada perfume se guarda en su campo "promo" (Admin > Inventario). Mientras dure Black Friday
+   se pausa el descuento por volumen y la página muestra el banner y la cuenta regresiva. */
+const BF={on:true,pct:20,hasta:"2026-12-04T23:59:59-05:00",fin:"4 de diciembre"};
+const bfOn=()=>BF.on&&Date.now()<new Date(BF.hasta).getTime();
 const REPO_GH="Pablogpcv/upperfumes";   // para leer solas las capturas de assets/img/clientes/
 
 /* ===== Contenido de la portada (edítalo aquí) ===== */
@@ -446,15 +451,18 @@ function openMenu(){
 }
 function renderHome(){
   const loop=a=>a.concat(a);
-  $("annc").innerHTML=loop(ANUNCIOS).map(t=>`<span>${esc(t)}</span>`).join("");
+  const anuncios=bfOn()?[`BLACK FRIDAY · ${BF.pct}% OFF en todo el catálogo`,`Solo hasta el ${BF.fin}`,"Envíos a todo Colombia","Asesoría gratis por WhatsApp"]:ANUNCIOS;
+  $("annc").innerHTML=loop(anuncios).map(t=>`<span>${esc(t)}</span>`).join("");
   $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
-  if($("volP"))$("volP").textContent=`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
-  $("stats").innerHTML=`<div><b>${VIS().length}</b><span>referencias disponibles</span></div><div><b>${new Set(VIS().map(p=>p.brand)).size}</b><span>marcas</span></div><div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`;
+  if($("volP"))$("volP").textContent=bfOn()?`${BF.pct}% de descuento en todo el catálogo hasta el ${BF.fin}.`:`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
+  if($("volT"))$("volT").textContent=bfOn()?"Black Friday":"Descuento por volumen";
+  renderBF();
+  $("stats").innerHTML=`<div><b>${VIS().length}</b><span>referencias disponibles</span></div><div><b>${new Set(VIS().map(p=>p.brand)).size}</b><span>marcas</span></div>${bfOn()?`<div><b>${BF.pct}%</b><span>OFF Black Friday</span></div>`:`<div><b>${DESC_VOL}%</b><span>de descuento llevando ${DESC_MIN} o más</span></div>`}`;
   const pic=(cat,pref)=>{const p=P(pref)&&fotoDe(P(pref))?P(pref):VIS().find(x=>x.cat===cat&&fotoDe(x));return fotoDe(p)};
   const cats=[
     {t:"Árabes",d:"Lattafa, Armaf, Afnan y más. Aromas intensos y de gran duración.",img:"assets/img/tienda/cat-arabes.webp",fn:"setF({cat:'Árabes'})"},
     {t:"Diseñador",d:"Las casas que todos reconocen: Dior, Carolina Herrera, Versace y más.",img:"assets/img/tienda/cat-disenador.webp",fn:"setF({cat:'Diseñador'})"},
-    {t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:"assets/img/tienda/cat-promociones.webp",fn:"go('promos')"}];
+    bfOn()?{t:"Black Friday",d:`${BF.pct}% OFF en todo el catálogo. Solo hasta el ${BF.fin}.`,img:"assets/img/tienda/cat-promociones.webp",fn:"go('promos')"}:{t:"Promociones",d:`Descuentos de la semana y ${DESC_VOL}% off llevando ${DESC_MIN} o más perfumes.`,img:"assets/img/tienda/cat-promociones.webp",fn:"go('promos')"}];
   $("cats").innerHTML=cats.map(c=>`<button class="catc" onclick="${c.fn}"><span class="catimg" style="background-image:url('${c.img}')"></span><span class="cattx"><b>${c.t}</b><small>${c.d}</small><em>Descubrir</em></span></button>`).join("");
   $("rNew").innerHTML=VIS().sort((a,b)=>b.id-a.id).slice(0,NUEVOS).map(p=>card(p).replace('<div class="card">','<div class="card"><span class="newtag">Nuevo</span>')).join("");
   $("rFav").innerHTML=DESTACADOS.map(P).filter(Boolean).map((p,i)=>`<div class="topi"><span class="rank" aria-label="Puesto ${i+1}">${i+1}</span>${card(p)}</div>`).join("");
@@ -743,7 +751,7 @@ function renderProducto(){
       <div class="pd-buy">
         <div class="pd-qrow"><span>Cantidad</span><div class="qty"><button aria-label="Quitar uno" onclick="pdQ=Math.max(1,pdQ-1);renderProducto()">−</button><span>${pdQ}</span><button aria-label="Agregar uno" onclick="pdQ=Math.min(${Math.max(1,p.stock)},pdQ+1);renderProducto()">+</button></div></div>
         <div class="pd-tot"><span>Total</span><b>${cop(pr*pdQ)}</b></div>
-        <p class="pd-vol">Lleva ${DESC_MIN} o más perfumes, iguales o distintos, y obtén ${DESC_VOL}% de descuento en todo tu pedido.</p>
+        <p class="pd-vol">${bfOn()?`Precio Black Friday: ${p.promo||BF.pct}% de descuento ya aplicado. Válido hasta el ${BF.fin}.`:`Lleva ${DESC_MIN} o más perfumes, iguales o distintos, y obtén ${DESC_VOL}% de descuento en todo tu pedido.`}</p>
         <button class="primary" ${p.stock<=0?"disabled":""} onclick="addN(${p.id},pdQ)">${p.stock<=0?"Agotado":"Agregar al carrito"}</button>
         <a class="ghost" href="https://wa.me/${waNum()}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Preguntar por WhatsApp</a>
       </div>
@@ -769,7 +777,7 @@ function addN(id,n){const p=P(id);let k=0;for(let i=0;i<n;i++){if((cart[id]||0)>
 function addCart(id){const p=P(id);if((cart[id]||0)>=p.stock){toast("No hay más unidades disponibles");return}cart[id]=(cart[id]||0)+1;lastAdded=id;save();badge(true);toast(p.name+" agregado")}
 function badge(bump){const n=Object.values(cart).reduce((a,b)=>a+b,0);$("badge").hidden=!n;$("badge").textContent=n;cartBar(bump)}
 const units=()=>Object.keys(cart).filter(k=>cart[k]>0&&P(k)).reduce((a,k)=>a+cart[k],0);
-const volOn=()=>units()>=DESC_MIN;
+const volOn=()=>!bfOn()&&units()>=DESC_MIN;   // en Black Friday no se suma el descuento por volumen
 const lineP=p=>volOn()?Math.round(price(p)*(1-DESC_VOL/100)/100)*100:price(p);   // precio por unidad con el descuento por volumen
 function cartBar(bump){
   const ids=Object.keys(cart).filter(k=>cart[k]>0&&P(k)),n=units(),t=ids.reduce((a,k)=>a+lineP(P(k))*cart[k],0);
@@ -786,7 +794,7 @@ function openCart(){
   let sub=0,tot=0;const ls=ids.map(k=>{const p=P(k),q=cart[k];sub+=price(p)*q;tot+=lineP(p)*q;
     return `<div class="row"><div class="thumb">${visual(p,26)}</div><div class="grow"><b>${esc(p.name)}</b><small>${cop(price(p))} c/u</small></div><div class="qty"><button onclick="chg(${p.id},-1)" aria-label="Quitar">−</button><span>${q}</span><button onclick="chg(${p.id},1)" aria-label="Agregar">+</button></div></div>`}).join("");
   const n=units(),falta=DESC_MIN-n;
-  const vol=volOn()?`<div class="vol on">Descuento por volumen aplicado: ${DESC_VOL}% por llevar ${DESC_MIN} o más perfumes.</div>`
+  const vol=bfOn()?`<div class="vol on">Black Friday: el descuento ya está aplicado en el precio de cada perfume.</div>`:volOn()?`<div class="vol on">Descuento por volumen aplicado: ${DESC_VOL}% por llevar ${DESC_MIN} o más perfumes.</div>`
     :`<div class="vol">Agrega ${falta} perfume${falta>1?"s":""} más y obtén ${DESC_VOL}% de descuento en todo tu pedido.</div>`;
   openSheet(`<h3 class="t">Tu carrito</h3>${ls}${vol}
     ${volOn()?`<div class="total sm"><span>Subtotal</span><span>${cop(sub)}</span></div><div class="total sm"><span>Descuento ${DESC_VOL}%</span><span>−${cop(sub-tot)}</span></div>`:""}
@@ -827,6 +835,7 @@ function enviarInvitado(){const n=$("gN").value.trim(),c=$("gC").value.trim();if
   let m=`Hola Upperfumes, soy ${n}${c?" de "+c:""}. Quiero hacer este pedido:\n`,tot=0;
   items.forEach(k=>{const p=P(k),pr=lineP(p);tot+=pr*cart[k];m+=`• ${cart[k]} x ${p.brand} ${p.name} — ${cop(pr)}\n`});
   if(volOn())m+=`Descuento por volumen: ${DESC_VOL}% (ya incluido en los precios)\n`;
+  if(bfOn())m+=`Precios Black Friday (descuento ya incluido)\n`;
   m+=`Total: ${cop(tot)}`;
   cart={};save();badge();closeSheet();
   window.open(`https://wa.me/${waNum()}?text=${encodeURIComponent(m)}`,"_blank");toast("¡Listo! Envía el mensaje en WhatsApp")}
@@ -842,6 +851,7 @@ function checkout(tipo){
   let m=`Hola Upperfumes, soy ${session.name}. Pedido ${inv.id}:\n`;
   inv.items.forEach(i=>m+=`• ${i.qty} x ${i.name} — ${cop(i.price)}\n`);
   if(desc)m+=`Descuento por volumen: ${DESC_VOL}% (ya incluido en los precios)\n`;
+  if(bfOn())m+=`Precios Black Friday (descuento ya incluido)\n`;
   m+=`Total: ${cop(inv.total)}`;
   cart={};save();badge();closeSheet();
   window.open(`https://wa.me/${waNum()}?text=${encodeURIComponent(m)}`,"_blank");
@@ -856,6 +866,7 @@ async function checkoutNube(tipo){
     let m=`Hola Upperfumes, soy ${session.name}. Pedido ${inv.id}${tipo==="mayor"?" (por mayor)":""}:\n`;
     inv.items.forEach(i=>m+=`• ${i.qty} x ${i.name} — ${cop(i.price)}\n`);
     if(inv.descVol)m+=`Descuento por volumen: ${DESC_VOL}% (ya incluido en los precios)\n`;
+    if(bfOn()&&tipo!=="mayor")m+=`Precios Black Friday (descuento ya incluido)\n`;
     m+=`Total: ${cop(inv.total)}`;
     if(tipo==="mayor")wcart={};else cart={};save();badge();closeSheet();MIS=null;
     const url=`https://wa.me/${waNum()}?text=${encodeURIComponent(m)}`;if(w)w.location.href=url;else location.href=url;
@@ -875,16 +886,28 @@ function wchg(id,d){const p=P(id);wcart[id]=Math.min(p.stock,Math.max(0,(wcart[i
 /* ---------- promos ---------- */
 const COMBOS=[{t:"Dúo Carolina Herrera",d:"Good Girl + Very Good Girl",ids:[2,4],off:.1},{t:"Clásicos Gaultier",d:"Le Male + Scandal, para regalar en pareja",ids:[5,6],off:.1},{t:"Lujo árabe",d:"Amber Royal + Amber Noir",ids:[8,9],off:.12}];
 function renderPromos(){
-  $("combos").innerHTML=COMBOS.map((c,i)=>{const f=c.ids.reduce((a,id)=>a+P(id).publico,0);
+  const bf=bfOn();
+  $("pT").textContent=bf?"Black Friday":"Promociones";
+  $("pS").textContent=bf?`${BF.pct}% OFF en todo el catálogo. La promoción termina en`:"Las promos de la semana terminan en";
+  $("pG").textContent=bf?"Todo con descuento":"Con descuento";
+  $("v-promos").classList.toggle("is-bf",bf);
+  $("combos").innerHTML=bf?"":COMBOS.map((c,i)=>{const f=c.ids.reduce((a,id)=>a+P(id).publico,0);
     return `<div class="promo"><div class="imgs">${c.ids.map(id=>`<div class="thumb">${visual(P(id),26)}</div>`).join("")}</div><div><h4>${c.t}</h4><p>${c.d}</p><div class="pr">${cop(f*(1-c.off))}<s>${cop(f)}</s></div><button onclick="addCombo(${i})">Agregar combo</button></div></div>`}).join("");
-  const l=VIS().filter(p=>p.promo);
+  const rk=p=>{const i=DESTACADOS.indexOf(p.id);return i<0?999:i},l=VIS().filter(p=>p.promo).sort((a,b)=>((a.stock<=0)-(b.stock<=0))||(rk(a)-rk(b)));   // primero los más vendidos, los agotados al final
   $("pgrid").innerHTML=l.length?l.map(card).join(""):`<p class="empty" style="grid-column:1/-1">Esta semana no hay productos con descuento.</p>`;
   tick();
 }
 function addCombo(i){COMBOS[i].ids.forEach(id=>{cart[id]=(cart[id]||0)+1;lastAdded=id});save();badge(true);toast("Combo agregado")}
-function tick(){const n=new Date(),e=new Date(n);e.setDate(n.getDate()+((7-n.getDay())%7));e.setHours(23,59,59);const s=Math.max(0,(e-n)/1000);
+function tick(){const n=new Date();let e=new Date(n);e.setDate(n.getDate()+((7-n.getDay())%7));e.setHours(23,59,59);if(bfOn())e=new Date(BF.hasta);const s=Math.max(0,(e-n)/1000);
   $("cd").innerHTML=[[Math.floor(s/86400),"días"],[Math.floor(s%86400/3600),"horas"],[Math.floor(s%3600/60),"min"]].map(([v,l])=>`<div><b>${String(v).padStart(2,"0")}</b><span>${l}</span></div>`).join("")}
 setInterval(()=>{if($("v-promos").classList.contains("active"))tick()},30000);
+/* banner de Black Friday en la portada, con cuenta regresiva */
+function bfLeft(){const s=Math.max(0,(new Date(BF.hasta)-new Date())/1000);return [[Math.floor(s/86400),"días"],[Math.floor(s%86400/3600),"horas"],[Math.floor(s%3600/60),"min"],[Math.floor(s%60),"seg"]]}
+function renderBF(){const b=$("bfban");if(!b)return;b.hidden=!bfOn();if(!bfOn()){b.innerHTML="";return}
+  b.innerHTML=`<div class="bf-in"><div class="bf-tx"><span class="bf-kick">Solo hasta el ${BF.fin}</span><h2 class="bf-h">Black <em>Friday</em></h2><p class="bf-off"><b>${BF.pct}%</b><span>OFF en todo<br>el catálogo</span></p></div>
+  <div class="bf-side"><div class="bf-cd" id="bfcd" aria-label="Tiempo que queda de la promoción">${bfCd()}</div><button class="bf-btn" onclick="go('promos')">Ver ofertas</button></div></div>`}
+const bfCd=()=>bfLeft().map(([v,l])=>`<div><b>${String(v).padStart(2,"0")}</b><span>${l}</span></div>`).join("");
+setInterval(()=>{const c=$("bfcd");if(!c)return;if(!bfOn())return renderBF();if($("v-tienda").classList.contains("active"))c.innerHTML=bfCd()},1000);
 
 /* ---------- cuenta ---------- */
 let mode="login";
