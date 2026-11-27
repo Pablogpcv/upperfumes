@@ -420,17 +420,72 @@ const CHIPS={"Todos":{},"Femenino":{g:"Femenino"},"Masculino":{g:"Masculino"},"U
 const GEN={Masculino:"Hombre",Femenino:"Mujer",Unisex:"Unisex"};
 const sameF=(a,b)=>a.cat==b.cat&&a.g==b.g&&a.brand==b.brand;
 const matchF=p=>(!F.cat||p.cat===F.cat)&&(!F.brand||p.brand===F.brand)&&(!F.g||p.g===F.g||(F.g!=="Unisex"&&p.g==="Unisex"));
-function renderShop(){
-  $("chips").innerHTML=Object.keys(CHIPS).map(c=>`<button class="chip" aria-pressed="${sameF(F,CHIPS[c])}" onclick="setF(CHIPS['${c}'],true)">${c}</button>`).join("");
-  const lbl=[F.cat,F.g&&GEN[F.g],F.brand].filter(Boolean);
-  $("fl").innerHTML=lbl.length>1||F.brand?`<span>Mostrando: <b>${esc(lbl.join(" · "))}</b></span><button onclick="setF({},true)">Quitar filtro ✕</button>`:"";
-  const q=$("q").value.trim().toLowerCase();
-  const l=VIS().filter(p=>matchF(p)&&(!q||(p.brand+" "+p.name).toLowerCase().includes(q)));
-  $("grid").innerHTML=l.length?l.map(card).join(""):`<p class="empty" style="grid-column:1/-1">No encontramos ese perfume. Prueba con otra marca.</p>`;
+/* ---------- catálogo: filtros, orden, páginas y tarjetas ---------- */
+let FX={brands:[],precio:"",stock:false,ofertas:false,favs:false},SORT="top",PG=1;
+const POR_PAG=24;
+const PRECIOS={"a":["Hasta $80.000",0,80000],"b":["$80.000 a $100.000",80001,100000],"c":["Más de $100.000",100001,1e9]};
+let FAVS=[];try{FAVS=JSON.parse(localStorage.getItem("upf_favs")||"[]")}catch(e){}
+const esFav=id=>FAVS.includes(id);
+function toggleFav(e,id){e.preventDefault();e.stopPropagation();FAVS=esFav(id)?FAVS.filter(x=>x!==id):FAVS.concat(id);try{localStorage.setItem("upf_favs",JSON.stringify(FAVS))}catch(_){}
+  document.querySelectorAll(`[data-fav="${id}"]`).forEach(b=>b.setAttribute("aria-pressed",esFav(id)));toast(esFav(id)?"Guardado en favoritos":"Quitado de favoritos");if(FX.favs)renderShop()}
+function cardCx(p){
+  const h=fichaUrl(p),oc=`onclick="return abrirFicha(event,${p.id})"`,ag=p.stock<=0;
+  return `<article class="card cxc${ag?" is-out":""}">
+  <a class="ph" href="${h}" ${oc} aria-label="Ver ${esc(p.brand+" "+p.name)}">${visual(p,58)}</a>
+  <div class="cx-tags">${p.promo?`<span class="t-of">Oferta</span>`:""}${p.promo&&bfOn()?`<span class="t-bf">✦ Black Friday</span>`:""}${ag?`<span class="t-out">Agotado</span>`:""}</div>
+  ${p.promo?`<span class="cx-pct">−${p.promo}%</span>`:""}
+  <button class="cx-fav" data-fav="${p.id}" aria-pressed="${esFav(p.id)}" aria-label="Guardar ${esc(p.name)} en favoritos" onclick="toggleFav(event,${p.id})"><svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="1.7"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg></button>
+  <div class="body"><div class="br">${esc(p.brand)}</div><a class="nm" href="${h}" ${oc}>${esc(p.name)}</a>
+  <div class="cx-meta">${p.ml?p.ml+" ml":""}${p.conc?` · ${esc(p.conc)}`:""}</div>
+  <div class="cx-pr"><b>${cop(price(p))}</b>${p.promo?`<s>${cop(p.publico)}</s>`:""}</div></div>
+  <button class="cx-add" onclick="addCart(${p.id})" ${ag?"disabled":""}>${ag?"Agotado":`<span class="lg">Agregar al carrito</span><span class="sm">Agregar</span>`}</button></article>`;
 }
+const rkTop=p=>{const i=DESTACADOS.indexOf(p.id);return i<0?1e3+(fotoDe(p)?0:500)+p.id:i};
+const ORDEN={top:(a,b)=>rkTop(a)-rkTop(b),pasc:(a,b)=>price(a)-price(b),pdesc:(a,b)=>price(b)-price(a),az:(a,b)=>(a.brand+a.name).localeCompare(b.brand+b.name,"es"),za:(a,b)=>(b.brand+b.name).localeCompare(a.brand+a.name,"es"),new:(a,b)=>b.id-a.id};
+const pasaFX=(p,skip)=>(skip==="brand"||!FX.brands.length||FX.brands.includes(p.brand))&&(skip==="precio"||!FX.precio||(price(p)>=PRECIOS[FX.precio][1]&&price(p)<=PRECIOS[FX.precio][2]))&&(!FX.stock||p.stock>0)&&(!FX.ofertas||p.promo>0)&&(!FX.favs||esFav(p.id));
+const nFX=()=>FX.brands.length+(FX.precio?1:0)+(FX.stock?1:0)+(FX.ofertas?1:0)+(FX.favs?1:0)+(F.cat?1:0)+(F.g?1:0);
+function listaCat(){const q=$("q").value.trim().toLowerCase();
+  return VIS().filter(p=>matchF(p)&&pasaFX(p)&&(!q||(p.brand+" "+p.name).toLowerCase().includes(q))).sort((a,b)=>((a.stock<=0)-(b.stock<=0))||ORDEN[SORT](a,b))}
+function renderShop(){
+  $("chips").innerHTML=Object.keys(CHIPS).map(c=>`<button class="chip" aria-pressed="${sameF(F,CHIPS[c])&&!FX.brands.length}" onclick="setF(CHIPS['${c}'],true)">${c}</button>`).join("");
+  const lbl=[F.cat,F.g&&GEN[F.g],F.brand,...FX.brands,FX.precio&&PRECIOS[FX.precio][0],FX.stock&&"En existencia",FX.ofertas&&"Solo ofertas",FX.favs&&"Mis favoritos"].filter(Boolean);
+  $("fl").innerHTML=lbl.length>1||F.brand||FX.brands.length||FX.precio||FX.stock||FX.ofertas||FX.favs?`<span>Mostrando: <b>${esc(lbl.join(" · "))}</b></span><button onclick="setF({},true)">Quitar filtros ✕</button>`:"";
+  const l=listaCat(),pags=Math.max(1,Math.ceil(l.length/POR_PAG));PG=Math.min(PG,pags);
+  $("cxN").textContent=l.length;
+  const n=nFX();$("cxFn").hidden=!n;$("cxFn").textContent=n;
+  if($("cxSort").value!==SORT)$("cxSort").value=SORT;
+  $("grid").innerHTML=l.length?l.slice((PG-1)*POR_PAG,PG*POR_PAG).map(cardCx).join(""):`<p class="empty" style="grid-column:1/-1">No encontramos perfumes con esos filtros. <button class="lnk" onclick="setF({},true)">Ver todo el catálogo</button></p>`;
+  const nums=[];for(let i=1;i<=pags;i++)if(i===1||i===pags||Math.abs(i-PG)<=1)nums.push(i);else if(nums[nums.length-1]!=="…")nums.push("…");
+  $("cxPag").innerHTML=pags>1?`<button onclick="irPag(${PG-1})" ${PG<=1?"disabled":""} aria-label="Página anterior">‹</button>${nums.map(i=>i==="…"?`<span>…</span>`:`<button onclick="irPag(${i})" ${i===PG?'aria-current="page"':""}>${i}</button>`).join("")}<button onclick="irPag(${PG+1})" ${PG>=pags?"disabled":""} aria-label="Página siguiente">›</button><small>${(PG-1)*POR_PAG+1}–${Math.min(PG*POR_PAG,l.length)} de ${l.length}</small>`:"";
+  renderMarcas();
+}
+function irPag(n){PG=n;renderShop();toCat()}
+function renderMarcas(){
+  const bs=brandsOf(),cnt=b=>VIS().filter(p=>p.brand===b).length,pic=b=>{const p=VIS().filter(x=>x.brand===b&&fotoDe(x)).sort((a,c)=>rkTop(a)-rkTop(c))[0];return p?fotoDe(p):""};
+  const sel=$("cxBrand");if(sel&&sel.options.length!==bs.length+1)sel.innerHTML=`<option value="">Todas las marcas</option>`+bs.map(b=>`<option>${esc(b)}</option>`).join("");
+  if(sel)sel.value=F.brand||"";
+  const box=$("cxBrands");if(!box||box.dataset.n==bs.length)return;box.dataset.n=bs.length;
+  box.innerHTML=bs.map((b,i)=>`<button class="cx-bcard" onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")},true)'><span class="cx-bimg">${pic(b)?`<img src="${esc(pic(b))}" alt="" loading="lazy">`:""}</span><small>${String(i+1).padStart(2,"0")} / ${String(bs.length).padStart(2,"0")}</small><b>${esc(b)}</b><em>${cnt(b)} fragancia${cnt(b)>1?"s":""} ↗</em></button>`).join("");
+}
+function openFiltros(){
+  const base=VIS().filter(p=>matchF(p)),q=$("q").value.trim().toLowerCase();
+  const nB=b=>VIS().filter(p=>p.brand===b&&(!F.cat||p.cat===F.cat)&&(!F.g||p.g===F.g||(F.g!=="Unisex"&&p.g==="Unisex"))).length;
+  const nP=k=>base.filter(p=>price(p)>=PRECIOS[k][1]&&price(p)<=PRECIOS[k][2]).length;
+  const chk=(on,fn,txt,n)=>`<label class="fx-op"><input type="checkbox" ${on?"checked":""} onchange="${fn}"><span>${txt}</span>${n!=null?`<em>${n}</em>`:""}</label>`;
+  const rad=(name,val,on,fn,txt,n)=>`<label class="fx-op"><input type="radio" name="${name}" ${on?"checked":""} onchange="${fn}"><span>${txt}</span>${n!=null?`<em>${n}</em>`:""}</label>`;
+  openSheet(`<h3 class="t">Filtrar</h3><div class="fx">
+   <div class="fx-tg">${chk(FX.ofertas,"FX.ofertas=this.checked;fxApply()","Solo ofertas",base.filter(p=>p.promo>0).length)}${chk(FX.stock,"FX.stock=this.checked;fxApply()","Solo en existencia",base.filter(p=>p.stock>0).length)}${chk(FX.favs,"FX.favs=this.checked;fxApply()","Mis favoritos ♡",FAVS.length)}</div>
+   <fieldset><legend>Categoría</legend>${rad("fc","",!F.cat,"F.cat=undefined;fxApply()","Todas")}${["Árabes","Diseñador"].map(c=>rad("fc",c,F.cat===c,`F.cat='${c}';fxApply()`,c,VIS().filter(p=>p.cat===c).length)).join("")}</fieldset>
+   <fieldset><legend>Género</legend>${rad("fg","",!F.g,"F.g=undefined;fxApply()","Todos")}${["Femenino","Masculino","Unisex"].map(g=>rad("fg",g,F.g===g,`F.g='${g}';fxApply()`,GEN[g],VIS().filter(p=>p.g===g).length)).join("")}</fieldset>
+   <fieldset><legend>Precio</legend>${rad("fp","",!FX.precio,"FX.precio='';fxApply()","Todos")}${Object.keys(PRECIOS).map(k=>rad("fp",k,FX.precio===k,`FX.precio='${k}';fxApply()`,PRECIOS[k][0],nP(k))).join("")}</fieldset>
+   <fieldset><legend>Marca</legend><div class="fx-brands">${brandsOf(F.cat).map(b=>chk(FX.brands.includes(b)||F.brand===b,`fxBrand(${JSON.stringify(b).replace(/"/g,"&quot;")},this.checked)`,esc(b),nB(b))).join("")}</div></fieldset>
+  </div><div class="fx-foot"><button class="ghost" onclick="setF({},true);openFiltros()">Limpiar</button><button class="primary" onclick="closeSheet();toCat()">Ver ${listaCat().length} perfumes</button></div>`,true);
+}
+function fxBrand(b,on){if(F.brand){FX.brands=[F.brand];delete F.brand}FX.brands=on?[...new Set(FX.brands.concat(b))]:FX.brands.filter(x=>x!==b);fxApply()}
+function fxApply(){PG=1;renderShop();openFiltros()}
 function toCat(){$("cat").scrollIntoView({behavior:"smooth"})}
 function setF(o,stay){
-  F={...o};$("q").value="";closeSheet();
+  F={...o};FX={brands:[],precio:"",stock:false,ofertas:false,favs:false};PG=1;$("q").value="";closeSheet();
   document.querySelectorAll(".dd").forEach(d=>{if(!d.matches(":hover"))return;d.classList.add("shut");d.addEventListener("mouseleave",()=>d.classList.remove("shut"),{once:true})});
   if(document.activeElement)document.activeElement.blur();
   if(!$("v-tienda").classList.contains("active"))go("tienda");else renderShop();
@@ -894,7 +949,7 @@ function renderPromos(){
   $("combos").innerHTML=bf?"":COMBOS.map((c,i)=>{const f=c.ids.reduce((a,id)=>a+P(id).publico,0);
     return `<div class="promo"><div class="imgs">${c.ids.map(id=>`<div class="thumb">${visual(P(id),26)}</div>`).join("")}</div><div><h4>${c.t}</h4><p>${c.d}</p><div class="pr">${cop(f*(1-c.off))}<s>${cop(f)}</s></div><button onclick="addCombo(${i})">Agregar combo</button></div></div>`}).join("");
   const rk=p=>{const i=DESTACADOS.indexOf(p.id);return i<0?999:i},l=VIS().filter(p=>p.promo).sort((a,b)=>((a.stock<=0)-(b.stock<=0))||(rk(a)-rk(b)));   // primero los más vendidos, los agotados al final
-  $("pgrid").innerHTML=l.length?l.map(card).join(""):`<p class="empty" style="grid-column:1/-1">Esta semana no hay productos con descuento.</p>`;
+  $("pgrid").innerHTML=l.length?l.map(cardCx).join(""):`<p class="empty" style="grid-column:1/-1">Esta semana no hay productos con descuento.</p>`;
   tick();
 }
 function addCombo(i){COMBOS[i].ids.forEach(id=>{cart[id]=(cart[id]||0)+1;lastAdded=id});save();badge(true);toast("Combo agregado")}
