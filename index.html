@@ -23,7 +23,7 @@
 <meta name="twitter:image" content="https://upperfumes.com/assets/img/tienda/compartir.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=63">
+<link rel="stylesheet" href="css/styles.css?v=64">
 </head>
 <body>
 <div class="app">
@@ -54,12 +54,14 @@
 <section class="view active" id="v-tienda">
   <section class="bfban" id="bfban" aria-label="Black Friday" hidden></section>
   <section class="vban" id="vban" aria-label="Vitrina de Upperfumes">
+    <span class="vrib" id="vrib" aria-hidden="true" hidden>Black Friday</span>
     <h1 class="sr">Upperfumes · Fragancias que te elevan</h1>
     <div class="vamb" aria-hidden="true"></div>
     <div class="vscroll" id="vscroll">
       <div class="vit" id="vit">
         <img class="vph" id="vph" src="assets/img/tienda/vitrina-estanteria.webp" alt="Estantería iluminada de Upperfumes con perfumes de diseñador y árabes" width="1600" height="893">
         <div class="vdim"></div><div class="vglow"></div>
+        <button class="vbf" id="vbf" type="button" hidden onclick="go('promos')"></button>
         <div id="vspots"></div>
         <div class="vtip" id="vtip"></div>
       </div>
@@ -159,7 +161,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
-<script src="js/app.js?v=91"></script>
+<script src="js/app.js?v=92"></script>
 <script src="js/estudio.js?v=2"></script>
 </body>
 </html>
