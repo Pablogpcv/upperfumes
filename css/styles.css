@@ -1049,3 +1049,16 @@ html.sheet-on,html.sheet-on body{overflow:hidden}
 .cxc .body{padding-bottom:12px}
 @media (max-width:959px){.cx-sort select{max-width:118px;padding:0 8px}.cx-fbtn{padding:0 13px}}
 @media (min-width:960px){.cx-q input::placeholder{color:var(--muted)}}
+
+/* ===== Black Friday: letrero dentro de la vitrina ===== */
+.vit{container-type:inline-size}
+.vbf{position:absolute;z-index:5;left:50%;top:19.2%;transform:translateX(-50%);display:flex;align-items:center;gap:1.1em;white-space:nowrap;font-size:1.05cqw;padding:.6em 1.6em;border-radius:999px;background:linear-gradient(180deg,#121008,#060504);border:1px solid rgba(212,175,55,.75);box-shadow:0 0 2.2em rgba(212,175,55,.35),inset 0 0 .9em rgba(212,175,55,.15);color:#F5F5DC;cursor:pointer;transition:box-shadow .3s,border-color .3s}
+.vbf:hover{border-color:#D4AF37;box-shadow:0 0 3em rgba(212,175,55,.55),inset 0 0 .9em rgba(212,175,55,.2)}
+.vbf b{font-family:Cinzel,Georgia,serif;font-weight:600;font-size:1.1em;letter-spacing:.24em;color:#D4AF37}
+.vbf em{font-style:normal;font-family:Cinzel,Georgia,serif;font-weight:600;font-size:1.6em;color:#F5F5DC}
+.vbf span{font-size:.88em;letter-spacing:.14em;text-transform:uppercase;color:#C9C5AE}
+.vbf .vbf-t span{font-size:1em;letter-spacing:.08em;color:#F5F5DC}
+.vbf i{width:1px;height:1.5em;background:rgba(212,175,55,.5)}
+.vrib{position:absolute;z-index:7;right:-3.6em;top:2.1em;transform:rotate(45deg);background:#D4AF37;color:#0A0A0A;font-weight:600;font-size:12px;letter-spacing:.2em;text-transform:uppercase;padding:.6em 4.6em;box-shadow:0 6px 18px rgba(0,0,0,.5);pointer-events:none}
+@media (max-width:959px){.vrib{font-size:10px}}
+@media (max-width:959px){.vbf{gap:.8em;padding:.55em 1.2em}.vbf .vbf-e{display:none}.vrib{font-size:9px;right:-4.4em;top:1.4em}}

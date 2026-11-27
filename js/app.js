@@ -958,10 +958,11 @@ function tick(){const n=new Date();let e=new Date(n);e.setDate(n.getDate()+((7-n
 setInterval(()=>{if($("v-promos").classList.contains("active"))tick()},30000);
 /* banner de Black Friday en la portada, con cuenta regresiva */
 function bfLeft(){const s=Math.max(0,(new Date(BF.hasta)-new Date())/1000);return [[Math.floor(s/86400),"días"],[Math.floor(s%86400/3600),"horas"],[Math.floor(s%3600/60),"min"],[Math.floor(s%60),"seg"]]}
-function renderBF(){const b=$("bfban");if(!b)return;b.hidden=!bfOn();if(!bfOn()){b.innerHTML="";return}
-  b.innerHTML=`<div class="bf-in"><div class="bf-tx"><span class="bf-kick">Solo hasta el ${BF.fin}</span><h2 class="bf-h">Black <em>Friday</em></h2><p class="bf-off"><b>${BF.pct}%</b><span>OFF en todo<br>el catálogo</span></p></div>
-  <div class="bf-side"><div class="bf-cd" id="bfcd" aria-label="Tiempo que queda de la promoción">${bfCd()}</div><button class="bf-btn" onclick="go('promos')">Ver ofertas</button></div></div>`}
-const bfCd=()=>bfLeft().map(([v,l])=>`<div><b>${String(v).padStart(2,"0")}</b><span>${l}</span></div>`).join("");
+function renderBF(){const on=bfOn(),b=$("bfban");if(b){b.hidden=true;b.innerHTML=""}   // la promo ahora va como letrero dentro de la vitrina
+  const v=$("vbf"),r=$("vrib");if(r)r.hidden=!on;if(!v)return;v.hidden=!on;if(!on){v.innerHTML="";return}
+  v.setAttribute("aria-label",`Black Friday: ${BF.pct}% de descuento en todo hasta el ${BF.fin}. Ver ofertas`);
+  v.innerHTML=`<b>✦ Black Friday</b><i></i><em>${BF.pct}% OFF</em><span class="vbf-e">en todo</span><i></i><span class="vbf-t">Termina en <span id="bfcd">${bfCd()}</span></span>`}
+const bfCd=()=>bfLeft().map(([v,l])=>String(v).padStart(2,"0")+l[0]).join(" ");   // 08d 02h 41m 17s
 setInterval(()=>{const c=$("bfcd");if(!c)return;if(!bfOn())return renderBF();if($("v-tienda").classList.contains("active"))c.innerHTML=bfCd()},1000);
 
 /* ---------- cuenta ---------- */
