@@ -404,7 +404,7 @@ function go(t){
   document.querySelectorAll("[data-tab]").forEach(b=>b.dataset.tab===t?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
   window.scrollTo(0,0);cartBar();
   if(t!=="producto")document.title="Upperfumes · Fragancias que te elevan";
-  ({producto:renderProducto,promos:renderPromos,cuenta:renderAcc,tienda:()=>{renderHome();renderShop();window.vitrinaStart&&vitrinaStart()}})[t]();
+  ({producto:renderProducto,promos:renderPromos,cuenta:renderAcc,catalogo:renderShop,nosotros:renderNos,contacto:renderContacto,tienda:()=>{renderHome();window.vitrinaStart&&vitrinaStart()}})[t]();
   if(typeof refrescar==="function")setTimeout(refrescar,50);
 }
 
@@ -483,13 +483,12 @@ function openFiltros(){
 }
 function fxBrand(b,on){if(F.brand){FX.brands=[F.brand];delete F.brand}FX.brands=on?[...new Set(FX.brands.concat(b))]:FX.brands.filter(x=>x!==b);fxApply()}
 function fxApply(){PG=1;renderShop();openFiltros()}
-function toCat(){$("cat").scrollIntoView({behavior:"smooth"})}
+function toCat(){if(!$("v-catalogo").classList.contains("active"))go("catalogo");else window.scrollTo({top:0,behavior:"smooth"})}
 function setF(o,stay){
   F={...o};FX={brands:[],precio:"",stock:false,ofertas:false,favs:false};PG=1;$("q").value="";closeSheet();
   document.querySelectorAll(".dd").forEach(d=>{if(!d.matches(":hover"))return;d.classList.add("shut");d.addEventListener("mouseleave",()=>d.classList.remove("shut"),{once:true})});
   if(document.activeElement)document.activeElement.blur();
-  if(!$("v-tienda").classList.contains("active"))go("tienda");else renderShop();
-  if(!stay)setTimeout(toCat,60);
+  if(!$("v-catalogo").classList.contains("active"))go("catalogo");else{renderShop();if(!stay)window.scrollTo({top:0,behavior:"smooth"})}
 }
 
 /* ---------- portada ---------- */
@@ -499,15 +498,54 @@ function menuBlock(cat){
   const bl=brandsOf(cat).map(b=>`<button onclick='setF(${JSON.stringify({cat,brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
   return `<div class="mcol"><small>${cat}</small><button onclick="setF({cat:'${cat}'})"><b>Ver todos</b></button>${gl}</div><div class="mcol mbrands"><small>Marcas</small><div>${bl}</div></div>`;
 }
-function renderMenu(){$("mega-arabes").innerHTML=menuBlock("Árabes");$("mega-disenador").innerHTML=menuBlock("Diseñador")}
-function openMenu(){
-  openSheet(`<h3 class="t">Explorar</h3><div class="mmob">${["Árabes","Diseñador"].map(c=>`<div class="mm">${menuBlock(c)}</div>`).join("")}
-  <div class="mm mlinks"><button onclick="setF({})">Todo el catálogo</button><button onclick="closeSheet();go('promos')">Promociones</button></div></div>`);
+/* ---------- menú principal (estilo tienda: desplegables simples + menú lateral en celular) ---------- */
+const NAVM=()=>[
+  {t:"Perfumes",id:"ddPer",items:[["Ver todos","setF({})"],["Mujer","setF({g:'Femenino'})"],["Hombre","setF({g:'Masculino'})"],["Unisex","setF({g:'Unisex'})"],["Árabes","setF({cat:'Árabes'})"],["Diseñador","setF({cat:'Diseñador'})"],["Todas las marcas","irMarcas()"]]}];
+const waContacto=()=>`https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero hacer una consulta.")}`;
+function renderMenu(){
+  NAVM().forEach(g=>{const el=$(g.id);if(el)el.innerHTML=`<ul>${g.items.map(([t,fn,hot])=>`<li><button class="${hot?"hot":""}" onclick="ddClose();${fn}">${esc(t)}</button></li>`).join("")}</ul>`});
+  const pc=$("nvPct");if(pc){pc.hidden=!bfOn();pc.textContent=`−${BF.pct}%`}
+}
+function ddToggle(b){const d=b.parentElement,on=!d.classList.contains("open");ddClose();if(on){d.classList.add("open");b.setAttribute("aria-expanded","true")}}
+function ddClose(){document.querySelectorAll(".dd.open").forEach(d=>{d.classList.remove("open");d.firstElementChild.setAttribute("aria-expanded","false")});
+  document.querySelectorAll(".dd").forEach(d=>{if(!d.matches(":hover"))return;d.classList.add("shut");d.addEventListener("mouseleave",()=>d.classList.remove("shut"),{once:true})})}
+document.addEventListener("click",e=>{if(!e.target.closest(".dd"))ddClose()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){ddClose();closeDrawer()}});
+function navInicio(){closeDrawer();if(!$("v-tienda").classList.contains("active"))go("tienda");else window.scrollTo({top:0,behavior:"smooth"})}
+function irA(id){closeDrawer();ddClose();const run=()=>{const el=$(id);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})};
+  if(id!=="ft"&&!$("v-tienda").classList.contains("active")){go("tienda");setTimeout(run,120)}else run()}
+function irMarcas(){closeDrawer();ddClose();setF({});setTimeout(()=>{const el=$("cxBrandsSec");if(el)el.scrollIntoView({behavior:"smooth",block:"start"})},150)}
+/* páginas Nosotros y Contacto */
+function renderNos(){const n=VIS().length,m=new Set(VIS().map(p=>p.brand)).size;
+  $("nosN").textContent=`Más de ${Math.floor(n/10)*10} referencias`;$("nosNp").textContent=`Perfumes árabes y de diseñador de ${m} marcas, en un solo lugar.`;
+  $("nosWa").href=`https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}`}
+function renderContacto(){const C=S.company,ig=(C.instagram||REDES.instagram||"").replace(/^@/,""),tel=C.telefono||"",wa=`https://wa.me/${waNum()}`;
+  const card=(ico,t,d,href,cta)=>`<div class="ct-card"><span class="ct-ico">${ico}</span><h3>${t}</h3><p>${d}</p>${href?`<a class="btn-line" href="${href}" target="_blank" rel="noopener">${cta}</a>`:""}</div>`;
+  $("ctGrid").innerHTML=
+   card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19l-4 1Z"/></svg>',"WhatsApp",tel?esc(tel):"Pedidos, dudas y asesoría.",wa+"?text="+encodeURIComponent("Hola Upperfumes, quiero hacer una consulta."),"Escribir por WhatsApp")+
+   card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5Z"/></svg>',"Asesoría para elegir","¿No sabes cuál llevar? Cuéntanos qué te gusta y te recomendamos.",wa+"?text="+encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume."),"Pedir asesoría")+
+   (ig?card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>',"Instagram","@"+esc(ig),"https://instagram.com/"+esc(ig),"Ver Instagram"):"")+
+   (C.email?card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',"Correo",esc(C.email),"mailto:"+esc(C.email),"Escribir correo"):"")+
+   card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>',"Envíos","A todo Colombia. Te compartimos la guía de tu pedido."+(C.ciudad?` Estamos en ${esc(C.ciudad)}.`:""),"","")}
+function openDrawer(){const d=$("mdraw");
+  $("mdb").innerHTML=`<nav class="md-nav" aria-label="Menú principal"><button onclick="navInicio()">Home</button>
+  <button class="md-hot" onclick="closeDrawer();go('promos')">Descuentos${bfOn()?` <em>−${BF.pct}%</em>`:""}</button>
+  ${NAVM().map(g=>`<details><summary>${g.t}<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></summary><div>${g.items.map(([t,fn])=>`<button onclick="closeDrawer();${fn}">${esc(t)}</button>`).join("")}</div></details>`).join("")}
+  <button onclick="closeDrawer();setF({})">Ver todo</button><button onclick="closeDrawer();go('nosotros')">Nosotros</button><button onclick="closeDrawer();go('contacto')">Contacto</button></nav>
+  <div class="md-foot"><button onclick="closeDrawer();go('cuenta')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Iniciar sesión</button>${(S.company.instagram||REDES.instagram)?`<a href="https://instagram.com/${esc(String(S.company.instagram||REDES.instagram).replace(/^@/,""))}" target="_blank" rel="noopener">Instagram</a>`:""}</div>`;
+  d.hidden=false;requestAnimationFrame(()=>d.classList.add("on"));document.body.style.overflow="hidden"}
+function closeDrawer(){const d=$("mdraw");if(!d||d.hidden)return;d.classList.remove("on");document.body.style.overflow="";setTimeout(()=>{d.hidden=true},250)}
+function openMenu(){openDrawer()}
+/* franja de anuncio: un mensaje fijo centrado (o varios que se turnan con un fundido) */
+let ANN_I=0,ANN_T=null;
+function renderAnnc(){
+  const L=bfOn()?[[`BLACK FRIDAY | ${BF.pct}% OFF EN TODA LA TIENDA | HASTA EL ${BF.fin.toUpperCase()}`,"go('promos')",`BLACK FRIDAY | ${BF.pct}% OFF EN TODO`]]:ANUNCIOS.map(t=>[t.toUpperCase(),""]);
+  const show=()=>{const [t,fn,c]=L[ANN_I%L.length],tx=c?`<i class="an-l">${esc(t)}</i><i class="an-s">${esc(c)}</i>`:esc(t);$("annc").innerHTML=fn?`<button class="an-msg" onclick="${fn}">${tx} <span aria-hidden="true">→</span></button>`:`<span class="an-msg">${tx}</span>`};
+  show();clearInterval(ANN_T);if(L.length>1)ANN_T=setInterval(()=>{const m=$("annc").firstElementChild;if(m)m.classList.add("out");setTimeout(()=>{ANN_I++;show()},350)},4500);
 }
 function renderHome(){
   const loop=a=>a.concat(a);
-  const anuncios=bfOn()?[`BLACK FRIDAY · ${BF.pct}% OFF en todo el catálogo`,`Solo hasta el ${BF.fin}`,"Envíos a todo Colombia","Asesoría gratis por WhatsApp"]:ANUNCIOS;
-  $("annc").innerHTML=loop(anuncios).map(t=>`<span>${esc(t)}</span>`).join("");
+  renderAnnc();renderMenu();
   $("brands").innerHTML=loop(brandsOf()).map(b=>`<button onclick='setF(${JSON.stringify({brand:b}).replace(/'/g,"&#39;")})'>${esc(b)}</button>`).join("");
   if($("volP"))$("volP").textContent=bfOn()?`${BF.pct}% de descuento en todo el catálogo hasta el ${BF.fin}.`:`Lleva ${DESC_MIN} o más perfumes y obtén ${DESC_VOL}% de descuento en todo tu pedido.`;
   if($("volT"))$("volT").textContent=bfOn()?"Black Friday":"Descuento por volumen";
@@ -526,7 +564,32 @@ function renderHome(){
   $("tt").innerHTML=vids.length?`<div class="sh"><h2>Síguenos en TikTok</h2><p>Reseñas, llegadas y recomendaciones.</p><div class="rule"></div></div><div class="rail tt">${vids.map(v=>`<iframe src="https://www.tiktok.com/player/v1/${v}?controls=1&loop=1&rel=0" title="Video de TikTok" loading="lazy" allow="fullscreen" allowfullscreen></iframe>`).join("")}</div>`:"";
   $("asesorBtn").href=`https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}`;
   if($("empBtn"))$("empBtn").href=`https://wa.me/${waNum()}?text=${encodeURIComponent("Hola Upperfumes, quiero emprender vendiendo perfumes. ¿Me cuentan cómo funciona?")}`;
-  renderFooter();
+  renderHomeExtra();renderFooter();
+}
+/* ===== Home: secciones estilo Tessori ===== */
+const HCOL=[
+  {k:"Para ella",t:"Femeninos que dejan huella",d:"Dulces, florales y envolventes. Desde Good Girl hasta las Yara que todas piden.",ids:[2,12],g:"Femenino",cta:"Descubrir para ella"},
+  {k:"Para él",t:"Masculinos con presencia",d:"Frescos para el día e intensos para la noche. Sauvage, Khamrah y los árabes que más duran.",ids:[49,10],g:"Masculino",cta:"Descubrir para él"}];
+const ESTILOS=["Dulce","Fresco","Intenso","Amaderado"];
+function renderHomeExtra(){
+  const nG=g=>VIS().filter(p=>p.g===g||p.g==="Unisex").length;
+  if($("hCol"))$("hCol").innerHTML=HCOL.map((c,i)=>{const ph=c.ids.map(P).filter(p=>p&&fotoDe(p)).map(fotoDe);
+    return `<article class="hc${i%2?" rev":""}"><button class="hc-img" onclick="setF({g:'${c.g}'})" aria-label="${esc(c.cta)}">${ph.slice(0,2).map(u=>`<span style="background-image:url('${esc(u)}')"></span>`).join("")}</button>
+    <div class="hc-tx"><span class="hc-k">${esc(c.k)}</span><h2>${esc(c.t)}</h2><p>${esc(c.d)}</p><small>${nG(c.g)} perfumes</small><button class="btn-gold" onclick="setF({g:'${c.g}'})">${esc(c.cta)}</button></div></article>`}).join("");
+  const sp=PAQUETES.find(k=>k.vis==="caja");
+  if($("hBox")&&sp){const wa=e=>`https://wa.me/${waNum()}?text=${encodeURIComponent(`Hola Upperfumes, quiero el *Perfume sorpresa* (${cop(sp.precio)}). Me gusta el estilo ${e.toLowerCase()}.`)}`;
+    $("hBox").innerHTML=`<div class="hb-img"><img src="assets/img/tienda/caja-upperfumes.webp?v=3" alt="Caja negra Upperfumes con cinta y sello dorado" loading="lazy"></div>
+    <div class="hb-tx"><span class="hc-k">Perfume sorpresa</span><h2>Tú eliges el estilo.<br>Nosotros, el perfume.</h2><p>Dinos qué te gusta y te sorprendemos con un perfume de diseñador elegido para ti, en nuestra caja negra con cinta.</p>
+    <div class="hb-est" role="group" aria-label="Elige tu estilo">${ESTILOS.map(e=>`<a href="${wa(e)}" target="_blank" rel="noopener">${e}</a>`).join("")}</div>
+    <div class="hb-pr"><b>${cop(sp.precio)}</b>${sp.normal>sp.precio?`<s>${cop(sp.normal)}</s>`:""}</div>
+    <button class="btn-gold" onclick="go('promos')">Descubrir mi caja</button></div>`}
+  const pk=["Caja navideña","Trío Yara","Pack amigo secreto"].map(t=>PAQUETES.find(k=>k.t===t)).filter(Boolean);
+  if($("hPaq"))$("hPaq").innerHTML=`<div class="railhead"><div class="sh"><h2>Paquetes y regalos</h2><p>Combos listos para regalar o para darte un gusto.</p><div class="rule"></div></div><button class="hp-all" onclick="go('promos')">Ver todos ›</button></div>
+    <div class="hp-grid">${pk.map(k=>`<button class="hp" onclick="go('promos')">${paqVis(k.vis)}<span class="hp-tx"><small>${esc(k.tag)}</small><b>${esc(k.t)}</b><span class="hp-pr">${cop(k.precio)}${k.normal>k.precio?` <s>${cop(k.normal)}</s>`:""}</span></span></button>`).join("")}</div>`;
+  const C=S.company||{},ig=(C.instagram||REDES.instagram||"").replace(/^@/,"");
+  if($("hMarca"))$("hMarca").innerHTML=`<div class="hm-img" style="background-image:url('assets/img/tienda/vitrina-estanteria.webp')"></div>
+    <div class="hm-tx"><span class="mono" aria-hidden="true"><span class="u">U</span><span class="p">P</span></span><p>Un perfume dice quién eres antes de que hables. En Upperfumes reunimos las fragancias árabes y de diseñador que más se buscan en Colombia, con precios claros y alguien que te ayuda a elegir.</p>
+    <div class="hm-btns"><button class="btn-line" onclick="go('nosotros')">Conócenos</button>${ig?`<a class="btn-line" href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener">@${esc(ig)}</a>`:""}</div></div>`;
 }
 let CLIENTES=null;
 function loadClientes(){
@@ -547,7 +610,7 @@ function renderFooter(){
   $("ft").innerHTML=`<div class="ft-grid">
     <div class="ft-brand"><span class="mono"><span class="u">U</span><span class="p">P</span></span><div class="serif ft-name">UPPERFUMES</div><p>Perfumes de diseñador y árabes, con envíos a todo Colombia.</p>
       <div class="ft-social"><a href="${wa}" target="_blank" rel="noopener">WhatsApp</a>${ig?`<a href="https://instagram.com/${esc(ig)}" target="_blank" rel="noopener">Instagram</a>`:""}${tk?`<a href="https://www.tiktok.com/@${esc(tk)}" target="_blank" rel="noopener">TikTok</a>`:""}</div></div>
-    <div><h4>Comprar</h4><button onclick="setF({cat:'Árabes'})">Árabes</button><button onclick="setF({cat:'Diseñador'})">Diseñador</button><button onclick="setF({})">Todo el catálogo</button><button onclick="go('promos')">Promociones</button></div>
+    <div><h4>Comprar</h4><button onclick="setF({cat:'Árabes'})">Árabes</button><button onclick="setF({cat:'Diseñador'})">Diseñador</button><button onclick="setF({})">Todo el catálogo</button><button onclick="go('promos')">Descuentos</button><button onclick="go('nosotros')">Nosotros</button><button onclick="go('contacto')">Contacto</button></div>
     <div><h4>Ayuda</h4><a href="${wa}?text=${encodeURIComponent("Hola Upperfumes, quiero asesoría para elegir un perfume.")}" target="_blank" rel="noopener">Asesoría para elegir</a><button onclick="go('cuenta')">Mi cuenta y pedidos</button></div>
     <div><h4>Contacto</h4><a href="${wa}" target="_blank" rel="noopener">WhatsApp ${esc(tel)}</a>${C.email?`<a href="mailto:${esc(C.email)}">${esc(C.email)}</a>`:""}${C.ciudad?`<span>${esc(C.ciudad)}</span>`:""}<span>Envíos a todo Colombia</span></div>
   </div><div class="ft-bottom">© ${new Date().getFullYear()} Upperfumes · Fragancias que te elevan</div>`;
@@ -803,6 +866,7 @@ function renderProducto(){
       <div class="pd-meta">${esc(p.conc)} · ${p.ml} ml · ${esc(p.g)}</div>
       <div class="pd-price"><b>${cop(pr)}</b>${p.promo?`<s>${cop(p.publico)}</s><span class="save">Ahorras ${cop(ahorro)}</span>`:""}</div>
       <p class="pd-lead">${esc(FICHA_DESC[fichaDe(p)]||p.desc||"")}</p>
+      ${notasDe(p).length?`<div class="pd-notas"><small>Notas olfativas</small><div class="pn-row">${notasDe(p).map((n,i)=>`<div class="pn">${n.img?`<img src="${n.img}" alt="" loading="lazy">`:`<span class="nic">${n.e||"✦"}</span>`}<em>${LV3[i]?LV3[i][0]:"Nota"}</em><b>${esc(n.n)}</b></div>`).join("")}</div></div>`:""}
       <div class="pd-buy">
         <div class="pd-qrow"><span>Cantidad</span><div class="qty"><button aria-label="Quitar uno" onclick="pdQ=Math.max(1,pdQ-1);renderProducto()">−</button><span>${pdQ}</span><button aria-label="Agregar uno" onclick="pdQ=Math.min(${Math.max(1,p.stock)},pdQ+1);renderProducto()">+</button></div></div>
         <div class="pd-tot"><span>Total</span><b>${cop(pr*pdQ)}</b></div>
@@ -815,9 +879,6 @@ function renderProducto(){
   </div>
   <section class="pd-sec"><h2>Descripción</h2><p class="pd-txt">${esc(X.t||p.desc||"")}</p>
     ${X.o?`<div class="pd-chars"><div><small>Ideal para</small><span>${X.o.map(esc).join(" · ")}</span></div><div><small>Clima</small><span>${esc(X.c)}</span></div><div><small>Intensidad</small><span class="int i-${slug(X.i)}"><i></i><i></i><i></i>${esc(X.i)}</span></div></div>`:""}
-  </section>
-  <section class="pd-sec"><h2>Pirámide olfativa</h2>
-    <div class="pyr">${notasDe(p).map((n,i)=>`<div>${n.img?`<img class="nimg" src="${n.img}" alt="" loading="lazy">`:`<span class="nic">${n.e||"✦"}</span>`}<small>${LV3[i]?LV3[i][0]:"Nota"}</small><b>${esc(n.n)}</b><em>${esc(n.t||(LV3[i]?LV3[i][1]:""))}</em></div>`).join("")}</div>
   </section>
   <section class="pd-sec"><h2>Detalles</h2>
     <dl class="pd-dl"><div><dt>Marca</dt><dd>${esc(p.brand)}</dd></div><div><dt>Familia olfativa</dt><dd>${esc(p.fam||"")}</dd></div><div><dt>Concentración</dt><dd>${esc(p.conc)}</dd></div><div><dt>Presentación</dt><dd>${p.ml} ml</dd></div><div><dt>Género</dt><dd>${esc(p.g)}</dd></div><div><dt>Categoría</dt><dd>${esc(p.cat)}</dd></div></dl>
@@ -940,7 +1001,33 @@ function wchg(id,d){const p=P(id);wcart[id]=Math.min(p.stock,Math.max(0,(wcart[i
 
 /* ---------- promos ---------- */
 const COMBOS=[{t:"Dúo Carolina Herrera",d:"Good Girl + Very Good Girl",ids:[2,4],off:.1},{t:"Clásicos Gaultier",d:"Le Male + Scandal, para regalar en pareja",ids:[5,6],off:.1},{t:"Lujo árabe",d:"Amber Royal + Amber Noir",ids:[8,9],off:.12}];
-function renderPromos(){
+/* ===== Paquetes de la página de Descuentos =====
+   Para cambiar un paquete edita esta lista: t (nombre), tag (etiqueta), d (descripción), inc (qué incluye),
+   precio, normal (lo que costaría por separado a precio normal; se muestra tachado), vis ("regalo", "sorpresa" o ids de perfumes para las fotos).
+   Los paquetes tienen precio fijo: no se suman con el 20% de Black Friday ni con otros descuentos. */
+const PAQUETES=[
+  {t:"Caja navideña",tag:"Regalo listo",d:"Un perfume de diseñador a tu elección, en caja negra navideña con moño rojo, listo para regalar.",inc:["1 perfume de $95.000 a elección","Caja negra navideña con moño","Tarjeta con tu mensaje"],precio:89000,normal:0,vis:"navidad"},
+  {t:"Perfume sorpresa",tag:"Nosotros elegimos",d:"Dinos para quién es y qué estilo le gusta: dulce, fresco, intenso o amaderado. Nosotros elegimos el perfume y te llega en nuestra caja Upperfumes.",inc:["1 perfume de diseñador elegido por nosotros","Según el estilo que nos digas","Caja Upperfumes con cinta"],precio:79000,normal:95000,vis:"caja"},
+  {t:"Trío diseñador",tag:"El más pedido",d:"3 perfumes de diseñador de $95.000 a tu elección.",inc:["3 perfumes de $95.000 a elección","Mezcla mujer, hombre o unisex"],precio:200000,normal:285000,vis:[49,2,17],hot:true},
+  {t:"Trío Yara",tag:"Colección Lattafa",d:"Las tres Yara más pedidas: dulces, cremosas y de larga duración.",inc:["Yara Candy","Yara Rosa","Yara Elixir"],precio:259000,normal:345000,vis:[55,56,40]},
+  {t:"Dúo árabe",tag:"Larga duración",d:"2 perfumes árabes de $140.000 a tu elección.",inc:["2 perfumes árabes de $140.000","Lattafa, Armaf, Orientica y más"],precio:219000,normal:280000,vis:[8,13]},
+  {t:"Combo pareja",tag:"Para él y para ella",d:"Un perfume para él y uno para ella, de $115.000 cada uno.",inc:["1 perfume masculino de $115.000","1 perfume femenino de $115.000"],precio:179000,normal:230000,vis:[1,21]},
+  {t:"Pack amigo secreto",tag:"Para la oficina",d:"5 perfumes de diseñador de $95.000 para regalar en el intercambio.",inc:["5 perfumes de $95.000 a elección","Ideal para empresas y familias"],precio:320000,normal:475000,vis:[24,34,47,53,3]}];
+
+function paqVis(v){
+  if(v==="caja")return `<div class="pk-art pk-img"><img src="assets/img/tienda/caja-upperfumes.webp?v=3" alt="Caja negra Upperfumes con cinta y sello dorado" loading="lazy"></div>`;
+  if(v==="navidad")return `<div class="pk-art pk-img"><img src="assets/img/tienda/caja-navidad.webp?v=3" alt="Caja negra navideña de Upperfumes con moño rojo" loading="lazy"></div>`;
+  if(v==="regalo")return `<div class="pk-art pk-gift" aria-hidden="true"><span class="pk-lid"></span><span class="pk-box"><i></i><b>Up</b></span><span class="pk-bow"></span></div>`;
+  if(v==="sorpresa")return `<div class="pk-art pk-myst" aria-hidden="true"><span class="pk-lid"></span><span class="pk-box"><b>?</b></span><em></em><em></em><em></em></div>`;
+  const ps=v.map(P).filter(Boolean);return `<div class="pk-art pk-photos n${ps.length}">${ps.map(p=>`<div>${visual(p,30)}</div>`).join("")}</div>`;
+}
+function renderPaquetes(){const el=$("paquetes");if(!el)return;
+  el.innerHTML=PAQUETES.map(k=>{const ah=k.normal-k.precio,msg=`Hola Upperfumes, quiero el paquete *${k.t}* (${cop(k.precio)}). ¿Me ayudan a armarlo?`;
+    return `<article class="pk${k.hot?" pk-hot":""}">${paqVis(k.vis)}<div class="pk-body"><span class="pk-tag">${esc(k.tag)}</span><h3>${esc(k.t)}</h3><p>${esc(k.d)}</p>
+    <ul>${k.inc.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>
+    <div class="pk-pr"><b>${cop(k.precio)}</b>${k.normal>k.precio?`<s>${cop(k.normal)}</s><span>Ahorras ${cop(ah)}</span>`:""}</div>
+    <a class="pk-btn" href="https://wa.me/${waNum()}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Lo quiero</a></div></article>`}).join("")}
+function renderPromos(){renderPaquetes();
   const bf=bfOn();
   $("pT").textContent=bf?"Black Friday":"Promociones";
   $("pS").textContent=bf?`${BF.pct}% OFF en todo el catálogo. La promoción termina en`:"Las promos de la semana terminan en";
